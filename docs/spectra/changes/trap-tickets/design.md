@@ -33,14 +33,15 @@ Each `STACKS` entry gains `pool.trap`, a list of at least 4 titles with telltale
 
 ### Architecture evaluation before committing
 
-The dispatch panel shows a "先讓 agent 評估架構" button for any non-incident ticket that is not yet evaluated and not revealed. Using it with the selected vendor, model and billing method:
+The dispatch panel shows a "先讓 agent 評估架構" button for any non-incident ticket that is not yet evaluated and not revealed. Its disabled rule shares one `blocked` condition (outage, China-model ban) with the dispatch button. Using it with the selected vendor, model and billing method:
 
 - spends `40k × M.verb` tokens charged through the same billing path as a dispatch, and `0.5h × M.speed` of player time (parallel mode advances the clock like hand-writing; serial mode subtracts hours);
 - on a trap, reveals it with probability `min(0.95, 0.35 + 0.15 × M.cap)` (capability 2 → 0.65, 3 → 0.80, 4 and 5 → 0.95);
 - sets `evaluated: true` in every case; a missed trap and a normal ticket both show a "已評估" chip, so the player cannot distinguish them;
-- if subscription or seat quota runs out mid-evaluation, the evaluation stops with no reveal, consistent with dispatch.
+- if subscription or seat quota runs out mid-evaluation, the evaluation stops with no reveal, consistent with dispatch;
+- a completed evaluation of a sensitive ticket runs the same security-audit roll as a dispatch, and a company-API overdraft is penalised in the same action. Both checks live in shared helpers (`auditRoll`, `checkOverdraft`) called by `settle` and `evaluate`, so the dispatch-panel audit warning matches what evaluation does.
 
-The billing code in `settle` is split into a `charge(bill, vendor, model, tokens)` helper that returns the spend label and whether quota ran out, so dispatch and evaluation share it. The disabled-state rules (outage, China-model bans, not enough hours) match the dispatch button.
+The billing code in `settle` is split into a `charge(bill, vendor, model, tokens)` helper that returns the spend label, whether quota ran out, and the completed fraction `frac`, so dispatch and evaluation share it. The disabled-state rules (outage, China-model bans, not enough hours) match the dispatch button.
 
 ### Working on an unrevealed trap
 
@@ -56,6 +57,10 @@ Stack effects on the true run are evaluated against the true complexity (for exa
 ### Revealed trap
 
 On reveal: `cx = trueCx`, `base = trueBase`, `revealed: true`, and the card shows a "牽一髮動全身" chip plus the original shown complexity in the chip text (for example "原估 1"). All later estimates use the true complexity. KPI and due date keep their shown-complexity values.
+
+### Ticket flags are not re-rolled on reveal
+
+The big-codebase flag and the app store-review flag are generated from the shown complexity and are not re-rolled when a trap is revealed. So a revealed trap never gets the big-codebase modifier and an app-stack trap never faces store review. This is intentional (the user chose it after review): traps already cost enough, and the measured balance numbers were taken with this behaviour.
 
 ### Manager re-scoping
 
@@ -94,7 +99,7 @@ tools/sim.js accepts `SIM_TRAP=0` to replace `TRAP_RATE` with 0 before evaluatin
 - Issue fields: `trap`, `trueCx`, `trueBase`, `revealed`, `evaluated`, `rescoped`, and `shownCx` (set on reveal to the original shown complexity).
 - `STACKS[k].pool.trap`: ≥4 Traditional Chinese titles for every stack including `fe`.
 - Constants: `TRAP_RATE`, plus the evaluation and trap-stop numbers above, kept as named constants or local constants next to the trap helpers.
-- `charge(b, v, M, tk)` returns `{spend, short}` where `short` is true when quota ran out; `settle` uses it without behaviour change for existing tickets.
+- `charge(b, v, M, tk)` returns `{spend, short, frac}` where `short` is true when quota ran out and `frac` is the share of the requested tokens actually charged; `settle` uses it without behaviour change for existing tickets.
 
 **Failure modes**
 

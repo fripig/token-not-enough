@@ -11,7 +11,12 @@ const file=process.argv[2]||require('path').join(__dirname,'..','public','js','g
 const raw=require('fs').readFileSync(file,'utf8');
 let src=file.endsWith('.html')?raw.match(/<script>([\s\S]*)<\/script>/)[1]:raw;
 // SIM_TRAP=0 關掉陷阱題，用來和有陷阱時比較
-if(process.env.SIM_TRAP!==undefined) src=src.replace(/const TRAP_RATE=[\d.]+;/,`const TRAP_RATE=${+process.env.SIM_TRAP};`);
+if(process.env.SIM_TRAP!==undefined){
+  const rate=Number(process.env.SIM_TRAP), next=src.replace(/const TRAP_RATE=[\d.]+;/,`const TRAP_RATE=${rate};`);
+  if(process.env.SIM_TRAP.trim()===''||!Number.isFinite(rate)){ console.error(`SIM_TRAP 必須是數字，收到「${process.env.SIM_TRAP}」`); process.exit(1); }
+  if(next===src){ console.error('SIM_TRAP：找不到 const TRAP_RATE=…; 這行，沒辦法覆寫陷阱比例'); process.exit(1); }
+  src=next;
+}
 const N=+process.env.SIM_N||100;
 
 function sim(){

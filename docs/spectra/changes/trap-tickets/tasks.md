@@ -25,3 +25,11 @@
 Change note: task 1.1 was completed with `TRAP_RATE = 0.15`. Its record stays as written; the task below replaces that value per the design decision "Trap rate measured with the simulator".
 
 - [x] 5.1 Trap rate measured with the simulator: set `TRAP_RATE` to 0.10 and update the tools/check.js trap-share assertion to 0.10 ± 0.02. Verify: `node tools/check.js` passes, and `SIM_N=100 node tools/sim.js` with and without `SIM_TRAP=0` shows every parallel-mode company at or above 85% of its no-trap mean. [after: 4.1]
+
+## 6. Review and verify follow-ups
+
+- [x] 6.1 Architecture evaluation before committing — audit and overdraft: extract `auditRoll` and `checkOverdraft` from `settle` and call both from `evaluate`, so evaluating a sensitive ticket on personal billing rolls the audit and a company-API overdraft is penalised in the same action; build the dispatch button's disabled condition from the shared `blocked` value. Verify: tools/check.js asserts the two new spec scenarios (sensitive DeepSeek evaluation with a stubbed roll below 0.6 → trust −12 and audits +1; NT$5 company budget with Opus → budget 0, trust −8, overdraft log) and all earlier assertions still pass. [after: 5.1]
+- [x] 6.2 Close test gaps from verify: reveal a `trueCx: 5` trap through `reveal()` and assert the card shows complexity 5, 牽一髮動全身・原估 1 and an unchanged KPI; render a missed (evaluated, unrevealed) trap and assert its card matches an evaluated normal ticket and the dispatch panel has no evaluate button. Verify: `node tools/check.js` passes. [after: 6.1]
+- [x] 6.3 tools/sim.js `SIM_TRAP` fails loudly: exit with an error when the value is not a finite number or the `TRAP_RATE` replacement did not change the script. Verify: `SIM_TRAP=off node tools/sim.js` exits non-zero with a message, and `SIM_N=5 SIM_TRAP=0 node tools/sim.js` exits 0.
+- [x] 6.4 Ticket flags are not re-rolled on reveal — record it in docs/CLAUDE.md's trap section, and update the docs/CLAUDE.md line about external JS dependencies to mention the Google Analytics script added in public/index.html. Verify: content review. [after: 6.1]
+

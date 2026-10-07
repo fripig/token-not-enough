@@ -251,6 +251,14 @@ function charge(b,v,M,tk){
   if(b==='corp'){ const c=tk*M.price*S.priceMod[v]; S.corp-=c; S.corpDay+=c; S.st.corp+=c; return {spend:'公司 '+nt(c),short:false,frac:1}; }
   return {spend:'電費',short:false,frac:1};
 }
+/* 機敏程式碼送進個人帳號的稽核風險；派工與評估共用 */
+function auditRoll(is,b,v){
+  if(is.sens&&(b==='sub'||b==='api')&&Math.random()<(VENDORS[v].cn?.6:.35)){
+    S.trust=Math.max(0,S.trust-12); S.st.audits++;
+    log('warn',`! 資安稽核：機敏程式碼送進${VENDORS[v].cn?'中國雲端模型':'個人帳號'}被抓到，主管信任 -12`);
+  }
+}
+function checkOverdraft(){ if(S.corp<0){ log('warn','! 公司 API 預算透支，財務來信關切'); S.trust=Math.max(0,S.trust-8); S.corp=0; } }
 function settle(j,o={}){
   const is=j.issue,v=j.v,b=j.b,M=j.M,frac=o.frac??1;
   if(j.hidden&&hiddenTrap(is)){ reveal(is); S.st.trapHit++; }
@@ -277,11 +285,7 @@ function settle(j,o={}){
     is.tries++; is.base*=conflict?.4:j.stop?1:.7; if(conflict)S.st.conflicts++;
     log('bad',`✗ ${is.title}｜${who}｜${note||'測試沒過，改壞了'}｜燒掉 ${kt(tk)}｜${spend}｜${h1(hrs)}h`);
   }
-  if(is.sens&&(b==='sub'||b==='api')&&Math.random()<(VENDORS[v].cn?.6:.35)){
-    S.trust=Math.max(0,S.trust-12); S.st.audits++;
-    log('warn',`! 資安稽核：機敏程式碼送進${VENDORS[v].cn?'中國雲端模型':'個人帳號'}被抓到，主管信任 -12`);
-  }
-  if(S.corp<0){ log('warn','! 公司 API 預算透支，財務來信關切'); S.trust=Math.max(0,S.trust-8); S.corp=0; }
+  auditRoll(is,b,v); checkOverdraft();
   return {ok,hrs,rejected};
 }
 function wait(next){
@@ -320,6 +324,7 @@ function evaluate(){
   is.evaluated=true;
   if(is.trap&&Math.random()<revealRate(M)){ reveal(is); S.st.trapFound++; log('ok',`★ ${is.title}｜評估發現牽扯架構：原估複雜度 ${is.shownCx}，實際 ${is.cx}｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
   else log('dim',`· ${is.title}｜評估完成，看起來沒問題｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`);
+  auditRoll(is,sel.b,sel.v); checkOverdraft();
   render();
 }
 /* 陷阱曝光後可以找主管重新評估一次：信任夠就調 KPI、延期限 */
@@ -485,7 +490,7 @@ function dispatchPanel(){
   ${PAR()&&S.jobs.length?`<p class="hint">平行加成：已有 ${S.jobs.length} 個 agent 在跑，這張的 token 用量 ×${parMul().toFixed(2)}；完成時每多一個同時在跑的 agent，合併衝突機率 +10%。</p>`:''}
   <div class="warnline">${warn}</div>
   <div class="actions">
-    <button class="btn primary" data-act="go" ${S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m))||S.hours<.2||(PAR()&&S.jobs.length>=S.slots)?'disabled':''}>${PAR()?'派到背景':'派給'} ${VENDORS[sel.v].agent}</button>
+    <button class="btn primary" data-act="go" ${blocked||S.hours<.2||(PAR()&&S.jobs.length>=S.slots)?'disabled':''}>${PAR()?'派到背景':'派給'} ${VENDORS[sel.v].agent}</button>
     <button class="btn ghost" data-act="manual" ${mh>S.hours?'disabled':''}>自己手寫（${h1(mh)}h，0 token）</button>
     ${canEvaluate(is)?`<button class="btn ghost" data-act="eval" ${blocked||ec.hrs>S.hours?'disabled':''}>先讓 agent 評估架構（${kt(ec.tk)} tokens，${h1(ec.hrs)}h）</button>`:''}
     ${is.revealed&&!is.rescoped?`<button class="btn ghost" data-act="rescope">找主管重新評估</button>`:''}
