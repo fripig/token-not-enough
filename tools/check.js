@@ -254,6 +254,31 @@ function tests(){
   newRun('laravel'); S.st.trapHit=1; S.st.trapFound=2; S.day=20; showEnd();
   ok(els.mo.innerHTML.includes('<span>踩到陷阱</span><span>1 次</span>')&&els.mo.innerHTML.includes('<span>事先識破</span><span>2 次</span>'),'結算顯示踩到陷阱 1 次、事先識破 2 次');
 
+  /* parallel-slots：開局選工作槽數 */
+  const clickModal=(ds)=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+  start(); S.slots=3; fresh(); ok(S.slots===3,'預設 3 個工作槽');
+  start(); clickModal({mode:'parallel'});
+  ok(els.mo.innerHTML.includes('data-slots="2"')&&els.mo.innerHTML.includes('data-slots="6"')&&!els.mo.innerHTML.includes('data-slots="7"'),'平行模式顯示 2–6 的選項');
+  ok(/class="sb sel" data-slots="3"/.test(els.mo.innerHTML),'預設選 3');
+  clickModal({mode:'serial'}); ok(!els.mo.innerHTML.includes('data-slots'),'單線模式不顯示工作槽選項');
+  clickModal({mode:'parallel'}); clickModal({slots:'5'}); ok(els.mo.innerHTML.includes('最多 5 個 agent 在背景同時跑'),'模式說明跟著選的數量');
+  clickModal({act:'confirm'});
+  ok(S.slots===5&&els.app.innerHTML.includes('0 / 5 個工作槽'),'選 5 個：背景 agent 顯示 0 / 5');
+  showSetup(true); ok(!els.mo.innerHTML.includes('data-slots'),'週一調整不顯示工作槽選項');
+  S.slots=6; start(); ok(/class="sb sel" data-slots="6"/.test(els.mo.innerHTML),'再玩一個月預選上次的 6');
+  S.slots=9; fresh(); ok(S.slots===3,'不合法的工作槽數退回 3');
+
+  /* parallel-slots：派工上限、token 加成、結算標題 */
+  newRun('laravel','parallel'); S.slots=2; S.hours=8;
+  for(let i=0;i<3;i++){const is=ticket('fe',1); S.issues.push(is); sel.issue=is.id; sel.v='anthropic'; sel.m='sonnet'; sel.b='api'; dispatch();}
+  ok(S.jobs.length===2,'2 個工作槽時第三張派不出去',S.jobs.length);
+  const pend=ticket('fe',1); S.issues.push(pend); sel.issue=pend.id; render();
+  ok(/data-act="go" disabled/.test(els.app.innerHTML)&&els.app.innerHTML.includes('工作槽都滿了，先等一個 agent 跑完。'),'工作槽滿了：派工按鈕停用並顯示警告');
+  for(const [n,exp] of [[2,1.15],[4,1.45],[6,1.75]]){newRun('laravel','parallel'); S.slots=n; S.jobs=Array(n-1).fill({left:1}); ok(near(parMul(),exp),`${n} 個工作槽、已有 ${n-1} 個在跑 → token ×${exp}`);}
+  newRun('laravel','parallel'); S.slots=4; S.day=20; showEnd();
+  ok(els.mo.innerHTML.includes('月底結算・Laravel 新聞站・平行模式（4 個 agent）'),'結算標題顯示 4 個 agent');
+  newRun('laravel','serial'); S.day=20; showEnd(); ok(els.mo.innerHTML.includes('月底結算・Laravel 新聞站・單線模式</h2>'),'單線模式標題不變');
+
   console.log(`\n${pass} passed, ${fail} failed`);
   if(fail) process.exitCode=1;
 }

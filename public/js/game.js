@@ -97,7 +97,7 @@ const planOf=v=>VENDORS[v].plans.find(p=>p.id===S.subs[v])||{id:'none',price:0,d
 let S, sel, uid=0;
 function fresh(){
   uid=0;
-  S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',company:COMPANIES.includes(S?.company)?S.company:'laravel',jobs:[],slots:3,
+  S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',company:COMPANIES.includes(S?.company)?S.company:'laravel',slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,jobs:[],
     subs:objOf(APIV,()=>'none'),
     used:{sub:objOf(APIV,()=>({d:0,w:0})),seat:{anthropic:{d:0,w:0},google:{d:0,w:0}}},
     capMod:objOf(APIV,()=>1),priceMod:objOf(Object.keys(VENDORS),()=>1),cnBan:false,
@@ -191,6 +191,7 @@ function log(cls,msg){S.log.unshift({cls,msg:`D${String(S.day).padStart(2,'0')} 
 
 /* ===== 動作 ===== */
 const PAR=()=>S.mode==='parallel';
+const SLOT_CHOICES=[2,3,4,5,6];
 const clock=el=>{const m=Math.round((9+el)*60);return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;};
 /* 平行加成：同時在跑的 agent 越多，重複載入 context 與協調的 token 越多 */
 const parMul=()=>PAR()?1+.15*S.jobs.length:1;
@@ -519,7 +520,7 @@ function planCost(adjust){
   return c;
 }
 function showSetup(adjust){
-  draft={subs:{...S.subs},seat:'',mode:S.mode,company:S.company};
+  draft={subs:{...S.subs},seat:'',mode:S.mode,company:S.company,slots:S.slots};
   const draw=()=>{
     mo.innerHTML=`<h2>${adjust?'週一：調整訂閱':'月初：決定這個月怎麼付 token'}</h2>
     ${adjust?`<p class="lead">升級只補剩下週數的差價，降級不退費。</p>`:`<p class="lead">你是全端工程師，任職於「${STACKS[draft.company].company}」。接下來 20 個工作天，每天都會有新工單進來。你有 ${nt(S.wallet)} 的個人 AI 預算，部門另外有 ${nt(S.corp)} 的公司 API 預算。</p>
@@ -537,9 +538,10 @@ function showSetup(adjust){
       ${COMPANIES.map(k=>`<button class="sb ${draft.company===k?'sel':''}" data-company="${k}"><b>${STACKS[k].company}</b><small>難度 ${'★'.repeat(STACKS[k].level)}・${STACKS[k].desc}</small></button>`).join('')}
     </div></div>
     <div class="sec"><label>遊戲模式</label><div class="modes">
-      <button class="sb ${draft.mode==='parallel'?'sel':''}" data-mode="parallel"><b>平行模式</b><small>最多 3 個 agent 在背景同時跑，你的時間花在派工和審 PR。同時跑越多，token 用量加成越高，也越容易合併衝突。跑不完的會過夜。</small></button>
+      <button class="sb ${draft.mode==='parallel'?'sel':''}" data-mode="parallel"><b>平行模式</b><small>最多 ${draft.slots} 個 agent 在背景同時跑，你的時間花在派工和審 PR。同時跑越多，token 用量加成越高，也越容易合併衝突。跑不完的會過夜。</small></button>
       <button class="sb ${draft.mode==='serial'?'sel':''}" data-mode="serial"><b>單線模式</b><small>一次只處理一張，agent 跑多久你就等多久。比較單純，適合先熟悉付費方式的取捨。</small></button>
-    </div></div>`}
+    </div></div>
+    ${draft.mode==='parallel'?`<div class="sec"><label>同時跑幾個 agent</label><div class="seg">${SLOT_CHOICES.map(n=>`<button class="sb ${draft.slots===n?'sel':''}" data-slots="${n}">同時 ${n} 個 agent<small>token 最多 ×${(1+.15*(n-1)).toFixed(2)}・衝突最多 ${Math.round(10*(n-1))}%</small></button>`).join('')}</div></div>`:''}`}
     <div class="plans">${planPicker(adjust)}</div>
     <div class="actions"><button class="btn primary" data-act="confirm">${adjust?'確定調整':'開始第 1 天'}</button>${adjust?'<button class="btn ghost" data-act="close">不改了</button>':''}</div>`;
   };
@@ -550,12 +552,13 @@ function showSetup(adjust){
     else if(t.dataset.seat!==undefined){draft.seat=t.dataset.seat;draw();}
     else if(t.dataset.mode){draft.mode=t.dataset.mode;draw();}
     else if(t.dataset.company){draft.company=t.dataset.company;draw();}
+    else if(t.dataset.slots){draft.slots=+t.dataset.slots;draw();}
     else if(t.dataset.act==='close'){ov.hidden=true;}
     else if(t.dataset.act==='confirm'){
       const c=planCost(adjust); S.wallet-=c; S.st.subFee+=c;
       if(!adjust){
         if(draft.company!==S.company){S.company=draft.company;firstIssues();}
-        S.mode=draft.mode;log('dim',`· ${STACKS[S.company].company}・遊戲模式：${PAR()?'平行':'單線'}`);
+        S.mode=draft.mode; S.slots=draft.slots; log('dim',`· ${STACKS[S.company].company}・遊戲模式：${PAR()?`平行（同時 ${S.slots} 個 agent）`:'單線'}`);
       }
       for(const v in draft.subs) if(draft.subs[v]!==S.subs[v]){ S.subs[v]=draft.subs[v]; }
       if(draft.seat){S.seat={vendor:draft.seat,status:'pending',day:S.day};log('dim',`· 提出 ${VENDORS[draft.seat].name} 團隊席位採購申請`);}
@@ -593,7 +596,7 @@ function showEnd(){
   let best=0; const bk=`tokgame-best-${S.mode}-${S.company}`;
   try{best=+localStorage.getItem(bk)||(S.company==='laravel'?+localStorage.getItem('tokgame-best-'+S.mode)||0:0); if(score>best)localStorage.setItem(bk,score);}catch(e){}
   const vendorLines=Object.keys(S.st.tk).filter(v=>S.st.tk[v]>0).map(v=>`<div><span>${VENDORS[v].name}</span><span>${kt(S.st.tk[v])} tokens・${Math.round(S.st.tk[v]/tot*100)}%</span></div>`).join('')||'<div><span>沒有用到任何 agent</span><span>—</span></div>';
-  mo.innerHTML=`<h2>月底結算・${STACKS[S.company].company}・${PAR()?'平行模式':'單線模式'}</h2>
+  mo.innerHTML=`<h2>月底結算・${STACKS[S.company].company}・${PAR()?`平行模式（${S.slots} 個 agent）`:'單線模式'}</h2>
   <div class="grade"><span class="g">${g}</span><div class="gt"><b>${title}</b><span>${desc}</span></div></div>
   <div class="rc">
     <div><span>個人訂閱月費</span><span>${nt(S.st.subFee)}</span></div>
