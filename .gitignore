@@ -1,0 +1,4 @@
+# Spectra app data
+.spectra/
+.DS_Store
+.claude/settings.local.json
