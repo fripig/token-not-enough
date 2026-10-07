@@ -19,7 +19,7 @@ const VENDORS={
     plans:[{id:'none',name:'不訂閱',price:0},{id:'member',name:'會員',price:300,day:1500,week:6000}],
     models:[{id:'k2',name:'K2',cap:4,price:.12,w:1,speed:.9,verb:1.2}]},
   local:{name:'自架開源',agent:'OpenCode＋本地 GPU',vc:'--local',corp:false,plans:[],
-    models:[{id:'qwen',name:'Qwen Coder 32B',cap:3,price:0,w:0,speed:2.1,verb:1.3,cn:true},{id:'oss',name:'gpt-oss 20B',cap:2,price:0,w:0,speed:1.8,verb:1.2}]}
+    models:[{id:'qwen',name:'Qwen Coder 32B',cap:3,price:0,w:0,speed:2.1,verb:1.3,cn:true},{id:'gemma',name:'Gemma 27B',cap:3,price:0,w:0,speed:2.4,verb:1.25},{id:'oss',name:'gpt-oss 20B',cap:2,price:0,w:0,speed:1.8,verb:1.2}]}
 };
 const SUBV=Object.keys(VENDORS).filter(v=>VENDORS[v].plans.length>1);
 const APIV=Object.keys(VENDORS).filter(v=>v!=='local');
@@ -161,6 +161,8 @@ function stackHint(is){
   if(is.stack==='app') return `App：要跑模擬器，執行時間 ×${stackHrs(is)}${is.store?`；這張要過 App Store 審核，agent 做完仍有 ${STORE_REJECT*100}% 機率被退件，自我審核救不回來`:''}。`;
   return '';
 }
+/* 本地 GPU 一次只能跑一個 agent，跑的時候電腦被吃滿，也不能自己手寫 */
+const localBusy=()=>S.jobs.some(j=>j.b==='local');
 const manualHrs=is=>is.cx*2.2*(is.tries?.8:1)*(unfamiliar(is)?2:1);
 function est(is,v,mid,rv=sel.rv){
   const M=model(v,mid), raw=M.cap-is.cx, diff=raw+stackGap(is,M);
@@ -210,7 +212,7 @@ function dispatch(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is) return;
   const j=makeJob(is);
   if(PAR()){
-    if(S.jobs.length>=S.slots) return;
+    if(S.jobs.length>=S.slots||(j.b==='local'&&localBusy())) return;
     j.left=j.hrs; is.running=true; S.jobs.push(j); sel.issue=null;
     log('dim',`→ 派出 ${is.title}｜${VENDORS[j.v].agent} / ${j.M.name}｜預計 ${h1(j.hrs)}h`);
     advance(.2); render(); return;
@@ -297,7 +299,7 @@ function wait(next){
 function manual(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is) return;
   const hrs=manualHrs(is);
-  if(hrs>S.hours) return;
+  if(hrs>S.hours||localBusy()) return;
   if(PAR()){ is.running=true; advance(hrs); is.running=false; if(!S.issues.includes(is)){render();return;} }
   else S.hours-=hrs;
   S.st.manual++;
@@ -316,7 +318,7 @@ const revealRate=M=>Math.min(.95,.35+.15*M.cap);
 function evaluate(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is||!canEvaluate(is)) return;
   const M=model(sel.v,sel.m), {tk,hrs}=evalCost(M);
-  if(hrs>S.hours) return;
+  if(hrs>S.hours||(sel.b==='local'&&localBusy())) return;
   if(PAR()){ is.running=true; advance(hrs); is.running=false; if(!S.issues.includes(is)){render();return;} }
   else S.hours-=hrs;
   const ch=charge(sel.b,sel.v,M,tk), used=tk*ch.frac;
@@ -467,6 +469,7 @@ function dispatchPanel(){
   const pc=e.pe>=.8?'good':e.pe>=.5?'meh':'bad';
   let warn='';
   if(S.outage===sel.v) warn='這家今天當機，換一家吧。';
+  else if(sel.b==='local'&&localBusy()) warn='本地 GPU 已經有一個 agent 在跑，等它跑完才能再派。';
   else if(is.sens&&VENDORS[sel.v].cn) warn='機敏工單送到中國雲端：有 60% 機率被資安稽核抓到。';
   else if(is.sens&&(sel.b==='sub'||sel.b==='api')) warn='機敏工單用個人帳號：有 35% 機率被資安稽核抓到。';
   else if((sel.b==='sub'||sel.b==='seat')&&cl.hi>quotaLeft(sel.b,sel.v)) warn='剩餘額度可能不夠，跑到一半會被限流。';
@@ -476,7 +479,7 @@ function dispatchPanel(){
   else if(!PAR()&&e.hrs*1.2>S.hours) warn='今天剩的工時可能不夠跑完。';
   else if(sel.b==='api'&&cl.hi>S.wallet) warn='錢包可能不夠付這一筆。';
   const mh=manualHrs(is), ec=evalCost(model(sel.v,sel.m));
-  const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m));
+  const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m))||(sel.b==='local'&&localBusy());
   return `<div class="ph"><h2>派工台</h2><span>${is.title}</span></div>
   <div class="sec"><label>選 AGENT 與模型</label>${rows}</div>
   <div class="sec"><label>誰付這筆 TOKEN</label><div class="seg">${segs}</div>${S.seat.status==='approved'&&S.seat.vendor!==sel.v?`<p class="hint">你有 ${VENDORS[S.seat.vendor].name} 團隊席位，選 ${VENDORS[S.seat.vendor].agent} 的模型才能用公司席位付款。</p>`:''}</div>
@@ -492,7 +495,7 @@ function dispatchPanel(){
   <div class="warnline">${warn}</div>
   <div class="actions">
     <button class="btn primary" data-act="go" ${blocked||S.hours<.2||(PAR()&&S.jobs.length>=S.slots)?'disabled':''}>${PAR()?'派到背景':'派給'} ${VENDORS[sel.v].agent}</button>
-    <button class="btn ghost" data-act="manual" ${mh>S.hours?'disabled':''}>自己手寫（${h1(mh)}h，0 token）</button>
+    <button class="btn ghost" data-act="manual" ${mh>S.hours||localBusy()?'disabled':''}>${localBusy()?'本地 GPU 跑 agent 中，電腦卡到沒辦法手寫':`自己手寫（${h1(mh)}h，0 token）`}</button>
     ${canEvaluate(is)?`<button class="btn ghost" data-act="eval" ${blocked||ec.hrs>S.hours?'disabled':''}>先讓 agent 評估架構（${kt(ec.tk)} tokens，${h1(ec.hrs)}h）</button>`:''}
     ${is.revealed&&!is.rescoped?`<button class="btn ghost" data-act="rescope">找主管重新評估</button>`:''}
   </div>`;
