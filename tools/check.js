@@ -79,7 +79,9 @@ function tests(){
   ok(rustIs.every(i=>i.due>=4+2+1&&i.due<=4+5+1),'複雜度 3 rust 工單期限多一天（day 4 → 7～10）');
   ok(rustIs.some(i=>i.due===8),'出現 day 4 + 偏移 3 + 1 = 8 的期限');
   newRun('app'); S.day=19;
-  ok([...Array(2000)].map(()=>makeIssue(false)).every(i=>i.due<=20),'期限不超過第 20 天');
+  const late19=[...Array(2000)].map(()=>makeIssue(false));
+  ok(late19.every(i=>i.due<=20),'期限不超過第 20 天');
+  ok(late19.filter(i=>i.stack==='app').some(i=>i.due===20),'第 19 天的 app 工單期限被壓到第 20 天');
   newRun('app'); S.day=5;
   ok([...Array(300)].map(()=>makeIssue(true)).every(i=>i.due===5&&i.kpi===33),'App 事故單當天到期、KPI 33');
 
@@ -89,6 +91,23 @@ function tests(){
     const btn=els.mo.innerHTML.match(new RegExp(`data-company="${k}">([\\s\\S]*?)</button>`))?.[1]||'';
     ok(btn.includes(`難度 ${stars}・`),`${STACKS[k].company} 標示難度 ${stars}`,btn);
   }
+
+  /* 派工台提示（Stack effect visibility） */
+  newRun('laravel');
+  const hRust=stackHint(ticket('rust',2));
+  ok(hRust.includes('×1.2')&&hRust.includes('borrow checker'),'Rust 提示含 ×1.2 與 borrow checker',hRust);
+  ok(stackHint(ticket('fe',2))==='','前端工單沒有提示');
+  ok(stackHint(ticket('laravel',4))==='','複雜度 4 的 laravel 工單沒有提示');
+  ok(stackHint(ticket('rails',3)).includes('慣例多'),'複雜度 3 的 rails 工單有慣例提示');
+  ok(stackHint(ticket('app',3,{store:true})).includes('20%')&&!stackHint(ticket('app',3)).includes('20%'),'只有需上架審核的 app 工單提到 20% 退件');
+
+  /* 畫面元素：週一調整不顯示公司、標頭、卡片標籤、手寫按鈕 */
+  newRun('laravel'); showSetup(true);
+  ok(!els.mo.innerHTML.includes('data-company'),'週一調整訂閱不顯示公司選擇');
+  newRun('laravel'); const rt=ticket('rust',2), st=ticket('app',3,{store:true}); S.issues=[rt,st]; sel.issue=rt.id; render();
+  ok(els.app.innerHTML.includes('Laravel 新聞站・全端工程師'),'標頭顯示公司名稱');
+  ok(els.app.innerHTML.includes('chip unfam">不熟')&&els.app.innerHTML.includes('chip store">需上架審核'),'卡片顯示不熟與需上架審核標籤');
+  ok(els.app.innerHTML.includes('自己手寫（8.8h'),'不熟的 rust 工單手寫按鈕顯示 8.8h');
 
   /* 2.2 App 上架審核 */
   const realRandom=Math.random;
@@ -111,8 +130,8 @@ function tests(){
 
   /* 3.3 最高分 key */
   const endWith=(company,mode,seed)=>{newRun(company,mode);store={...seed};S.day=20;showEnd();return els.mo.innerHTML;};
-  let html=endWith('laravel','parallel',{'tokgame-best-parallel':'999999'});
-  ok(html.includes('999,999'),'Laravel 沿用舊 key 的最高分');
+  let html=endWith('laravel','parallel',{'tokgame-best-parallel':'4200'});
+  ok(html.includes('4,200'),'Laravel 沿用舊 key 的最高分（spec：4200 → 4,200）');
   ok(html.includes('月底結算・Laravel 新聞站'),'結算標題有公司名稱');
   ok(!('tokgame-best-parallel-laravel' in store),'沒破紀錄時不寫新 key');
   html=endWith('rails','parallel',{'tokgame-best-parallel':'999999'});

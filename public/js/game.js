@@ -137,16 +137,18 @@ function useQuota(kind,v,x){const u=S.used[kind][v];u.d+=x;u.w+=x;}
 const REVIEW=[{name:'不審核',tk:1,hrs:1},{name:'自審',tk:1.3,hrs:1.2},{name:'嚴格審核',tk:1.6,hrs:1.35}];
 const catchRate=(rv,M)=>rv===0?0:Math.min(.95,.45+.08*M.cap+(rv===2?.2:0));
 /* 技術線效果：只看技術線本身的特性，不替各家模型設「誰比較會」的分數 */
+const conventional=is=>(is.stack==='laravel'||is.stack==='rails')&&is.cx<=3; // 框架慣例多
+const STORE_REJECT=.2;                                                       // App Store 退件機率
 function stackGap(is,M){
-  if((is.stack==='laravel'||is.stack==='rails')&&is.cx<=3) return 1; // 框架慣例多
+  if(conventional(is)) return 1;
   if(is.stack==='rust'&&M.cap<4) return -1;                            // borrow checker
   return 0;
 }
 const stackHrs=is=>is.stack==='rust'?1.2:is.stack==='app'?1.15:1;     // 編譯測試、模擬器
 function stackHint(is){
-  if((is.stack==='laravel'||is.stack==='rails')&&is.cx<=3) return `${STACKS[is.stack].name} 慣例多：複雜度 3 以下的工單，成功率視同簡單一級。`;
-  if(is.stack==='rust') return 'Rust：編譯測試比較慢，執行時間 ×1.2；能力 4 以下的模型容易卡在 borrow checker，成功率視同難一級。';
-  if(is.stack==='app') return `App：要跑模擬器，執行時間 ×1.15${is.store?'；這張要過 App Store 審核，agent 做完仍有 20% 機率被退件，自我審核救不回來':''}。`;
+  if(conventional(is)) return `${STACKS[is.stack].name} 慣例多：複雜度 3 以下的工單，成功率視同簡單一級。`;
+  if(is.stack==='rust') return `Rust：編譯測試比較慢，執行時間 ×${stackHrs(is)}；能力 4 以下的模型容易卡在 borrow checker，成功率視同難一級。`;
+  if(is.stack==='app') return `App：要跑模擬器，執行時間 ×${stackHrs(is)}${is.store?`；這張要過 App Store 審核，agent 做完仍有 ${STORE_REJECT*100}% 機率被退件，自我審核救不回來`:''}。`;
   return '';
 }
 const manualHrs=is=>is.cx*2.2*(is.tries?.8:1)*(unfamiliar(is)?2:1);
@@ -157,7 +159,7 @@ function est(is,v,mid,rv=sel.rv){
   if(is.big&&M.ctx)p+=.08; if(is.big&&!M.ctx&&M.cap<4)p-=.08;
   p=Math.max(.05,Math.min(.97,p));
   const c=catchRate(rv,M);
-  return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:(p+(1-p)*c)*(is.store?.8:1),hrs:is.cx*M.speed*(is.tries?.8:1)*REVIEW[rv].hrs*stackHrs(is)};
+  return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:(p+(1-p)*c)*(is.store?1-STORE_REJECT:1),hrs:is.cx*M.speed*(is.tries?.8:1)*REVIEW[rv].hrs*stackHrs(is)};
 }
 
 function bills(v){
@@ -236,7 +238,7 @@ function settle(j,o={}){
   else spend='電費';
   if(ok&&o.conflict&&Math.random()<o.conflict){ok=false;conflict=true;note='和其他 agent 的改動合併衝突';}
   /* App 上架審核在 agent 做完之後才發生，自我審核救不回來 */
-  if(ok&&is.store&&Math.random()<.2){ok=false;rejected=true;note='卡在 App Store 審核被退件';}
+  if(ok&&is.store&&Math.random()<STORE_REJECT){ok=false;rejected=true;note='卡在 App Store 審核被退件';}
   S.st.tk[v]+=tk; S.st.byBill[b]+=tk;
   const who=`${VENDORS[v].agent} / ${M.name}`;
   if(ok){
