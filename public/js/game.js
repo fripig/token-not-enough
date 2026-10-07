@@ -479,7 +479,7 @@ function dispatchPanel(){
   const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m));
   return `<div class="ph"><h2>派工台</h2><span>${is.title}</span></div>
   <div class="sec"><label>選 AGENT 與模型</label>${rows}</div>
-  <div class="sec"><label>誰付這筆 TOKEN</label><div class="seg">${segs}</div></div>
+  <div class="sec"><label>誰付這筆 TOKEN</label><div class="seg">${segs}</div>${S.seat.status==='approved'&&S.seat.vendor!==sel.v?`<p class="hint">你有 ${VENDORS[S.seat.vendor].name} 團隊席位，選 ${VENDORS[S.seat.vendor].agent} 的模型才能用公司席位付款。</p>`:''}</div>
   <div class="sec"><label>自我審核</label><div class="seg">${REVIEW.map((r,i)=>`<button class="sb ${sel.rv===i?'sel':''}" data-rv="${i}">${r.name}<small>${i?`token ×${r.tk}・抓錯 ${Math.round(catchRate(i,M)*100)}%`:'改壞就整單重做'}</small></button>`).join('')}</div></div>
   <div class="est">
     <div><label>預估 tokens${parMul()>1?` ×${parMul().toFixed(2)}`:''}</label><b>${kt(e.lo)}–${kt(e.hi)}</b></div>
