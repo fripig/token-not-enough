@@ -3,3 +3,4 @@
 .DS_Store
 .claude/settings.local.json
 .idea/
+docs/spectra/.vector-search.db*
