@@ -45,6 +45,7 @@ const STACKS={
     3:['文章列表 N+1 查詢拖慢 3 秒','播放器元件重構成 Composition API','Queue worker 記憶體洩漏','多語系 hreflang 全面修正','匯出報表改成非同步','圖片上傳改走 S3 預簽網址'],
     4:['Laravel 大版本升級','CKEditor 換成 Tiptap 的內容轉換','CDN 快取失效策略重寫','權限系統改成角色＋政策','CI 流程從零改成容器化部署'],
     5:['舊資料庫拆分遷移','從單體拆出搜尋服務','整站改 SSR 還要保住 SEO'],
+    trap:['文章網址只要改一下格式','順便把作者欄位改成可以多選','時區改成跟著使用者設定，應該很快','後台列表加一個「全部匯出」按鈕就好'],
     inc:['正式站 502：worker 不停重啟','WAF 誤擋編輯後台','首頁快取被打穿，RDS CPU 99%','排程重複發送推播']}},
   rails:{name:'Rails',company:'Rails SaaS',level:1,desc:'Convention over configuration，簡單工單便宜模型就夠用。',pool:{
     1:['帳單 Email 主旨少了公司名稱','後台 flash 訊息沒有翻譯','價目表頁連結指到舊方案','註冊頁密碼提示文字錯誤'],
@@ -52,6 +53,7 @@ const STACKS={
     3:['Dashboard 頁 N+1 拖慢到 4 秒','多租戶資料改用 scope 隔離','Stripe webhook 冪等處理','Active Storage 改傳到 S3 直傳','把 callbacks 抽成 service object'],
     4:['Rails 大版本升級','Webpacker 換成 importmap','權限從 CanCanCan 換成 Pundit','背景任務從 Sidekiq 搬到 Solid Queue'],
     5:['單一資料庫拆成多租戶分庫','計費系統改成用量計價','把報表模組拆成獨立服務'],
+    trap:['帳號只要改成可以屬於多個組織','順便讓方案支援按月或按年切換','User 加一個軟刪除，應該改一行就好','金額欄位從整數改成小數，很快吧'],
     inc:['Sidekiq 佇列塞爆，帳單沒寄出','部署後 migration 鎖表','Stripe webhook 重複扣款','Puma worker 記憶體爆掉不停重啟']}},
   rust:{name:'Rust',company:'Rust 基礎設施',level:3,desc:'編譯測試比較慢；能力不足的模型容易卡在 borrow checker。',pool:{
     1:['CLI --help 說明打錯字','log 等級預設改成 info','README 範例指令過期','錯誤訊息補上檔案路徑'],
@@ -59,6 +61,7 @@ const STACKS={
     3:['async handler 裡的鎖造成延遲尖峰','把 unwrap 全面改成錯誤型別','連線池改用 tokio 版本','跨平台路徑處理在 Windows 壞掉','大檔案改成串流處理避免吃光記憶體'],
     4:['tokio 大版本升級','自訂 trait 物件改成泛型消除 dyn','gRPC 服務從 tonic 舊版遷移','加上 graceful shutdown 與重試'],
     5:['把 C 函式庫的 FFI 包成安全介面','單機服務改成分散式共識','核心路徑改寫成 lock-free'],
+    trap:['這個 struct 只要多存一個 reference','順便把同步函式改成 async','設定改成可以熱重載，應該很快','錯誤型別統一一下，改幾行就好'],
     inc:['proxy 在高流量下 panic 重啟','記憶體洩漏讓節點被 OOM kill','憑證輪替後 TLS 握手全失敗','新版 binary 在 ARM 機器啟動就 segfault']}},
   app:{name:'App',company:'App 團隊',level:2,desc:'要跑模擬器所以比較慢；部分工單要過 App Store 審核。',pool:{
     1:['設定頁版本號沒更新','深色模式下按鈕文字看不到','推播文案錯字','啟動畫面 logo 被裁切'],
@@ -66,6 +69,7 @@ const STACKS={
     3:['離線時文章快取同步','推播點開要導到正確頁面','圖片列表捲動卡頓','Android 13 通知權限流程','App 內購買恢復購買失敗'],
     4:['React Native 大版本升級','登入改用 Sign in with Apple','改成 Jetpack Compose 重寫主畫面','導入 deep link 與 universal link'],
     5:['iOS 與 Android 共用核心改成 Kotlin Multiplatform','整個 App 改成離線優先架構','從 WebView 包殼改成原生 App'],
+    trap:['登入狀態只要改成多帳號切換','順便支援橫向模式','字體大小跟著系統設定，應該很快','底部選單加一個分頁就好'],
     inc:['新版上架後啟動就閃退','推播憑證過期，全部收不到通知','API 改版讓舊版 App 全部登不進去','付款頁在特定機型白畫面']}},
   fe:{name:'前端',company:'前端',desc:'',pool:{
     1:['首頁 banner 在手機版被切掉','表單 placeholder 顏色太淡','favicon 換新版','行事曆元件週日顯示錯位'],
@@ -73,6 +77,7 @@ const STACKS={
     3:['首頁 LCP 從 4 秒壓到 2 秒','共用元件庫改用 design token','表單狀態管理改成 Pinia','無障礙檢查修到 AA 等級','打包體積砍掉一半'],
     4:['Vue 2 升級到 Vue 3','Webpack 換成 Vite','整站導入 TypeScript','前端錯誤監控與 source map 上傳'],
     5:['舊後台改寫成 SPA','導入微前端拆分各團隊頁面','設計系統全面改版'],
+    trap:['表單只要多一個欄位','順便讓整站支援深色模式','日期顯示改成跟著語系，應該很快','把這個彈窗改成可以拖拉，改一下就好'],
     inc:[]}}
 };
 const COMPANIES=['laravel','rails','rust','app'];
@@ -98,7 +103,7 @@ function fresh(){
     capMod:objOf(APIV,()=>1),priceMod:objOf(Object.keys(VENDORS),()=>1),cnBan:false,
     seat:{vendor:null,status:'none',day:0},
     outage:null,corpDay:0,issues:[],log:[],
-    st:{subFee:0,api:0,corp:0,done:0,late:0,audits:0,manual:0,conflicts:0,caught:0,tk:objOf(Object.keys(VENDORS),()=>0),byBill:{sub:0,seat:0,api:0,corp:0,local:0},kpiLost:0}};
+    st:{subFee:0,api:0,corp:0,done:0,late:0,audits:0,manual:0,conflicts:0,caught:0,tk:objOf(Object.keys(VENDORS),()=>0),byBill:{sub:0,seat:0,api:0,corp:0,local:0},kpiLost:0,trapHit:0,trapFound:0}};
   sel={issue:null,v:'anthropic',m:'sonnet',b:'api',rv:sel?.rv??1};
 }
 
@@ -109,6 +114,8 @@ function pickStack(){
   if(r<.9) return 'fe';
   return pick(COMPANIES.filter(k=>k!==S.company));
 }
+/* 陷阱題：看起來是小單（複雜度 1–2），其實牽扯架構（真實複雜度 4–5） */
+const TRAP_RATE=.1;
 /* Rust、App 比較慢：期限多一天、KPI ×1.3 作為補償 */
 const hardStack=st=>st==='rust'||st==='app';
 const unfamiliar=is=>is.stack!==S.company&&is.stack!=='fe';
@@ -118,7 +125,10 @@ function makeIssue(inc){
   const base=BASE[cx]*R(.85,1.15);
   let due=inc?S.day:S.day+(cx<=2?1+rnd(3):2+rnd(4));
   const stack=inc?S.company:pickStack();
-  return {id:++uid,title:pick(STACKS[stack].pool[inc?'inc':cx]),cx,base,inc:!!inc,stack,
+  const trap=!inc&&cx<=2&&Math.random()<TRAP_RATE, trueCx=Math.random()<.6?4:5;
+  const title=trap&&Math.random()<.5?pick(STACKS[stack].pool.trap):pick(STACKS[stack].pool[inc?'inc':cx]);
+  return {id:++uid,title,cx,base,inc:!!inc,stack,
+    trap,trueCx:trap?trueCx:cx,trueBase:trap?BASE[trueCx]*R(.85,1.15):base,revealed:false,evaluated:false,rescoped:false,
     store:stack==='app'&&cx>=2&&Math.random()<.4,
     sens:Math.random()<(inc?.55:.25),big:cx>=3&&Math.random()<.45,
     client:inc?CLIENTS[0]:pickClient(),
@@ -184,10 +194,16 @@ const PAR=()=>S.mode==='parallel';
 const clock=el=>{const m=Math.round((9+el)*60);return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;};
 /* 平行加成：同時在跑的 agent 越多，重複載入 context 與協調的 token 越多 */
 const parMul=()=>PAR()?1+.15*S.jobs.length:1;
+/* 還沒曝光的陷阱題照真實複雜度跑；模型能力不夠就做到一半停下來 */
+const TRAP_STOP=.4;
+const hiddenTrap=is=>is.trap&&!is.revealed;
+const trueView=is=>hiddenTrap(is)?{...is,cx:is.trueCx,base:is.trueBase}:is;
+function reveal(is){ if(!hiddenTrap(is)) return; is.shownCx=is.cx; is.cx=is.trueCx; is.base=is.trueBase; is.revealed=true; }
 function makeJob(is){
-  const e=est(is,sel.v,sel.m);
-  const ok=Math.random()<e.p;
-  return {issue:is,v:sel.v,b:sel.b,M:e.M,mul:parMul(),rv:sel.rv,tk:e.tk*R(.7,1.3),hrs:e.hrs*R(.8,1.2),ok,caught:!ok&&Math.random()<e.c,left:0};
+  const hidden=hiddenTrap(is), e=est(trueView(is),sel.v,sel.m);
+  const stop=hidden&&e.M.cap<is.trueCx, f=stop?TRAP_STOP:1;
+  const ok=!stop&&Math.random()<e.p;
+  return {issue:is,v:sel.v,b:sel.b,M:e.M,mul:parMul(),rv:sel.rv,tk:e.tk*f*R(.7,1.3),hrs:e.hrs*f*R(.8,1.2),ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop};
 }
 function dispatch(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is) return;
@@ -224,18 +240,26 @@ function cancelJobs(pred,note){
   out.forEach(j=>{j.issue.running=false;settle(j,{frac:Math.max(.05,1-j.left/j.hrs),fail:true,note});});
   return out.length;
 }
+/* 扣款：派工與評估共用。訂閱／席位額度不夠時只扣剩下的，回傳 short 與實際完成比例 frac */
+function charge(b,v,M,tk){
+  if(b==='sub'||b==='seat'){
+    const need=tk*M.w, left=quotaLeft(b,v);
+    if(need>left){ useQuota(b,v,left); return {spend:`額度 ${kt(left)}`,short:true,frac:need>0?left/need:0}; }
+    useQuota(b,v,need); return {spend:`額度 ${kt(need)}`,short:false,frac:1};
+  }
+  if(b==='api'){ const c=tk*M.price*S.priceMod[v]; S.wallet-=c; S.st.api+=c; return {spend:nt(c),short:false,frac:1}; }
+  if(b==='corp'){ const c=tk*M.price*S.priceMod[v]; S.corp-=c; S.corpDay+=c; S.st.corp+=c; return {spend:'公司 '+nt(c),short:false,frac:1}; }
+  return {spend:'電費',short:false,frac:1};
+}
 function settle(j,o={}){
   const is=j.issue,v=j.v,b=j.b,M=j.M,frac=o.frac??1;
+  if(j.hidden&&hiddenTrap(is)){ reveal(is); S.st.trapHit++; }
   let tk=j.tk*frac, hrs=j.hrs*frac, ok=j.ok&&!o.fail, note=o.note||'', spend='', conflict=false, fixed=false, rejected=false;
   if(!j.ok&&j.caught&&!o.fail){tk*=1.25;ok=true;fixed=true;}
   if(!j.ok&&!j.caught&&j.rv&&!o.fail) note='審核沒抓到，上線後測試才爆';
-  if(b==='sub'||b==='seat'){
-    const need=tk*M.w, left=quotaLeft(b,v);
-    if(need>left){ const f=need>0?left/need:0; tk*=f; hrs=Math.max(.3,hrs*Math.max(.3,f)); ok=false; note='撞到用量上限，agent 停在一半'; useQuota(b,v,left); spend=`額度 ${kt(left)}`; }
-    else { useQuota(b,v,need); spend=`額度 ${kt(need)}`; }
-  } else if(b==='api'){ const c=tk*M.price*S.priceMod[v]; S.wallet-=c; S.st.api+=c; spend=nt(c); }
-  else if(b==='corp'){ const c=tk*M.price*S.priceMod[v]; S.corp-=c; S.corpDay+=c; S.st.corp+=c; spend='公司 '+nt(c); }
-  else spend='電費';
+  if(j.stop&&!o.fail) note='做到一半發現牽扯整個架構，先停下來';
+  const ch=charge(b,v,M,tk); spend=ch.spend;
+  if(ch.short){ tk*=ch.frac; hrs=Math.max(.3,hrs*Math.max(.3,ch.frac)); ok=false; note='撞到用量上限，agent 停在一半'; }
   if(ok&&o.conflict&&Math.random()<o.conflict){ok=false;conflict=true;note='和其他 agent 的改動合併衝突';}
   /* App 上架審核在 agent 做完之後才發生，自我審核救不回來 */
   if(ok&&is.store&&Math.random()<STORE_REJECT){ok=false;rejected=true;note='卡在 App Store 審核被退件';}
@@ -247,9 +271,10 @@ function settle(j,o={}){
     if(fixed)S.st.caught++;
     log('ok',`✓ ${is.title}｜${who}${j.rv?`・${REVIEW[j.rv].name}`:''}｜${kt(tk)} tokens｜${spend}｜${h1(hrs)}h｜KPI +${is.kpi}`);
     if(fixed)log('ok',`  ↳ ${REVIEW[j.rv].name}抓到錯誤並當場修正，省掉整單重做`);
+    if(j.hidden)log('warn',`  ↳ 原來牽扯到架構，硬做完了（原估複雜度 ${is.shownCx}，實際 ${is.cx}）`);
     if(sel.issue===is.id) sel.issue=null;
   } else {
-    is.tries++; is.base*=conflict?.4:.7; if(conflict)S.st.conflicts++;
+    is.tries++; is.base*=conflict?.4:j.stop?1:.7; if(conflict)S.st.conflicts++;
     log('bad',`✗ ${is.title}｜${who}｜${note||'測試沒過，改壞了'}｜燒掉 ${kt(tk)}｜${spend}｜${h1(hrs)}h`);
   }
   if(is.sens&&(b==='sub'||b==='api')&&Math.random()<(VENDORS[v].cn?.6:.35)){
@@ -271,9 +296,41 @@ function manual(){
   if(PAR()){ is.running=true; advance(hrs); is.running=false; if(!S.issues.includes(is)){render();return;} }
   else S.hours-=hrs;
   S.st.manual++;
+  if(hiddenTrap(is)){ reveal(is); S.st.trapHit++; log('bad',`✗ ${is.title}｜手寫到一半發現要動架構｜${h1(hrs)}h｜原估複雜度 ${is.shownCx}，實際 ${is.cx}`); render(); return; }
   const ok=is.cx<=3||Math.random()<.7;
   if(ok){S.issues=S.issues.filter(i=>i!==is);S.kpi+=is.kpi;S.st.done++;sel.issue=null;log('ok',`✓ ${is.title}｜自己手寫｜0 tokens｜${h1(hrs)}h｜KPI +${is.kpi}`);}
   else{is.tries++;is.base*=.7;log('bad',`✗ ${is.title}｜自己手寫卡關｜${h1(hrs)}h`);}
+  render();
+}
+
+/* 評估架構：先花少量 token 讓 agent 讀架構，模型越強越容易識破陷阱 */
+const EVAL_TK=40;
+const canEvaluate=is=>!is.inc&&!is.evaluated&&!is.revealed;
+const evalCost=M=>({tk:EVAL_TK*M.verb,hrs:.5*M.speed});
+const revealRate=M=>Math.min(.95,.35+.15*M.cap);
+function evaluate(){
+  const is=S.issues.find(i=>i.id===sel.issue); if(!is||!canEvaluate(is)) return;
+  const M=model(sel.v,sel.m), {tk,hrs}=evalCost(M);
+  if(hrs>S.hours) return;
+  if(PAR()){ is.running=true; advance(hrs); is.running=false; if(!S.issues.includes(is)){render();return;} }
+  else S.hours-=hrs;
+  const ch=charge(sel.b,sel.v,M,tk), used=tk*ch.frac;
+  S.st.tk[sel.v]+=used; S.st.byBill[sel.b]+=used;
+  if(ch.short){ log('bad',`✗ ${is.title}｜評估｜額度不夠，評估沒做完｜${ch.spend}`); render(); return; }
+  is.evaluated=true;
+  if(is.trap&&Math.random()<revealRate(M)){ reveal(is); S.st.trapFound++; log('ok',`★ ${is.title}｜評估發現牽扯架構：原估複雜度 ${is.shownCx}，實際 ${is.cx}｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
+  else log('dim',`· ${is.title}｜評估完成，看起來沒問題｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`);
+  render();
+}
+/* 陷阱曝光後可以找主管重新評估一次：信任夠就調 KPI、延期限 */
+const RESCOPE_TRUST=50;
+function rescope(){
+  const is=S.issues.find(i=>i.id===sel.issue); if(!is||!is.revealed||is.rescoped) return;
+  is.rescoped=true;
+  if(S.trust>=RESCOPE_TRUST){
+    S.trust-=5; is.kpi=Math.round(KPI[is.cx]*(hardStack(is.stack)?1.3:1)); is.due=Math.min(20,is.due+2);
+    log('ok',`★ ${is.title}｜主管同意重新評估：KPI 改成 +${is.kpi}，期限延到第 ${is.due} 天｜信任 -5`);
+  } else { S.trust=Math.max(0,S.trust-3); log('warn',`! ${is.title}｜主管：不是說很簡單嗎？｜信任 -3`); }
   render();
 }
 
@@ -357,7 +414,7 @@ function render(){
       <span class="t">${i.title}</span><span class="k">+${i.kpi}</span>
       <span class="meta"><span class="pips" title="複雜度 ${i.cx}">${[1,2,3,4,5].map(n=>`<i class="${n<=i.cx?'on':''}"></i>`).join('')}</span>
       <span class="num">~${kt(i.base)} tokens</span>
-      <span class="chip stack">${STACKS[i.stack].name}</span>${unfamiliar(i)?'<span class="chip unfam">不熟</span>':''}${i.store?'<span class="chip store">需上架審核</span>':''}
+      <span class="chip stack">${STACKS[i.stack].name}</span>${unfamiliar(i)?'<span class="chip unfam">不熟</span>':''}${i.store?'<span class="chip store">需上架審核</span>':''}${i.revealed?`<span class="chip trap">牽一髮動全身・原估 ${i.shownCx}</span>`:i.evaluated?'<span class="chip">已評估</span>':''}
       ${i.inc?'<span class="chip inc">事故</span>':''}${i.sens?'<span class="chip sens">機敏</span>':''}${i.big?'<span class="chip big">大型 codebase</span>':''}${i.client.ban?`<span class="chip ban">${i.client.name}・${i.client.ban==='all'?'禁中國模型':'禁中國雲端'}</span>`:S.cnBan?'<span class="chip ban">禁中國雲端</span>':`<span class="chip">${i.client.name}</span>`}
       <span class="chip ${left<=0?'due':''}">${left<=0?'今天到期':`剩 ${left} 天`}</span>${i.tries?`<span class="chip">已失敗 ${i.tries} 次</span>`:''}</span>
     </button>`;}).join('') || `<div class="empty">工單清空了。可以提早下班，把工時留給明天。</div>`;
@@ -412,7 +469,8 @@ function dispatchPanel(){
   else if(PAR()&&e.hrs+.2>S.hours) warn='今天跑不完，agent 會跑過夜，明早才有結果。';
   else if(!PAR()&&e.hrs*1.2>S.hours) warn='今天剩的工時可能不夠跑完。';
   else if(sel.b==='api'&&cl.hi>S.wallet) warn='錢包可能不夠付這一筆。';
-  const mh=manualHrs(is);
+  const mh=manualHrs(is), ec=evalCost(model(sel.v,sel.m));
+  const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m));
   return `<div class="ph"><h2>派工台</h2><span>${is.title}</span></div>
   <div class="sec"><label>選 AGENT 與模型</label>${rows}</div>
   <div class="sec"><label>誰付這筆 TOKEN</label><div class="seg">${segs}</div></div>
@@ -429,6 +487,8 @@ function dispatchPanel(){
   <div class="actions">
     <button class="btn primary" data-act="go" ${S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m))||S.hours<.2||(PAR()&&S.jobs.length>=S.slots)?'disabled':''}>${PAR()?'派到背景':'派給'} ${VENDORS[sel.v].agent}</button>
     <button class="btn ghost" data-act="manual" ${mh>S.hours?'disabled':''}>自己手寫（${h1(mh)}h，0 token）</button>
+    ${canEvaluate(is)?`<button class="btn ghost" data-act="eval" ${blocked||ec.hrs>S.hours?'disabled':''}>先讓 agent 評估架構（${kt(ec.tk)} tokens，${h1(ec.hrs)}h）</button>`:''}
+    ${is.revealed&&!is.rescoped?`<button class="btn ghost" data-act="rescope">找主管重新評估</button>`:''}
   </div>`;
 }
 
@@ -540,6 +600,8 @@ function showEnd(){
     <div><span>逾期工單</span><span>${S.st.late} 張（KPI -${S.st.kpiLost}）</span></div>
     <div><span>自己手寫</span><span>${S.st.manual} 次</span></div>
     <div><span>審核救回</span><span>${S.st.caught} 張</span></div>
+    <div><span>踩到陷阱</span><span>${S.st.trapHit} 次</span></div>
+    <div><span>事先識破</span><span>${S.st.trapFound} 次</span></div>
     ${PAR()?`<div><span>合併衝突</span><span>${S.st.conflicts} 次</span></div>`:''}
     <div><span>資安稽核</span><span>${S.st.audits} 次</span></div>
     <div><span>主管信任</span><span>${Math.round(S.trust)}</span></div>
@@ -562,6 +624,8 @@ app.addEventListener('click',e=>{
   else if(t.dataset.rv){sel.rv=+t.dataset.rv;render();}
   else if(t.dataset.act==='go')dispatch();
   else if(t.dataset.act==='manual')manual();
+  else if(t.dataset.act==='eval')evaluate();
+  else if(t.dataset.act==='rescope')rescope();
   else if(t.dataset.act==='end')endDay();
   else if(t.dataset.act==='wait1')wait(false);
   else if(t.dataset.act==='waitn')wait(true);

@@ -2,13 +2,16 @@
 // 用法：node tools/sim.js [public/js/game.js | 單檔 .html]
 // 讀入遊戲腳本，用假的 DOM 跑自動玩家：兩種模式 × 四家公司 × 三種審核等級各跑 N 個月（預設 100，可用 SIM_N 調整），
 // 印出抽樣結果，最後每個模式 × 公司印一行平均分、對照同模式 Laravel 的差距與評等分布。
+// SIM_TRAP=<比例> 可覆寫陷阱題比例（例如 SIM_TRAP=0 關掉陷阱）。
 const el=()=>({innerHTML:'',hidden:true,addEventListener(){},querySelector(){return null},onclick:null});
 const els={app:el(),ov:el(),mo:el()};
 global.document={getElementById:id=>els[id]};
 global.localStorage={getItem(){return null},setItem(){}};
 const file=process.argv[2]||require('path').join(__dirname,'..','public','js','game.js');
 const raw=require('fs').readFileSync(file,'utf8');
-const src=file.endsWith('.html')?raw.match(/<script>([\s\S]*)<\/script>/)[1]:raw;
+let src=file.endsWith('.html')?raw.match(/<script>([\s\S]*)<\/script>/)[1]:raw;
+// SIM_TRAP=0 關掉陷阱題，用來和有陷阱時比較
+if(process.env.SIM_TRAP!==undefined) src=src.replace(/const TRAP_RATE=[\d.]+;/,`const TRAP_RATE=${+process.env.SIM_TRAP};`);
 const N=+process.env.SIM_N||100;
 
 function sim(){
