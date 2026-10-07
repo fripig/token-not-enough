@@ -2,3 +2,4 @@
 .spectra/
 .DS_Store
 .claude/settings.local.json
+.idea/

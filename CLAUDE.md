@@ -28,3 +28,9 @@ discuss? → propose → apply ⇄ ingest → verify / review → archive
 Changes can be parked（暫存）— temporarily moved out of `docs/spectra/changes/`. Parked changes won't appear in `spectra list` but can be found with `spectra list --parked`. To restore: `spectra unpark <name>`. The `/spectra-apply` and `/spectra-ingest` skills disclose parking and restore when the named operation is already explicitly requested; respect a known refusal, otherwise ask for missing authorization.
 
 <!-- SPECTRA:END -->
+
+# Token 撐到月底 專案交接
+
+遊戲規則、數值、程式碼地圖與需求來源見下列文件：
+
+@docs/CLAUDE.md

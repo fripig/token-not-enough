@@ -23,6 +23,14 @@ npx serve public
 python3 -m http.server -d public 8000
 ```
 
+## 平衡模擬
+
+```sh
+node tools/sim.js
+```
+
+用自動玩家把兩種模式 × 三種審核等級各跑 200 個月，改數值後確認不會壞。
+
 ## 部署
 
 推送到 `main` 後，`.github/workflows/pages.yml` 會把 `public/` 部署到 GitHub Pages。
@@ -35,5 +43,7 @@ public/
   index.html     # 頁面骨架
   css/style.css  # 樣式（含深色模式）
   js/game.js     # 遊戲資料、規則與畫面
+tools/sim.js     # 平衡模擬器
+docs/CLAUDE.md   # 開發交接文件（需求來源、規則數值、程式碼地圖）
 .github/workflows/pages.yml
 ```
