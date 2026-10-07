@@ -4,3 +4,6 @@
 .claude/settings.local.json
 .idea/
 docs/spectra/.vector-search.db*
+
+# Claude Code 交接文件（只留本機）
+docs/CLAUDE.md
