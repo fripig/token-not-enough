@@ -1,30 +1,54 @@
 // 平衡模擬器（非遊戲本體）
+// 用法：node tools/sim.js [public/js/game.js | 單檔 .html]
+// 讀入遊戲腳本，用假的 DOM 跑自動玩家：兩種模式 × 四家公司 × 三種審核等級各跑 N 個月（預設 100，可用 SIM_N 調整），
+// 印出抽樣結果，最後每個模式 × 公司印一行平均分、對照同模式 Laravel 的差距與評等分布。
 const el=()=>({innerHTML:'',hidden:true,addEventListener(){},querySelector(){return null},onclick:null});
 const els={app:el(),ov:el(),mo:el()};
 global.document={getElementById:id=>els[id]};
 global.localStorage={getItem(){return null},setItem(){}};
-// 用法：node tools/sim.js [public/js/game.js | 單檔 .html]
-// 讀入遊戲腳本，用假的 DOM 跑自動玩家，兩種模式 × 三種審核等級各跑 200 個月，印出抽樣結果。
 const file=process.argv[2]||require('path').join(__dirname,'..','public','js','game.js');
 const raw=require('fs').readFileSync(file,'utf8');
 const src=file.endsWith('.html')?raw.match(/<script>([\s\S]*)<\/script>/)[1]:raw;
-eval(src+`
-for(const mode of ['parallel','serial']){
- for(let g=0;g<200;g++){
-  start(); S.mode=mode; S.subs.anthropic='max5'; S.wallet-=3300; S.st.subFee+=3300;
-  let guard=0;
-  while(S.day<=20&&guard++<2000){
-    let acted=true;
-    while(acted){acted=false;
-      const free=S.issues.filter(i=>!i.running);
-      if(free.length&&S.hours>.3&&(!PAR()||S.jobs.length<S.slots)){
-        sel.issue=free[0].id; sel.rv=g%3; const dsOk=!cnBlock(free[0],'deepseek',model('deepseek','chat')); sel.v=dsOk?'deepseek':'anthropic'; sel.m=dsOk?'chat':'sonnet'; dispatchPanel(); if(dsOk)sel.b='api'; else sel.b=quotaLeft('sub','anthropic')>300?'sub':'corp'; if(sel.b==='corp'&&S.corp<=0) sel.b='api';
-        const before=S.hours; dispatch(); acted=S.hours!==before||PAR();
-        if(!PAR()&&S.hours===before)acted=false;
-      } else if(PAR()&&S.jobs.length&&S.hours>0){ wait(true); acted=true; }
+const N=+process.env.SIM_N||100;
+
+function sim(){
+  const sum={};
+  for(const mode of ['parallel','serial']){
+    for(const company of (typeof COMPANIES==='undefined'?['laravel']:COMPANIES)){
+      for(let g=0;g<N*3;g++){
+        start(); if(typeof firstIssues==='function'){S.company=company;firstIssues();}
+        S.mode=mode; S.subs.anthropic='max5'; S.wallet-=3300; S.st.subFee+=3300;
+        let guard=0;
+        while(S.day<=20&&guard++<2000){
+          let acted=true;
+          while(acted){acted=false;
+            const free=S.issues.filter(i=>!i.running);
+            if(free.length&&S.hours>.3&&(!PAR()||S.jobs.length<S.slots)){
+              sel.issue=free[0].id; sel.rv=g%3;
+              const dsOk=!cnBlock(free[0],'deepseek',model('deepseek','chat'));
+              sel.v=dsOk?'deepseek':'anthropic'; sel.m=dsOk?'chat':'sonnet'; dispatchPanel();
+              if(dsOk)sel.b='api'; else sel.b=quotaLeft('sub','anthropic')>300?'sub':'corp';
+              if(sel.b==='corp'&&S.corp<=0) sel.b='api';
+              const before=S.hours; dispatch(); acted=S.hours!==before||PAR();
+              if(!PAR()&&S.hours===before)acted=false;
+            } else if(PAR()&&S.jobs.length&&S.hours>0){ wait(true); acted=true; }
+          }
+          const d=S.day; endDay(); if(d===20)break;
+        }
+        const html=els.mo.innerHTML;
+        const grade=html.match(/class="g">(.)/)?.[1];
+        const score=+html.match(/總分<\/span><span>(-?[\d,]+)/)[1].replace(/,/g,'');
+        const k=mode+' '+company; sum[k]??={n:0,tot:0,g:{}};
+        sum[k].n++; sum[k].tot+=score; sum[k].g[grade]=(sum[k].g[grade]||0)+1;
+        if(g<3){const self=S.st.subFee+S.st.api;console.log(mode,company,'rv',g%3,'caught',S.st.caught,'cnBan',S.cnBan,'ds',Math.round(S.st.tk.deepseek),'ant',Math.round(S.st.tk.anthropic),'kpi',S.kpi,'done',S.st.done,'late',S.st.late,'trust',Math.round(S.trust),'self',Math.round(self),'corp',Math.round(S.st.corp),'conf',S.st.conflicts,'grade',grade);}
+      }
     }
-    const d=S.day; endDay(); if(d===20)break;
   }
-  if(g<3||g===199){const self=S.st.subFee+S.st.api;console.log(mode,'rv',g%3,'caught',S.st.caught,'cnBan',S.cnBan,'ds',Math.round(S.st.tk.deepseek),'ant',Math.round(S.st.tk.anthropic),'kpi',S.kpi,'done',S.st.done,'late',S.st.late,'trust',Math.round(S.trust),'self',Math.round(self),'corp',Math.round(S.st.corp),'conf',S.st.conflicts, 'grade', els.mo.innerHTML.match(/class="g">(.)/)?.[1]);}
- }
-}`);
+  console.log('\n=== 平均分（對照同模式的 Laravel）===');
+  for(const k in sum){
+    const mode=k.split(' ')[0], m=sum[k].tot/sum[k].n, base=sum[mode+' laravel'].tot/sum[mode+' laravel'].n;
+    console.log(k.padEnd(18),'mean',String(Math.round(m)).padStart(6),'vs laravel',((m/base-1)*100).toFixed(1).padStart(6)+'%','grades','SABCD'.split('').map(x=>x+':'+(sum[k].g[x]||0)).join(' '));
+  }
+}
+
+eval(src+'\n;('+sim.toString()+')();');

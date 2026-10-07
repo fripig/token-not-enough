@@ -37,14 +37,45 @@ function cnBlock(is,v,M){
 const SEAT={day:2500,week:10000,name:'公司團隊席位'};
 const BASE=[0,60,180,350,550,850];
 const KPI=[0,3,6,10,16,24];
-const POOL={
-  1:['跑馬燈文字錯字','RSS 日期時區差 8 小時','按鈕 hover 顏色不對','後台列表少一個排序欄位','修正 404 頁的返回連結','Footer 年份寫死成去年'],
-  2:['文章 API 補 og:image 欄位','補齊標籤服務的單元測試','表單驗證訊息中文化','排程任務加上重試機制','搜尋結果分頁錯亂','後台匯入 CSV 編碼錯誤'],
-  3:['文章列表 N+1 查詢拖慢 3 秒','播放器元件重構成 Composition API','Queue worker 記憶體洩漏','多語系 hreflang 全面修正','匯出報表改成非同步','圖片上傳改走 S3 預簽網址'],
-  4:['Laravel 大版本升級','CKEditor 換成 Tiptap 的內容轉換','CDN 快取失效策略重寫','權限系統改成角色＋政策','CI 流程從零改成容器化部署'],
-  5:['舊資料庫拆分遷移','從單體拆出搜尋服務','整站改 SSR 還要保住 SEO'],
-  inc:['正式站 502：worker 不停重啟','WAF 誤擋編輯後台','首頁快取被打穿，RDS CPU 99%','排程重複發送推播']
+/* 技術線：前四個是可選的公司（主技術線），fe 是每家公司都會有的前端工單 */
+const STACKS={
+  laravel:{name:'Laravel',company:'Laravel 新聞站',level:1,desc:'框架慣例多，簡單工單便宜模型就夠用。',pool:{
+    1:['跑馬燈文字錯字','RSS 日期時區差 8 小時','按鈕 hover 顏色不對','後台列表少一個排序欄位','修正 404 頁的返回連結','Footer 年份寫死成去年'],
+    2:['文章 API 補 og:image 欄位','補齊標籤服務的單元測試','表單驗證訊息中文化','排程任務加上重試機制','搜尋結果分頁錯亂','後台匯入 CSV 編碼錯誤'],
+    3:['文章列表 N+1 查詢拖慢 3 秒','播放器元件重構成 Composition API','Queue worker 記憶體洩漏','多語系 hreflang 全面修正','匯出報表改成非同步','圖片上傳改走 S3 預簽網址'],
+    4:['Laravel 大版本升級','CKEditor 換成 Tiptap 的內容轉換','CDN 快取失效策略重寫','權限系統改成角色＋政策','CI 流程從零改成容器化部署'],
+    5:['舊資料庫拆分遷移','從單體拆出搜尋服務','整站改 SSR 還要保住 SEO'],
+    inc:['正式站 502：worker 不停重啟','WAF 誤擋編輯後台','首頁快取被打穿，RDS CPU 99%','排程重複發送推播']}},
+  rails:{name:'Rails',company:'Rails SaaS',level:1,desc:'Convention over configuration，簡單工單便宜模型就夠用。',pool:{
+    1:['帳單 Email 主旨少了公司名稱','後台 flash 訊息沒有翻譯','價目表頁連結指到舊方案','註冊頁密碼提示文字錯誤'],
+    2:['Devise 登入加上 rate limit','補齊訂閱模型的 RSpec','Sidekiq 失敗任務加通知','CSV 匯出漏掉時區轉換','API 回應改用 serializer 統一格式'],
+    3:['Dashboard 頁 N+1 拖慢到 4 秒','多租戶資料改用 scope 隔離','Stripe webhook 冪等處理','Active Storage 改傳到 S3 直傳','把 callbacks 抽成 service object'],
+    4:['Rails 大版本升級','Webpacker 換成 importmap','權限從 CanCanCan 換成 Pundit','背景任務從 Sidekiq 搬到 Solid Queue'],
+    5:['單一資料庫拆成多租戶分庫','計費系統改成用量計價','把報表模組拆成獨立服務'],
+    inc:['Sidekiq 佇列塞爆，帳單沒寄出','部署後 migration 鎖表','Stripe webhook 重複扣款','Puma worker 記憶體爆掉不停重啟']}},
+  rust:{name:'Rust',company:'Rust 基礎設施',level:3,desc:'編譯測試比較慢；能力不足的模型容易卡在 borrow checker。',pool:{
+    1:['CLI --help 說明打錯字','log 等級預設改成 info','README 範例指令過期','錯誤訊息補上檔案路徑'],
+    2:['設定檔解析補 serde 預設值','補齊 parser 的單元測試','clippy 警告全部清掉','metrics 補一個延遲直方圖','CLI 加上 --dry-run 選項'],
+    3:['async handler 裡的鎖造成延遲尖峰','把 unwrap 全面改成錯誤型別','連線池改用 tokio 版本','跨平台路徑處理在 Windows 壞掉','大檔案改成串流處理避免吃光記憶體'],
+    4:['tokio 大版本升級','自訂 trait 物件改成泛型消除 dyn','gRPC 服務從 tonic 舊版遷移','加上 graceful shutdown 與重試'],
+    5:['把 C 函式庫的 FFI 包成安全介面','單機服務改成分散式共識','核心路徑改寫成 lock-free'],
+    inc:['proxy 在高流量下 panic 重啟','記憶體洩漏讓節點被 OOM kill','憑證輪替後 TLS 握手全失敗','新版 binary 在 ARM 機器啟動就 segfault']}},
+  app:{name:'App',company:'App 團隊',level:2,desc:'要跑模擬器所以比較慢；部分工單要過 App Store 審核。',pool:{
+    1:['設定頁版本號沒更新','深色模式下按鈕文字看不到','推播文案錯字','啟動畫面 logo 被裁切'],
+    2:['補上下拉重新整理','列表頁加上空狀態畫面','登入頁支援密碼自動填入','補齊 ViewModel 的單元測試','iPad 橫向排版跑掉'],
+    3:['離線時文章快取同步','推播點開要導到正確頁面','圖片列表捲動卡頓','Android 13 通知權限流程','App 內購買恢復購買失敗'],
+    4:['React Native 大版本升級','登入改用 Sign in with Apple','改成 Jetpack Compose 重寫主畫面','導入 deep link 與 universal link'],
+    5:['iOS 與 Android 共用核心改成 Kotlin Multiplatform','整個 App 改成離線優先架構','從 WebView 包殼改成原生 App'],
+    inc:['新版上架後啟動就閃退','推播憑證過期，全部收不到通知','API 改版讓舊版 App 全部登不進去','付款頁在特定機型白畫面']}},
+  fe:{name:'前端',company:'前端',desc:'',pool:{
+    1:['首頁 banner 在手機版被切掉','表單 placeholder 顏色太淡','favicon 換新版','行事曆元件週日顯示錯位'],
+    2:['補上 loading skeleton','表格欄位支援排序','把 moment 換成 date-fns','元件補 Storybook 範例','圖片改成 lazy load'],
+    3:['首頁 LCP 從 4 秒壓到 2 秒','共用元件庫改用 design token','表單狀態管理改成 Pinia','無障礙檢查修到 AA 等級','打包體積砍掉一半'],
+    4:['Vue 2 升級到 Vue 3','Webpack 換成 Vite','整站導入 TypeScript','前端錯誤監控與 source map 上傳'],
+    5:['舊後台改寫成 SPA','導入微前端拆分各團隊頁面','設計系統全面改版'],
+    inc:[]}}
 };
+const COMPANIES=['laravel','rails','rust','app'];
 
 /* ===== 工具 ===== */
 const R=(a,b)=>a+Math.random()*(b-a);
@@ -61,7 +92,7 @@ const planOf=v=>VENDORS[v].plans.find(p=>p.id===S.subs[v])||{id:'none',price:0,d
 let S, sel, uid=0;
 function fresh(){
   uid=0;
-  S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',jobs:[],slots:3,
+  S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',company:COMPANIES.includes(S?.company)?S.company:'laravel',jobs:[],slots:3,
     subs:objOf(APIV,()=>'none'),
     used:{sub:objOf(APIV,()=>({d:0,w:0})),seat:{anthropic:{d:0,w:0},google:{d:0,w:0}}},
     capMod:objOf(APIV,()=>1),priceMod:objOf(Object.keys(VENDORS),()=>1),cnBan:false,
@@ -71,15 +102,27 @@ function fresh(){
   sel={issue:null,v:'anthropic',m:'sonnet',b:'api',rv:sel?.rv??1};
 }
 
+/* 一般工單：75% 主技術線、15% 前端、10% 其他公司的技術線 */
+function pickStack(){
+  const r=Math.random();
+  if(r<.75) return S.company;
+  if(r<.9) return 'fe';
+  return pick(COMPANIES.filter(k=>k!==S.company));
+}
+/* Rust、App 比較慢：期限多一天、KPI ×1.3 作為補償 */
+const hardStack=st=>st==='rust'||st==='app';
+const unfamiliar=is=>is.stack!==S.company&&is.stack!=='fe';
 function makeIssue(inc){
   let cx;
   if(inc) cx=4; else { const r=Math.random()+S.day/20*.38; cx=r<.28?1:r<.6?2:r<.9?3:r<1.12?4:5; }
   const base=BASE[cx]*R(.85,1.15);
   let due=inc?S.day:S.day+(cx<=2?1+rnd(3):2+rnd(4));
-  return {id:++uid,title:inc?pick(POOL.inc):pick(POOL[cx]),cx,base,inc:!!inc,
+  const stack=inc?S.company:pickStack();
+  return {id:++uid,title:pick(STACKS[stack].pool[inc?'inc':cx]),cx,base,inc:!!inc,stack,
+    store:stack==='app'&&cx>=2&&Math.random()<.4,
     sens:Math.random()<(inc?.55:.25),big:cx>=3&&Math.random()<.45,
     client:inc?CLIENTS[0]:pickClient(),
-    due:Math.min(20,due),kpi:Math.round(KPI[cx]*(inc?1.6:1)),tries:0};
+    due:Math.min(20,due+(!inc&&hardStack(stack)?1:0)),kpi:Math.round(KPI[cx]*(inc?1.6:1)*(hardStack(stack)?1.3:1)),tries:0};
 }
 
 /* ===== 計算 ===== */
@@ -93,14 +136,28 @@ function useQuota(kind,v,x){const u=S.used[kind][v];u.d+=x;u.w+=x;}
 /* 自我審核：多花 token 與時間，agent 改壞時有機會當場抓到並修正，避免整單重做 */
 const REVIEW=[{name:'不審核',tk:1,hrs:1},{name:'自審',tk:1.3,hrs:1.2},{name:'嚴格審核',tk:1.6,hrs:1.35}];
 const catchRate=(rv,M)=>rv===0?0:Math.min(.95,.45+.08*M.cap+(rv===2?.2:0));
+/* 技術線效果：只看技術線本身的特性，不替各家模型設「誰比較會」的分數 */
+function stackGap(is,M){
+  if((is.stack==='laravel'||is.stack==='rails')&&is.cx<=3) return 1; // 框架慣例多
+  if(is.stack==='rust'&&M.cap<4) return -1;                            // borrow checker
+  return 0;
+}
+const stackHrs=is=>is.stack==='rust'?1.2:is.stack==='app'?1.15:1;     // 編譯測試、模擬器
+function stackHint(is){
+  if((is.stack==='laravel'||is.stack==='rails')&&is.cx<=3) return `${STACKS[is.stack].name} 慣例多：複雜度 3 以下的工單，成功率視同簡單一級。`;
+  if(is.stack==='rust') return 'Rust：編譯測試比較慢，執行時間 ×1.2；能力 4 以下的模型容易卡在 borrow checker，成功率視同難一級。';
+  if(is.stack==='app') return `App：要跑模擬器，執行時間 ×1.15${is.store?'；這張要過 App Store 審核，agent 做完仍有 20% 機率被退件，自我審核救不回來':''}。`;
+  return '';
+}
+const manualHrs=is=>is.cx*2.2*(is.tries?.8:1)*(unfamiliar(is)?2:1);
 function est(is,v,mid,rv=sel.rv){
-  const M=model(v,mid), diff=M.cap-is.cx;
-  const tk=is.base*M.verb*(is.big&&M.ctx?.7:1)*(diff>=1?.85:1)*parMul()*REVIEW[rv].tk;
+  const M=model(v,mid), raw=M.cap-is.cx, diff=raw+stackGap(is,M);
+  const tk=is.base*M.verb*(is.big&&M.ctx?.7:1)*(raw>=1?.85:1)*parMul()*REVIEW[rv].tk;
   let p=diff>=1?.95:diff===0?.8:diff===-1?.5:diff===-2?.25:.1;
   if(is.big&&M.ctx)p+=.08; if(is.big&&!M.ctx&&M.cap<4)p-=.08;
   p=Math.max(.05,Math.min(.97,p));
   const c=catchRate(rv,M);
-  return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:p+(1-p)*c,hrs:is.cx*M.speed*(is.tries?.8:1)*REVIEW[rv].hrs};
+  return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:(p+(1-p)*c)*(is.store?.8:1),hrs:is.cx*M.speed*(is.tries?.8:1)*REVIEW[rv].hrs*stackHrs(is)};
 }
 
 function bills(v){
@@ -155,7 +212,7 @@ function advance(dt){
     for(const j of fin){
       j.issue.running=false;
       const r=settle(j,{conflict:.1*S.jobs.length});
-      if(r.ok){const rv=j.issue.cx*.2*(j.rv?.5:1);dt+=rv;log('dim',`  ↳ 審 PR 花了 ${h1(rv)}h`);}
+      if(r.ok||r.rejected){const rv=j.issue.cx*.2*(j.rv?.5:1);dt+=rv;log('dim',`  ↳ 審 PR 花了 ${h1(rv)}h`);}
     }
   }
   S.hours=Math.max(0,S.hours);
@@ -167,7 +224,7 @@ function cancelJobs(pred,note){
 }
 function settle(j,o={}){
   const is=j.issue,v=j.v,b=j.b,M=j.M,frac=o.frac??1;
-  let tk=j.tk*frac, hrs=j.hrs*frac, ok=j.ok&&!o.fail, note=o.note||'', spend='', conflict=false, fixed=false;
+  let tk=j.tk*frac, hrs=j.hrs*frac, ok=j.ok&&!o.fail, note=o.note||'', spend='', conflict=false, fixed=false, rejected=false;
   if(!j.ok&&j.caught&&!o.fail){tk*=1.25;ok=true;fixed=true;}
   if(!j.ok&&!j.caught&&j.rv&&!o.fail) note='審核沒抓到，上線後測試才爆';
   if(b==='sub'||b==='seat'){
@@ -178,6 +235,8 @@ function settle(j,o={}){
   else if(b==='corp'){ const c=tk*M.price*S.priceMod[v]; S.corp-=c; S.corpDay+=c; S.st.corp+=c; spend='公司 '+nt(c); }
   else spend='電費';
   if(ok&&o.conflict&&Math.random()<o.conflict){ok=false;conflict=true;note='和其他 agent 的改動合併衝突';}
+  /* App 上架審核在 agent 做完之後才發生，自我審核救不回來 */
+  if(ok&&is.store&&Math.random()<.2){ok=false;rejected=true;note='卡在 App Store 審核被退件';}
   S.st.tk[v]+=tk; S.st.byBill[b]+=tk;
   const who=`${VENDORS[v].agent} / ${M.name}`;
   if(ok){
@@ -196,7 +255,7 @@ function settle(j,o={}){
     log('warn',`! 資安稽核：機敏程式碼送進${VENDORS[v].cn?'中國雲端模型':'個人帳號'}被抓到，主管信任 -12`);
   }
   if(S.corp<0){ log('warn','! 公司 API 預算透支，財務來信關切'); S.trust=Math.max(0,S.trust-8); S.corp=0; }
-  return {ok,hrs};
+  return {ok,hrs,rejected};
 }
 function wait(next){
   if(next){ if(!S.jobs.length) return; advance(Math.min(...S.jobs.map(j=>j.left))); }
@@ -205,7 +264,7 @@ function wait(next){
 }
 function manual(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is) return;
-  const hrs=is.cx*2.2*(is.tries?.8:1);
+  const hrs=manualHrs(is);
   if(hrs>S.hours) return;
   if(PAR()){ is.running=true; advance(hrs); is.running=false; if(!S.issues.includes(is)){render();return;} }
   else S.hours-=hrs;
@@ -296,13 +355,14 @@ function render(){
       <span class="t">${i.title}</span><span class="k">+${i.kpi}</span>
       <span class="meta"><span class="pips" title="複雜度 ${i.cx}">${[1,2,3,4,5].map(n=>`<i class="${n<=i.cx?'on':''}"></i>`).join('')}</span>
       <span class="num">~${kt(i.base)} tokens</span>
+      <span class="chip stack">${STACKS[i.stack].name}</span>${unfamiliar(i)?'<span class="chip unfam">不熟</span>':''}${i.store?'<span class="chip store">需上架審核</span>':''}
       ${i.inc?'<span class="chip inc">事故</span>':''}${i.sens?'<span class="chip sens">機敏</span>':''}${i.big?'<span class="chip big">大型 codebase</span>':''}${i.client.ban?`<span class="chip ban">${i.client.name}・${i.client.ban==='all'?'禁中國模型':'禁中國雲端'}</span>`:S.cnBan?'<span class="chip ban">禁中國雲端</span>':`<span class="chip">${i.client.name}</span>`}
       <span class="chip ${left<=0?'due':''}">${left<=0?'今天到期':`剩 ${left} 天`}</span>${i.tries?`<span class="chip">已失敗 ${i.tries} 次</span>`:''}</span>
     </button>`;}).join('') || `<div class="empty">工單清空了。可以提早下班，把工時留給明天。</div>`;
 
   app.innerHTML=`
   <header class="top">
-    <div class="brand"><h1><span class="tk">Token</span> 撐到月底</h1><p>20 個工作天，有限的錢和額度，把工單做完。</p></div>
+    <div class="brand"><h1><span class="tk">Token</span> 撐到月底</h1><p>${STACKS[S.company].company}・全端工程師・20 個工作天，有限的錢和額度，把工單做完。</p></div>
     <div class="cal">${cal}</div>
   </header>
   ${meters}
@@ -350,7 +410,7 @@ function dispatchPanel(){
   else if(PAR()&&e.hrs+.2>S.hours) warn='今天跑不完，agent 會跑過夜，明早才有結果。';
   else if(!PAR()&&e.hrs*1.2>S.hours) warn='今天剩的工時可能不夠跑完。';
   else if(sel.b==='api'&&cl.hi>S.wallet) warn='錢包可能不夠付這一筆。';
-  const mh=is.cx*2.2*(is.tries?.8:1);
+  const mh=manualHrs(is);
   return `<div class="ph"><h2>派工台</h2><span>${is.title}</span></div>
   <div class="sec"><label>選 AGENT 與模型</label>${rows}</div>
   <div class="sec"><label>誰付這筆 TOKEN</label><div class="seg">${segs}</div></div>
@@ -358,9 +418,10 @@ function dispatchPanel(){
   <div class="est">
     <div><label>預估 tokens${parMul()>1?` ×${parMul().toFixed(2)}`:''}</label><b>${kt(e.lo)}–${kt(e.hi)}</b></div>
     <div><label>${cl.t}</label><b>${cl.unit==='q'?`${kt(cl.lo)}–${kt(cl.hi)}`:cl.hi?`${nt(cl.lo)}–${nt(cl.hi)}`:'NT$0'}</b></div>
-    <div><label>成功率${sel.rv?`（原 ${Math.round(e.p*100)}%）`:''}</label><b class="${pc}">${Math.round(e.pe*100)}%</b></div>
+    <div><label>成功率${sel.rv||is.store?`（原 ${Math.round(e.p*100)}%）`:''}</label><b class="${pc}">${Math.round(e.pe*100)}%</b></div>
     <div><label>${PAR()?'執行時間':'工時'}</label><b>${h1(e.hrs)}h</b></div>
   </div>
+  ${stackHint(is)?`<p class="hint">${stackHint(is)}</p>`:''}
   ${PAR()&&S.jobs.length?`<p class="hint">平行加成：已有 ${S.jobs.length} 個 agent 在跑，這張的 token 用量 ×${parMul().toFixed(2)}；完成時每多一個同時在跑的 agent，合併衝突機率 +10%。</p>`:''}
   <div class="warnline">${warn}</div>
   <div class="actions">
@@ -391,10 +452,10 @@ function planCost(adjust){
   return c;
 }
 function showSetup(adjust){
-  draft={subs:{...S.subs},seat:'',mode:S.mode};
+  draft={subs:{...S.subs},seat:'',mode:S.mode,company:S.company};
   const draw=()=>{
     mo.innerHTML=`<h2>${adjust?'週一：調整訂閱':'月初：決定這個月怎麼付 token'}</h2>
-    ${adjust?`<p class="lead">升級只補剩下週數的差價，降級不退費。</p>`:`<p class="lead">你是一個 Laravel 團隊的工程師。接下來 20 個工作天，每天都會有新工單進來。你有 ${nt(S.wallet)} 的個人 AI 預算，部門另外有 ${nt(S.corp)} 的公司 API 預算。</p>
+    ${adjust?`<p class="lead">升級只補剩下週數的差價，降級不退費。</p>`:`<p class="lead">你是全端工程師，任職於「${STACKS[draft.company].company}」。接下來 20 個工作天，每天都會有新工單進來。你有 ${nt(S.wallet)} 的個人 AI 預算，部門另外有 ${nt(S.corp)} 的公司 API 預算。</p>
     <ul class="rules">
       <li><b>個人訂閱</b>月費固定，有每日與每週額度，越強的模型吃額度越快。額度用完 agent 會停在一半。</li>
       <li><b>個人 API</b> 用多少付多少，沒有上限，錢從你口袋出。</li>
@@ -402,8 +463,12 @@ function showSetup(adjust){
       <li>標著「機敏」的工單送進個人帳號，有機率被資安稽核抓到；送到中國雲端機率更高。</li>
       <li><b>自我審核</b>讓 agent 寫完再自己檢查一輪：token 和時間會加成，但改壞時有機會當場修好，不用整單重做。能力越強的模型越會抓錯。</li>
       <li><b>中國模型</b>（DeepSeek、GLM、Kimi）便宜又夠用，但每張工單有案主：金融客戶禁止資料送往中國雲端，政府標案連本地跑的中國開源權重（Qwen）都不能用。</li>
+      <li><b>技術線</b>：大部分工單是公司的主技術線，也會有前端工單和少量其他技術線的工單。不熟的技術線自己手寫要花兩倍時間。</li>
       <li>工單逾期扣 KPI 和信任。月底結算看 KPI、信任，還有你自己花了多少錢。</li>
     </ul>
+    <div class="sec"><label>公司</label><div class="modes">
+      ${COMPANIES.map(k=>`<button class="sb ${draft.company===k?'sel':''}" data-company="${k}"><b>${STACKS[k].company}</b><small>難度 ${'★'.repeat(STACKS[k].level)}・${STACKS[k].desc}</small></button>`).join('')}
+    </div></div>
     <div class="sec"><label>遊戲模式</label><div class="modes">
       <button class="sb ${draft.mode==='parallel'?'sel':''}" data-mode="parallel"><b>平行模式</b><small>最多 3 個 agent 在背景同時跑，你的時間花在派工和審 PR。同時跑越多，token 用量加成越高，也越容易合併衝突。跑不完的會過夜。</small></button>
       <button class="sb ${draft.mode==='serial'?'sel':''}" data-mode="serial"><b>單線模式</b><small>一次只處理一張，agent 跑多久你就等多久。比較單純，適合先熟悉付費方式的取捨。</small></button>
@@ -417,10 +482,14 @@ function showSetup(adjust){
     if(t.dataset.pv){draft.subs[t.dataset.pv]=t.dataset.pp;draw();}
     else if(t.dataset.seat!==undefined){draft.seat=t.dataset.seat;draw();}
     else if(t.dataset.mode){draft.mode=t.dataset.mode;draw();}
+    else if(t.dataset.company){draft.company=t.dataset.company;draw();}
     else if(t.dataset.act==='close'){ov.hidden=true;}
     else if(t.dataset.act==='confirm'){
       const c=planCost(adjust); S.wallet-=c; S.st.subFee+=c;
-      if(!adjust){S.mode=draft.mode;log('dim',`· 遊戲模式：${PAR()?'平行':'單線'}`);}
+      if(!adjust){
+        if(draft.company!==S.company){S.company=draft.company;firstIssues();}
+        S.mode=draft.mode;log('dim',`· ${STACKS[S.company].company}・遊戲模式：${PAR()?'平行':'單線'}`);
+      }
       for(const v in draft.subs) if(draft.subs[v]!==S.subs[v]){ S.subs[v]=draft.subs[v]; }
       if(draft.seat){S.seat={vendor:draft.seat,status:'pending',day:S.day};log('dim',`· 提出 ${VENDORS[draft.seat].name} 團隊席位採購申請`);}
       const names=SUBV.filter(v=>S.subs[v]!=='none').map(v=>`${VENDORS[v].name} ${planOf(v).name}`);
@@ -453,9 +522,11 @@ function showEnd(){
   else if(S.st.manual>12){title='手工藝工程師';desc='Token 省下來了，工時也燒掉了。'}
   else if(g==='S'||g==='A'){title='Token 精算師';desc='每一個 token 都花在刀口上。'}
   else {title='還在摸索的開發者';desc='下個月再調整組合試試。'}
-  let best=0; const bk='tokgame-best-'+S.mode; try{best=+localStorage.getItem(bk)||0; if(score>best)localStorage.setItem(bk,score);}catch(e){}
+  /* 最高分依模式與公司分開記錄；Laravel 沿用改版前的舊 key */
+  let best=0; const bk=`tokgame-best-${S.mode}-${S.company}`;
+  try{best=+localStorage.getItem(bk)||(S.company==='laravel'?+localStorage.getItem('tokgame-best-'+S.mode)||0:0); if(score>best)localStorage.setItem(bk,score);}catch(e){}
   const vendorLines=Object.keys(S.st.tk).filter(v=>S.st.tk[v]>0).map(v=>`<div><span>${VENDORS[v].name}</span><span>${kt(S.st.tk[v])} tokens・${Math.round(S.st.tk[v]/tot*100)}%</span></div>`).join('')||'<div><span>沒有用到任何 agent</span><span>—</span></div>';
-  mo.innerHTML=`<h2>月底結算・${PAR()?'平行模式':'單線模式'}</h2>
+  mo.innerHTML=`<h2>月底結算・${STACKS[S.company].company}・${PAR()?'平行模式':'單線模式'}</h2>
   <div class="grade"><span class="g">${g}</span><div class="gt"><b>${title}</b><span>${desc}</span></div></div>
   <div class="rc">
     <div><span>個人訂閱月費</span><span>${nt(S.st.subFee)}</span></div>
@@ -495,10 +566,14 @@ app.addEventListener('click',e=>{
   else if(t.dataset.act==='adjust')showSetup(true);
 });
 
-function start(){
-  fresh();
+/* 第 1 天的工單依公司產生；開局換公司時重抽 */
+function firstIssues(){
+  uid=0; S.issues=[]; S.log=[];
   for(let i=0;i<4;i++)S.issues.push(makeIssue(false));
   log('dim','— 第 1 天開工，新進 4 張工單 —');
+}
+function start(){
+  fresh(); firstIssues();
   render(); showSetup(false);
 }
 start();
