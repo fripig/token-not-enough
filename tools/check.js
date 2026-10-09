@@ -1381,7 +1381,7 @@ function tests(){
   Object.assign(sel,{issue:e1.id,v:'anthropic',m:'opus',b:'api'}); ev.length=0;
   {const rr=Math.random; Math.random=()=>0; evaluate(); Math.random=rr;}
   const ep=of('evaluate')[0]?.p||{};
-  ok(ev.length===1&&ep.outcome==='found'&&ep.vendor==='anthropic'&&ep.model==='opus'&&ep.bill==='api'&&ep.stack==='laravel','choice-analytics：評估識破陷阱送 evaluate found',JSON.stringify(ep));
+  ok(ev.length===1&&ep.outcome==='found'&&ep.cx===1&&ep.vendor==='anthropic'&&ep.model==='opus'&&ep.bill==='api'&&ep.stack==='laravel','choice-analytics：評估識破陷阱送 evaluate found、cx 送原估 1',JSON.stringify(ep));
   /* 找主管重新評估 */
   for(const [trust,want] of [[70,'approved'],[40,'refused']]){
     newRun('laravel','serial'); S.trust=trust; const r1=ticket('laravel',4,{revealed:true,trap:true,shownCx:1}); S.issues=[r1]; sel.issue=r1.id; ev.length=0; rescope();

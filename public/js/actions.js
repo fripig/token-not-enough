@@ -172,13 +172,13 @@ export const evalCost=M=>({tk:EVAL_TK*M.verb,hrs:.5*M.speed*(S.inv.mcp?.5:1)});
 export const revealRate=M=>Math.min(.95,.35+.15*M.cap+(S.inv.mcp?MCP_REVEAL:0));
 export function evaluate(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is||!canEvaluate(is)||gigBlocked(is,sel.b)) return;
-  const M=model(sel.v,sel.m), {tk,hrs}=evalCost(M);
+  const M=model(sel.v,sel.m), {tk,hrs}=evalCost(M), cx=is.cx;
   if(hrs>S.hours||(sel.b==='local'&&localBusy())) return;
   if(PAR()){ is.running=true; advance(hrs); is.running=false; if(!S.issues.includes(is)){render();return;} }
   else S.hours-=hrs;
   const ch=charge(sel.b,sel.v,M,tk), used=tk*ch.frac;
   S.st.tk[sel.v]+=used; S.st.byBill[sel.b]+=used;
-  const evt=outcome=>track('evaluate',{vendor:sel.v,model:sel.m,bill:sel.b,cx:is.cx,stack:is.stack,gig:!!is.out,outcome});
+  const evt=outcome=>track('evaluate',{vendor:sel.v,model:sel.m,bill:sel.b,cx,stack:is.stack,gig:!!is.out,outcome});
   if(ch.short){ evt('quota'); log('bad',`✗ ${is.title}｜評估｜額度不夠，評估沒做完｜${ch.spend}`); render(); return; }
   is.evaluated=true;
   if(is.trap&&Math.random()<revealRate(M)){ reveal(is); evt('found'); S.st.trapFound++; log('ok',`★ ${is.title}｜評估發現牽扯架構：原估複雜度 ${is.shownCx}，實際 ${is.cx}｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
