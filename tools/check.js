@@ -1390,6 +1390,28 @@ function tests(){
   newRun('laravel','serial'); S.hours=8; ev.length=0; invest('md','rust'); invest('md','rust');
   ok(ev.length===1&&ev[0].name==='invest'&&ev[0].p.investment==='md'&&ev[0].p.stack==='rust','choice-analytics：買 Rust CLAUDE.md 送一次 invest',JSON.stringify(ev.map(e=>e.p)));
   ev.length=0; invest('tests'); ok(ev[0]?.p.investment==='tests'&&ev[0]?.p.stack==='none','choice-analytics：非 CLAUDE.md 投資 stack 送 none');
+  {const rr=Math.random; Math.random=()=>0;
+    ok(res(job(),{conflict:1}).outcome==='conflict','choice-analytics：合併衝突 → conflict');
+    const sj=job(); sj.issue.store=true; ok(res(sj).outcome==='rejected','choice-analytics：上架被退 → rejected');
+    Math.random=rr;}
+  /* 工作槽滿、本地 GPU 忙：派工不送 */
+  newRun('laravel','parallel'); S.slots=2; const fz=ticket('laravel',1); S.issues=[fz]; S.jobs=[{left:5},{left:5}];
+  Object.assign(sel,{issue:fz.id,v:'anthropic',m:'sonnet',b:'api',rv:0}); ev.length=0; dispatch();
+  ok(ev.length===0,'choice-analytics：工作槽滿不送 dispatch');
+  newRun('laravel','parallel'); const lz=ticket('laravel',1); S.issues=[lz]; S.jobs=[{b:'local',left:5,issue:ticket('fe',1)}];
+  Object.assign(sel,{issue:lz.id,v:'local',m:'gemma',b:'local',rv:0}); ev.length=0; dispatch();
+  ok(ev.length===0,'choice-analytics：本地 GPU 忙不送 dispatch');
+  /* 手寫：陷阱與失敗 */
+  newRun('laravel','serial'); S.hours=8; const mt=ticket('laravel',1,{trap:true,trueCx:4,trueBase:BASE[4]}); S.issues=[mt]; sel.issue=mt.id; ev.length=0; manual();
+  ok(of('manual_fix')[0]?.p.outcome==='trap'&&of('manual_fix')[0]?.p.cx===1,'choice-analytics：手寫踩到陷阱 → trap，cx 送原估');
+  S.hours=99; const mf=ticket('laravel',4); S.issues=[mf]; sel.issue=mf.id; ev.length=0;
+  {const rr=Math.random; Math.random=()=>.99; manual(); Math.random=rr;}
+  ok(of('manual_fix')[0]?.p.outcome==='fail','choice-analytics：手寫卡關 → fail');
+  /* 評估：沒陷阱 clear、額度不夠 quota */
+  newRun('laravel','serial'); S.hours=8; const ec=ticket('laravel',1); S.issues=[ec]; Object.assign(sel,{issue:ec.id,v:'anthropic',m:'opus',b:'api'}); ev.length=0; evaluate();
+  ok(of('evaluate')[0]?.p.outcome==='clear','choice-analytics：評估沒發現陷阱 → clear');
+  S.subs.anthropic='pro'; S.used.sub.anthropic.d=450; const eq=ticket('laravel',1); S.issues=[eq]; Object.assign(sel,{issue:eq.id,v:'anthropic',m:'opus',b:'sub'}); ev.length=0; evaluate();
+  ok(of('evaluate')[0]?.p.outcome==='quota','choice-analytics：評估額度不夠 → quota');
   const old=job(); delete old.m; delete old.ef; const ro=res(old);
   ok(ro.model==='unknown'&&ro.effort==='mid','choice-analytics：舊存檔的 job 送 model unknown、effort mid',JSON.stringify(ro));
   delete globalThis.gtag;
