@@ -54,6 +54,7 @@ export function render(){
   <header class="top">
     <div class="brand"><h1><span class="tk">Token</span> 撐到月底</h1><p>${companyName()}・工程師・20 個工作天，有限的錢和額度，把工單做完。</p></div>
     <div class="cal">${cal}</div>
+    <button class="btn ghost rbtn" data-act="rules">規則</button>
   </header>
   ${meters}
   <div class="quotas">${qs}</div>

@@ -1,4 +1,4 @@
-import {APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,normCompanies,objOf,pick,pickClient,presetsOf,rnd} from './data.js';
+import {HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,normCompanies,objOf,pick,pickClient,presetsOf,rnd} from './data.js';
 import {SLOT_CHOICES} from './actions.js';
 
 /* ===== 狀態 ===== */
@@ -6,9 +6,11 @@ export let S, sel, uid=0;
 /* 工單編號：其他模組只能透過這兩個函式改 */
 export const nextId=()=>++uid;
 export const resetIds=()=>{uid=0;};
+/* 開局的個人錢包、公司 API 預算、主管信任 */
+export const START={wallet:8000,corp:12000,trust:70,hours:8};
 export function fresh(){
   uid=0;
-  S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,outsource:S?.outsource===true,advanced:S?.advanced===true,presets:presetsOf(S?.presets),jobs:[],
+  S={day:1,hours:START.hours,wallet:START.wallet,corp:START.corp,trust:START.trust,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,outsource:S?.outsource===true,advanced:S?.advanced===true,presets:presetsOf(S?.presets),jobs:[],
     inv:{md:{},...objOf(INV_KEYS,()=>false)},
     subs:objOf(APIV,()=>'none'),
     used:{sub:objOf(APIV,()=>({d:0,w:0})),seat:objOf(SEAT.vendors,()=>({d:0,w:0}))},
@@ -78,10 +80,10 @@ export function makeIssue(inc,st){
   const title=trap&&Math.random()<.5?pick(STACKS[stack].pool.trap):pick(STACKS[stack].pool[inc?'inc':cx]);
   return {id:nextId(),title,cx,base,inc:!!inc,stack,
     trap,trueCx:trap?trueCx:cx,trueBase:trap?BASE[trueCx]*R(.85,1.15):base,revealed:false,evaluated:false,rescoped:false,merge:false,
-    store:stack==='app'&&cx>=2&&Math.random()<.4,
+    store:stack==='app'&&cx>=2&&Math.random()<STORE_RATE,
     sens:Math.random()<(inc?.55:.25),big:cx>=3&&Math.random()<.45,
     client:inc?CLIENTS[0]:pickClient(),
-    due:Math.min(20,due+(!inc&&hardStack(stack)?1:0)),kpi:Math.round(KPI[cx]*(inc?(S.inv.monitor?MONITOR_KPI:1.6):1)*(hardStack(stack)?1.3:1)),tries:0};
+    due:Math.min(20,due+(!inc&&hardStack(stack)?1:0)),kpi:Math.round(KPI[cx]*(inc?(S.inv.monitor?MONITOR_KPI:INC_KPI):1)*(hardStack(stack)?HARD_KPI:1)),tries:0};
 }
 
 

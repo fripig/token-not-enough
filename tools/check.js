@@ -18,6 +18,7 @@ import * as C from '../public/js/calc.js';
 import * as M from '../public/js/modals.js';
 // 另一份沒玩過的 state.js：用來測第一次 fresh() 的預設值（主模組的 S 已經被 start() 設過）
 import * as St from '../public/js/state.js';
+import * as Ru from '../public/js/rules.js';
 const pristine=await import('../public/js/state.js?pristine');
 
 let pass=0,fail=0;
@@ -1652,6 +1653,61 @@ function tests(){
   {const d=JSON.parse(store[St.SAVE_KEY]); delete d.S.hw; delete d.S.hwReq; delete d.S.hwUsed; store[St.SAVE_KEY]=JSON.stringify(d);}
   {const d=St.readSave(); ok(d&&!d.bad,'local-hardware：沒有電腦欄位的舊存檔讀得到'); St.loadGame(d);
   ok(S.day===5&&Object.values(S.hw).every(x=>!x)&&S.hwReq===null&&Object.values(S.hwUsed).every(x=>!x)&&dataModule.HW_KEYS.every(k=>A.hwReqBlock(k)===''),'local-hardware：舊存檔當作沒買電腦、每台都能申請');}
+  }
+
+  /* rules-reference（gh-20-01-rules-modal） */
+  {
+  const press=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+  const tabIds=()=>[...els.mo.innerHTML.matchAll(/data-rtab="(\w+)"/g)].map(m=>m[1]);
+  const selTab=()=>els.mo.innerHTML.match(/class="sb sel" data-rtab="(\w+)"/)?.[1];
+  newRun('laravel'); els.ov.hidden=true; Ru.showRules();
+  ok(els.mo.innerHTML.includes('<h2>遊戲規則</h2>')&&tabIds().join()==='basic,dispatch,billing,tickets,invest,score'&&selTab()==='basic'&&!els.ov.hidden,'rules-reference：第一次打開有六個分頁、選中基本');
+  ok(Ru.RULE_TABS.map(t=>t.title).join()==='基本,派工與成功率,付費與稽核,工單與陷阱,投資與電腦,結算','rules-reference：分頁標題與順序');
+  for(const t of Ru.RULE_TABS){press({rtab:t.id}); ok(selTab()===t.id&&els.mo.innerHTML.includes(Ru.rulesTab(t.id)),`rules-reference：點 ${t.title} 會選中並顯示內容`);}
+  press({rtab:'score'}); ok(els.mo.innerHTML.includes('總分 = KPI ×'),'rules-reference：結算分頁顯示總分公式');
+  press({rtab:'invest'}); press({act:'close'}); ok(els.ov.hidden,'rules-reference：從標頭打開，關閉後隱藏彈窗');
+  Ru.showRules(); ok(selTab()==='invest','rules-reference：同一次開頁記住上次的分頁');
+  ok(Ru.rulesTab('nope')===Ru.rulesTab('basic'),'rules-reference：未知分頁退回基本');
+  press({rtab:'nope'}); ok(selTab()==='basic','rules-reference：點到未知分頁 id 時選中基本');
+  press({act:'close'});
+  }
+
+  {
+  const plain=id=>Ru.rulesTab(id).replace(/ data-h="[^"]*"/g,''); // 窄螢幕卡片用的欄名屬性不影響比對
+  const sc=plain('score'), bi=plain('billing'), iv=plain('invest'), D=dataModule;
+  ok(M.GRADES.join()==='4600,3800,3000,2200'&&M.PAR_GRADE===1.6&&M.GRADES.every(t=>sc.includes(`<td>${t}</td>`)&&sc.includes(`<td>${Math.round(t*M.PAR_GRADE)}</td>`))&&sc.includes('<td>7360</td>'),'rules-reference：結算分頁列出單線與平行模式的評等門檻');
+  ok(['kpi','trust','spendDiv','audit'].every(k=>sc.includes(`× ${M.SCORE[k]}`)||sc.includes(`÷ ${M.SCORE[k]}`)),'rules-reference：結算分頁的總分權重來自 SCORE');
+  ok(plain('tickets').includes(`評估時間 ×${D.MCP_EVAL_HRS}`),'rules-reference：MCP 評估時間倍率來自常數');
+  ok(bi.includes(D.nt(A.CORP_DAY_LIMIT))&&bi.includes(`信任 −${A.AUDIT_TRUST}`)&&bi.includes(SEAT.trust.join('／')),'rules-reference：付費分頁的公司單日上限、稽核扣分、席位門檻來自常數');
+  ok(['md',...D.INV_KEYS].every(k=>{const I=D.INVEST[k];return iv.includes(I.name)&&iv.includes(`<td>${I.hrs}h</td>`)&&iv.includes(`<td>${D.nt(I.cost)}</td>`)&&iv.includes(I.desc);}),'rules-reference：投資分頁列出每項投資的工時、預算與效果');
+  ok(D.HW_KEYS.every(k=>{const H=D.HW[k];return iv.includes(H.name)&&iv.includes(`<td>${H.trust}</td>`)&&iv.includes(H.price);}),'rules-reference：投資分頁列出每台電腦的價格與信任門檻');
+  ok(plain('dispatch').includes(`<td>${Math.round(C.P_STEP[1]*100)}%</td>`)&&plain('tickets').includes(`<td>${KPI[5]}</td>`),'rules-reference：成功率表與 KPI 表來自常數');
+  }
+
+  {
+  const press=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+  const clickApp=ds=>els.app.on.click({target:{closest:()=>({dataset:ds,disabled:false})}});
+  newRun('laravel'); render(); ok(els.app.innerHTML.includes('data-act="rules"'),'rules-reference：標頭有規則按鈕');
+  St.saveGame(null); const snap=JSON.stringify(S), save=store[St.SAVE_KEY]; els.ov.hidden=true;
+  clickApp({act:'rules'}); ok(!els.ov.hidden&&els.mo.innerHTML.includes('遊戲規則'),'rules-reference：點標頭規則按鈕打開規則');
+  press({rtab:'billing'}); press({act:'close'});
+  ok(els.ov.hidden&&JSON.stringify(S)===snap&&store[St.SAVE_KEY]===save,'rules-reference：開關規則不改狀態、不寫存檔');
+  M.showDay(['測試'],null,false); ok(!els.mo.innerHTML.includes('data-act="rules"'),'rules-reference：早上報告沒有規則入口');
+  S.day=20; showEnd(); ok(!els.mo.innerHTML.includes('data-act="rules"'),'rules-reference：月底結算沒有規則入口');
+  }
+
+  {
+  const press=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+  newRun('laravel','parallel'); S.outsource=false; showSetup(false);
+  ok(els.mo.innerHTML.includes('看完整規則')&&els.mo.innerHTML.includes('data-act="rules"'),'rules-reference：開局彈窗有看完整規則');
+  press({out:'1'}); press({mode:'serial'}); press({act:'rules'});
+  ok(els.mo.innerHTML.includes('遊戲規則')&&!els.mo.innerHTML.includes('data-out'),'rules-reference：從開局彈窗打開規則');
+  press({rtab:'tickets'}); press({act:'close'});
+  ok(!els.ov.hidden&&/class="sb sel" data-out="1"/.test(els.mo.innerHTML)&&/class="sb sel" data-mode="serial"/.test(els.mo.innerHTML),'rules-reference：關閉規則回到開局彈窗、接外包與單線模式仍選著');
+  press({act:'confirm'}); ok(S.outsource===true&&S.mode==='serial'&&els.ov.hidden,'rules-reference：回到開局彈窗後開始第 1 天照選擇開局');
+  showSetup(true); ok(els.mo.innerHTML.includes('看完整規則'),'rules-reference：週一調整訂閱也有看完整規則');
+  press({act:'rules'}); press({act:'close'}); ok(!els.ov.hidden&&els.mo.innerHTML.includes('週一：調整訂閱'),'rules-reference：關閉規則回到調整訂閱');
+  press({act:'close'});
   }
   console.log(`\n${pass} passed, ${fail} failed`);
   if(fail) process.exitCode=1;

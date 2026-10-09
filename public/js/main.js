@@ -3,6 +3,7 @@ import {log} from './calc.js';
 import {batch,dispatch,endDay,evaluate,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait} from './actions.js';
 import {app,render} from './view.js';
 import {showBadSave,showResume,showSetup} from './modals.js';
+import {showRules} from './rules.js';
 
 /* ===== 事件 ===== */
 app.addEventListener('click',e=>{
@@ -26,6 +27,7 @@ app.addEventListener('click',e=>{
   else if(t.dataset.act==='wait1')wait(false);
   else if(t.dataset.act==='waitn')wait(true);
   else if(t.dataset.act==='adjust')showSetup(true);
+  else if(t.dataset.act==='rules')showRules();
 });
 
 /* 第 1 天的工單依公司產生；開局換公司時重抽 */

@@ -41,7 +41,7 @@ export function cnBlock(is,v,M){
   if(b==='all'&&M.cn) return '中國權重禁用';
   return '';
 }
-export const SEAT={day:2500,week:10000,name:'公司團隊席位',vendors:['anthropic','openai','google'],trust:[55,65,75]};
+export const SEAT={day:2500,week:10000,name:'公司團隊席位',vendors:['anthropic','openai','google'],trust:[55,65,75],review:5};
 export const BASE=[0,60,180,350,550,850];
 export const KPI=[0,3,6,10,16,24];
 /* 技術線：前六個是可選的工作內容（主技術線），fe 是每種工作內容都會有的前端工單 */
@@ -153,8 +153,18 @@ export const INVEST={
 };
 /* CLAUDE.md 以外的投資，面板照這個順序 */
 export const INV_KEYS=['tests','ci','hook','scan','fastlane','monitor','skills','mcp','sdd'];
-export const MD_TK=.85, MD_P=.06, TEST_CATCH=.1, MCP_REVEAL=.2, SDD_TK=1.1, SDD_P=.08, SDD_TRAP_STOP=.15;
+export const MD_TK=.85, MD_P=.06, TEST_CATCH=.1, MCP_REVEAL=.2, MCP_EVAL_HRS=.5, SDD_TK=1.1, SDD_P=.08, SDD_TRAP_STOP=.15;
 export const HOOK_PR=.5, SCAN_AUDIT=.5, FASTLANE_REJECT=.1, MONITOR_LATE=4, MONITOR_KPI=1.2;
+/* 規則係數（規則 modal 也讀這些） */
+export const CATCH={base:.45,per:.08,strict:.2,max:.95};          // 自我審核抓錯率 = base + per × 能力（嚴格 +strict）
+export const REVEAL={base:.35,per:.15,max:.95};                     // 評估架構識破率
+export const BIG={p:.08,tk:.7};                                     // 大型 codebase：成功率 ±p、ctx 模型 token ×tk
+export const RETRY={tk:.7,hrs:.8};                                  // 失敗後重做的 token 與時間折扣
+export const MANUAL_HRS=2.2, UNFAMILIAR_HRS=2;                      // 手寫每單位複雜度的時數、不熟的倍率
+export const STACK_HRS={rust:1.2,app:1.15,devops:1.25};             // 技術線執行時間倍率
+export const STORE_RATE=.4, INC_KPI=1.6, HARD_KPI=1.3, LATE_KPI=.5; // 需上架審核比例、事故 KPI、難線 KPI、逾期扣 KPI 比例
+export const CONFLICT=.1, CI_CONFLICT=.5, PR_HRS=.2, PR_REVIEWED=.5, EVAL_HRS=.5; // 每個還在跑的 agent 衝突機率與 CI 倍率、審 PR 每單位複雜度時數與自審倍率、評估時數
+export const RESCOPE={ok:5,no:3,days:2};                            // 找主管：同意與拒絕各扣多少信任、延幾天
 /* 採購電腦：走公司採購申請，不扣公司 API 預算；到貨當天看信任決定核不核准 */
 export const PC_SPEED=.7, HW_REQ_HRS=1, HW_SETUP_HRS=1, HW_IDLE=2;
 export const HW={

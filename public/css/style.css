@@ -206,3 +206,26 @@ button:disabled{cursor:not-allowed;opacity:.42}
 .about p{margin:0 0 8px}
 .about ul,.about ol{margin:0 0 8px;padding-left:1.4em}
 .about li{margin-bottom:2px}
+
+/* 規則 modal：分頁列、段落、小表格（窄螢幕時表格在自己的框裡橫向捲動） */
+.rtabs .sb{font-weight:700}
+.rbody{display:flex;flex-direction:column;gap:14px}
+.rsec{display:flex;flex-direction:column;gap:6px}
+.rsec h3{margin:0;font:800 15px/1.3 var(--display)}
+.rtag{display:inline-block;font-size:11px;line-height:1.4;padding:0 6px;margin-right:4px;border:1px solid var(--line);border-radius:4px;color:var(--accent);vertical-align:1px}
+.rtw{max-width:100%;overflow-x:auto}
+.rt{border-collapse:collapse;font-size:13px;min-width:100%}
+.rt th,.rt td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+.rt th{font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:700;white-space:nowrap}
+.rt td:first-child{white-space:nowrap;font-weight:700}
+.rnote{color:var(--muted);font-size:12px}
+.top .rbtn{align-self:flex-start}
+/* 窄螢幕：表格每一列排成一張卡片，欄名當標籤 */
+@media (max-width:480px){
+  .rt thead{display:none}
+  .rt,.rt tbody,.rt tr,.rt td{display:block}
+  .rt tr{border-bottom:1px solid var(--line);padding:6px 0}
+  .rt td{border:0;padding:1px 0;white-space:normal}
+  .rt td:first-child{white-space:normal}
+  .rt td:not(:first-child)::before{content:attr(data-h) "：";color:var(--muted);font-size:11px}
+}

@@ -1,4 +1,4 @@
-import {FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,effModel,efOf,kt,model,planOf} from './data.js';
+import {BIG,CATCH,MANUAL_HRS,RETRY,STACK_HRS,UNFAMILIAR_HRS,FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,effModel,efOf,kt,model,planOf} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
 import {PAR} from './actions.js';
 
@@ -12,7 +12,7 @@ export function useQuota(kind,v,x){const u=S.used[kind][v];u.d+=x;u.w+=x;}
 
 /* 自我審核：多花 token 與時間，agent 改壞時有機會當場抓到並修正，避免整單重做 */
 export const REVIEW=[{name:'不審核',tk:1,hrs:1},{name:'自審',tk:1.3,hrs:1.2},{name:'嚴格審核',tk:1.6,hrs:1.35}];
-export const catchRate=(rv,M)=>rv===0?0:Math.min(.95,.45+.08*M.cap+(rv===2?.2:0)+(S.inv.tests?TEST_CATCH:0));
+export const catchRate=(rv,M)=>rv===0?0:Math.min(CATCH.max,CATCH.base+CATCH.per*M.cap+(rv===2?CATCH.strict:0)+(S.inv.tests?TEST_CATCH:0));
 /* 技術線效果：只看技術線本身的特性，不替各家模型設「誰比較會」的分數 */
 export const conventional=is=>(is.stack==='laravel'||is.stack==='rails')&&is.cx<=3; // 框架慣例多
 export const STORE_REJECT=.2;                                                       // App Store 退件機率
@@ -22,7 +22,7 @@ export function stackGap(is,M){
   if(is.stack==='rust'&&M.cap<4) return -1;                            // borrow checker
   return 0;
 }
-export const stackHrs=is=>is.stack==='rust'?1.2:is.stack==='app'?1.15:is.stack==='devops'?1.25:1;     // 編譯測試、模擬器、CI 與 terraform
+export const stackHrs=is=>STACK_HRS[is.stack]||1;     // 編譯測試、模擬器、CI 與 terraform
 export function stackHint(is){
   if(conventional(is)) return `${STACKS[is.stack].name} 慣例多：複雜度 3 以下的工單，成功率視同簡單一級。`;
   if(is.stack==='rust') return `Rust：編譯測試比較慢，執行時間 ×${stackHrs(is)}；能力 4 以下的模型容易卡在 borrow checker，成功率視同難一級。`;
@@ -39,18 +39,20 @@ export const manualBlocked=()=>localBusy()&&!hasHw();
 export const hwBlock=M=>M.hw&&!S.hw[M.hw]?`需要 ${HW[M.hw].name}`:'';
 /* 有顯卡的 PC：本地模型都變快 */
 export const localSpeed=v=>v==='local'&&S.hw.pc?PC_SPEED:1;
-export const manualHrs=is=>is.cx*2.2*(is.tries?.8:1)*(unfamiliar(is)?2:1);
+export const manualHrs=is=>is.cx*MANUAL_HRS*(is.tries?RETRY.hrs:1)*(unfamiliar(is)?UNFAMILIAR_HRS:1);
 /* 進階模式的推理強度套在模型上；能力超過工單的 token 折扣看原本的模型 */
+/* 成功率階梯：能力差 ≥1、0、−1、−2、更低 */
+export const P_STEP=[.95,.8,.5,.25,.1];
 export function est(is,v,mid,rv=sel.rv,ef=sel.ef){
   const M0=model(v,mid), M=effModel(M0,efOf(ef)), raw=M.cap-is.cx, diff=raw+stackGap(is,M);
   const md=!!S.inv.md[is.stack], sdd=S.inv.sdd;
-  const tk=is.base*M.verb*(is.big&&M.ctx?.7:1)*(M0.cap-is.cx>=1?.85:1)*REVIEW[rv].tk*(md?MD_TK:1)*(sdd?SDD_TK:1);
-  let p=diff>=1?.95:diff===0?.8:diff===-1?.5:diff===-2?.25:.1;
-  if(is.big&&M.ctx)p+=.08; if(is.big&&!M.ctx&&M.cap<4)p-=.08;
+  const tk=is.base*M.verb*(is.big&&M.ctx?BIG.tk:1)*(M0.cap-is.cx>=1?.85:1)*REVIEW[rv].tk*(md?MD_TK:1)*(sdd?SDD_TK:1);
+  let p=P_STEP[Math.min(4,Math.max(0,1-diff))];
+  if(is.big&&M.ctx)p+=BIG.p; if(is.big&&!M.ctx&&M.cap<4)p-=BIG.p;
   if(md)p+=MD_P; if(sdd&&is.cx>=3)p+=SDD_P;
   p=Math.max(.05,Math.min(.97,p));
   const c=catchRate(rv,M);
-  return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:(p+(1-p)*c)*(is.store?1-storeReject():1),hrs:is.cx*M.speed*localSpeed(v)*(is.tries?.8:1)*REVIEW[rv].hrs*stackHrs(is)};
+  return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:(p+(1-p)*c)*(is.store?1-storeReject():1),hrs:is.cx*M.speed*localSpeed(v)*(is.tries?RETRY.hrs:1)*REVIEW[rv].hrs*stackHrs(is)};
 }
 
 /* 外包單只能自己付：公司 API 與公司席位都不能用 */

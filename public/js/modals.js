@@ -4,6 +4,7 @@ import {log} from './calc.js';
 import {PAR,REVIEW_LOAD,SLOT_CHOICES,invCount} from './actions.js';
 import {app,mo,ov,render} from './view.js';
 import {firstIssues,start} from './main.js';
+import {showRules} from './rules.js';
 
 /* ===== 彈窗 ===== */
 export let draft=null;
@@ -13,7 +14,7 @@ export function planPicker(adjust){
     return `<div class="pv" style="--vc:${vc(v)}"><b>${V.name}・${V.agent}</b><div class="seg">${V.plans.map(p=>`<button class="sb ${draft.subs[v]===p.id?'sel':''}" data-pv="${v}" data-pp="${p.id}">${p.name}<small>${p.price?`${nt(p.price)}/月・每日 ${kt(p.day)}`:'只用 API'}</small></button>`).join('')}</div></div>`;
   }).join('');
   const canSeat=!S.seatReq&&S.seats.length<SEAT.vendors.length;
-  const seat=canSeat?`<div class="pv" style="--vc:var(--accent)"><b>向公司申請第 ${S.seats.length+1} 個團隊席位（5 天後審核，信任需 ${SEAT.trust[S.seats.length]} 以上）</b><div class="seg">
+  const seat=canSeat?`<div class="pv" style="--vc:var(--accent)"><b>向公司申請第 ${S.seats.length+1} 個團隊席位（${SEAT.review} 天後審核，信任需 ${SEAT.trust[S.seats.length]} 以上）</b><div class="seg">
     ${[['','不申請'],...SEAT.vendors.filter(v=>!S.seats.includes(v)).map(v=>[v,VENDORS[v].name])].map(([v,n])=>`<button class="sb ${draft.seat===v?'sel':''}" data-seat="${v}">${n}<small>${v?'公司付・每日 2.5M 額度':'自己想辦法'}</small></button>`).join('')}</div></div>`:'';
   const cost=planCost(adjust);
   return `${rows}${seat}<div class="sum"><span>這次要從個人錢包付</span><b class="num">${nt(cost)}</b><span>付完剩 <b class="num">${nt(S.wallet-cost)}</b></span></div>`;
@@ -32,10 +33,11 @@ export function toggleCompany(cs,k){
   return cs.length<2?COMPANIES.filter(x=>x===k||cs.includes(x)):cs;
 }
 export function showSetup(adjust){
+  const rulesBtn='<div class="actions"><button class="btn ghost" data-act="rules">看完整規則</button></div>';
   draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],slots:S.slots,outsource:S.outsource,advanced:S.advanced};
   const draw=()=>{
     mo.innerHTML=`<h2>${adjust?'週一：調整訂閱':'月初：決定這個月怎麼付 token'}</h2>
-    ${adjust?`<p class="lead">升級只補剩下週數的差價，降級不退費。</p>`:`<p class="lead">你是工程師，負責「${companyName(draft.companies)}」。接下來 20 個工作天，每天都會有新工單進來。你有 ${nt(S.wallet)} 的個人 AI 預算，部門另外有 ${nt(S.corp)} 的公司 API 預算。</p>
+    ${adjust?`<p class="lead">升級只補剩下週數的差價，降級不退費。</p>${rulesBtn}`:`<p class="lead">你是工程師，負責「${companyName(draft.companies)}」。接下來 20 個工作天，每天都會有新工單進來。你有 ${nt(S.wallet)} 的個人 AI 預算，部門另外有 ${nt(S.corp)} 的公司 API 預算。</p>
     <ul class="rules">
       <li><b>個人訂閱</b>月費固定，有每日與每週額度，越強的模型吃額度越快。額度用完 agent 會停在一半。</li>
       <li><b>個人 API</b> 用多少付多少，沒有上限，錢從你口袋出。</li>
@@ -46,7 +48,7 @@ export function showSetup(adjust){
       <li><b>技術線</b>：可以選 1–2 條主技術線，大部分工單平分給它們，也會有前端工單和少量其他技術線的工單。沒選的技術線算不熟，自己手寫要花兩倍時間。</li>
       <li><b>派工方案與工程投資</b>：存三組常用組合，工單卡片上一鍵派工；花工時和公司預算寫 CLAUDE.md、單元測試、CI、hook、資安掃描、上架自動化、監控告警、做 skills、接 MCP 文件、導入 SDD，越早做越划算。</li>
       <li>工單逾期扣 KPI 和信任。月底結算看 KPI、信任，還有你自己花了多少錢。</li>
-    </ul>
+    </ul>${rulesBtn}
     <div class="sec"><label>工作內容（可選 1–2 項）</label><div class="modes">
       ${COMPANIES.map(k=>{const on=draft.companies.includes(k);return `<button class="sb ${on?'sel':''}" data-company="${k}" ${!on&&draft.companies.length>=2?'disabled':''}><b>${STACKS[k].company}</b><small>難度 ${'★'.repeat(STACKS[k].level)}・${STACKS[k].desc}</small></button>`;}).join('')}
     </div></div>
@@ -66,8 +68,9 @@ export function showSetup(adjust){
     <div class="plans">${planPicker(adjust)}</div>
     <div class="actions"><button class="btn primary" data-act="confirm">${adjust?'確定調整':'開始第 1 天'}</button>${adjust?'<button class="btn ghost" data-act="close">不改了</button>':''}</div>`;
   };
-  draw(); ov.hidden=false;
-  mo.onclick=ev=>{
+  /* 規則 modal 關閉後重畫開局彈窗、掛回處理器，draft 不重設 */
+  const back=()=>{draw();mo.onclick=onClick;};
+  const onClick=ev=>{
     const t=ev.target.closest('button'); if(!t) return;
     if(t.dataset.pv){draft.subs[t.dataset.pv]=t.dataset.pp;draw();}
     else if(t.dataset.seat!==undefined){draft.seat=t.dataset.seat;draw();}
@@ -77,6 +80,7 @@ export function showSetup(adjust){
     else if(t.dataset.out){draft.outsource=t.dataset.out==='1';draw();}
     else if(t.dataset.adv){draft.advanced=t.dataset.adv==='1';draw();}
     else if(t.dataset.act==='close'){ov.hidden=true;}
+    else if(t.dataset.act==='rules'){showRules(back);}
     else if(t.dataset.act==='confirm'){
       const c=planCost(adjust); S.wallet-=c; S.st.subFee+=c;
       if(!adjust){
@@ -101,6 +105,7 @@ export function showSetup(adjust){
       ov.hidden=true; render();
     }
   };
+  draw(); ov.hidden=false; mo.onclick=onClick;
 }
 export function showDay(rep,ev,monday){
   mo.innerHTML=`<h2>第 ${S.day} 天${monday?'・新的一週':''}</h2>
@@ -130,10 +135,12 @@ export function showBadSave(){
   ov.hidden=false;
   mo.onclick=e=>{const t=e.target.closest('button');if(!t)return;if(t.dataset.act==='new')start();};
 }
+/* 總分權重與評等門檻（平行模式門檻 ×PAR_GRADE） */
+export const SCORE={kpi:10,trust:4,spendBase:8000,spendDiv:8,spendFloor:-4000,audit:80}, GRADES=[4600,3800,3000,2200], PAR_GRADE=1.6;
 export function showEnd(){
   const self=S.st.subFee+S.st.api+S.st.outPenalty-S.st.outIncome;
-  const score=Math.round(S.kpi*10+S.trust*4+Math.max(-4000,8000-self)/8-S.st.audits*80);
-  const gm=PAR()?1.6:1; const g=score>=4600*gm?'S':score>=3800*gm?'A':score>=3000*gm?'B':score>=2200*gm?'C':'D';
+  const score=Math.round(S.kpi*SCORE.kpi+S.trust*SCORE.trust+Math.max(SCORE.spendFloor,SCORE.spendBase-self)/SCORE.spendDiv-S.st.audits*SCORE.audit);
+  const gm=PAR()?PAR_GRADE:1; const gi=GRADES.findIndex(t=>score>=t*gm); const g=gi<0?'D':'SABC'[gi];
   const tot=Object.values(S.st.tk).reduce((a,b)=>a+b,0)||1;
   let title,desc;
   if(S.st.audits>=2){title='資安部門的常客';desc='機敏程式碼進了個人帳號太多次。'}
@@ -173,7 +180,7 @@ export function showEnd(){
     <hr><div class="tot"><span>總分</span><span>${score.toLocaleString('en-US')}</span></div>
     ${best?`<div><span>先前最佳</span><span>${best.toLocaleString('en-US')}</span></div>`:''}
   </div>
-  <p class="lead">總分 = KPI × 10 + 信任 × 4 + 省下的個人預算 ÷ 8 − 稽核次數 × 80</p>
+  <p class="lead">總分 = KPI × ${SCORE.kpi} + 信任 × ${SCORE.trust} + 省下的個人預算 ÷ ${SCORE.spendDiv} − 稽核次數 × ${SCORE.audit}</p>
   <div class="actions"><button class="btn primary" data-act="again">再玩一個月</button><button class="btn ghost" data-act="close">看看紀錄</button></div>`;
   ov.hidden=false;
   mo.onclick=e=>{const t=e.target.closest('button');if(!t)return;if(t.dataset.act==='again')start();if(t.dataset.act==='close'){ov.hidden=true;app.querySelector('[data-act="end"]')?.setAttribute('disabled','');}};
