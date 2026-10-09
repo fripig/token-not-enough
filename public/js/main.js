@@ -1,8 +1,8 @@
-import {S,addGigs,fresh,makeIssue,resetIds,sel} from './state.js';
+import {S,addGigs,clearSave,fresh,makeIssue,readSave,resetIds,sel} from './state.js';
 import {log} from './calc.js';
 import {batch,dispatch,endDay,evaluate,invest,loadPreset,manual,quick,rescope,savePreset,wait} from './actions.js';
 import {app,render} from './view.js';
-import {showSetup} from './modals.js';
+import {showBadSave,showResume,showSetup} from './modals.js';
 
 /* ===== 事件 ===== */
 app.addEventListener('click',e=>{
@@ -35,7 +35,12 @@ export function firstIssues(){
   log('dim',`— 第 1 天開工，新進 4 張工單${g?`，外包 ${g} 張`:''} —`);
 }
 export function start(){
-  fresh(); firstIssues();
+  clearSave(); fresh(); firstIssues();
   render(); showSetup(false);
 }
-start();
+/* 開頁：有存檔問要不要繼續，存檔壞了先提示，都沒有就開新局 */
+export function boot(){
+  const d=readSave();
+  if(!d) start(); else if(d.bad) showBadSave(); else showResume(d);
+}
+boot();

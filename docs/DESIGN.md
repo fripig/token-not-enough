@@ -12,7 +12,7 @@
 - `public/css/style.css`：樣式。開頭補了 `body{margin:0}`、`[hidden]{display:none!important}`，原本由 Artifact 外殼提供；少了後者 `.ov` 的 `display:flex` 會蓋過 `hidden`，彈窗關不掉。
 - `public/js/*.js`：遊戲本體，拆成七個原生 ES modules（見「程式碼地圖」），由 `public/index.html` 以 `<script type="module" src="js/main.js">` 載入；無建置步驟、遊戲邏輯沒有外部 JS 相依。瀏覽器不允許從 `file://` 載入模組，一定要用本機伺服器開。頁面另外從 Google Fonts 載字型，並在 `public/index.html` 載入 Google Analytics（gtag.js）做流量統計。遊戲事件由 `state.js` 的 `track()` 送出（沒有 `gtag` 時不動作，node 工具不受影響）：`game_start`（開局確認，週一調整不送）、`day_reached`（開局送第 1 天，之後每天開工送一次）、`game_end`（月底結算，多帶 `score`、`grade`）。每個事件都帶 `game_version`（`data.js` 的 `GAME_VERSION`，部署時 `pages.yml` 把 `'dev'` 換成短 commit hash，sed 沒換到就讓部署失敗）、`game_mode`、`companies`（如 `laravel+rust`）、`slots`（單線為 1）、`advanced`、`outsource`、`day`。看玩家玩到第幾天：GA4 依 `day` 統計 `day_reached` 的使用者數；`day`、`game_mode` 等參數要先在 GA 管理後台註冊成事件範圍的自訂維度才看得到。事件規則以 `docs/spectra/specs/play-analytics/` 為準（Spectra change `gh-10-01-play-analytics`），`tools/check.js` 有對應斷言。本機用 `python3 -m http.server -d public 8000` 開。
 - `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 四家公司 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資（`SIM_INVEST=2` 再加買三項新投資，`SIM_INV_EXTRA=monitor,scan` 之類可只加買指定幾項），`SIM_COMBOS=1` 改跑六種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_EFFORT=1` 開啟進階模式並讓自動玩家挑推理強度，`SIM_SEATS=1..3` 在第 6、11、16 天直接給團隊席位（量上限用，不經信任審核）並讓自動玩家優先刷席位，`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 公司」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
-- `tools/check.js`：規則檢查。`node tools/check.js` 把 spec 裡的範例數字逐條斷言（技術線分布、成功率、時間倍率、手寫時數、上架審核、KPI 補償、最高分 key、難度標示、接外包、GA 遊戲事件，以及十份核心規則 spec 的情境），任何一條不符就以非 0 結束。改規則時同步更新。
+- `tools/check.js`：規則檢查。`node tools/check.js` 把 spec 裡的範例數字逐條斷言（技術線分布、成功率、時間倍率、手寫時數、上架審核、KPI 補償、最高分 key、難度標示、接外包、GA 遊戲事件、存檔，以及十份核心規則 spec 的情境），任何一條不符就以非 0 結束。改規則時同步更新。
 
 部署：push 到 `main` 後 `.github/workflows/pages.yml` 把 `public/` 發佈到 https://token-not-enough.youareright.app/ 。只有 `public/` 會公開。自訂網域設在 repo 的 Pages 設定（用 Actions 部署時 `CNAME` 檔不會生效），DNS 是 Cloudflare 上 `youareright.app` 的 CNAME `token-not-enough` → `fripig.github.io`（DNS only），舊網址 `fripig.github.io/token-not-enough/` 會轉址過來。
 
@@ -49,6 +49,8 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
    → 每家廠商最多一個、最多三個席位，門檻 55／65／75，一次只審一個。設計紀錄在 Spectra change `gh-06-01-multi-team-seats`；平衡量測另開 #7。
 15. 「工程投資可以細化或者增加項目」、「有事故時信任度降低的程度要減小」
    → 補測試拆成單元測試與 CI 流水線，新增 pre-commit／lint hook、secret scanning／脫敏、上架自動化（fastlane）、監控告警；事故扣信任減半做成監控告警的效果。設計紀錄在 Spectra change `gh-08-01-more-investments`。
+16. 「開卡做存檔功能」
+   → 每天開工時自動存一格，開頁問要不要繼續。使用者選了開工時存（允許重骰當天）、只存一格、結構版本不同就丟、讀檔的局照常記最高分。設計紀錄在 Spectra change `gh-11-01-save-game`。
 
 介面文字一律繁體中文（台灣用語）。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
@@ -311,20 +313,29 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 總分 = KPI × 10 + 信任 × 4 + (8000 − 個人花費) ÷ 8（下限 −4000 ÷ 8）− 稽核次數 × 80。個人花費 = 訂閱費 + 個人 API + 外包違約金 − 外包收入。
 評等 S/A/B/C/D 門檻 4600/3800/3000/2200（平行模式 ×1.6）。最高分依「模式 × 選到的技術線」存在 `localStorage` 的 `tokgame-best-<mode>-<a>+<b>`（`bestKey()`；單選就是原本的 `tokgame-best-<mode>-<company>`）；只選 Laravel 且沒有新 key 時沿用改版前的 `tokgame-best-<mode>`。稱號依花費結構判定（資安常客、自費勇者、公司帳單頭號人物、對岸模型省錢達人、地端信仰者、手工藝工程師、Token 精算師）。
 
+### 存檔（`SAVE_KEY`、`SAVE_VER`、`saveGame`、`readSave`、`loadGame`、`clearSave`、`boot`）
+規則以 `docs/spectra/specs/save-game/` 為準。
+- 只存一格，`localStorage` 的 `tokgame-save`，內容是 `{ver, S, sel, uid, morning}`。`morning` 是當天早上報告彈窗的內容（`showDay` 的 `rep`、`ev`、`monday`），第 1 天是 `null`；隨機事件的文字不在紀錄裡，所以要一起存。
+- 只在兩個時間點存：開局確認（開始第 1 天）之後、`endDay` 換到新的一天之後（開早上報告之前）。白天的動作、週一調整訂閱都不存，所以重新整理會回到當天早上，可以重骰當天，這是使用者選的。第 20 天下班直接結算、不存。
+- 開頁由 `main.js` 的 `boot()` 決定：有能用的存檔開 `showResume`（第 N 天・公司・模式，繼續／開新局），存檔不能用就刪掉並開 `showBadSave`，都沒有就 `start()`。繼續會把 `S`、`sel`、`uid` 換成存檔的，第 2 天以後再開一次早上報告，不送 GA 事件。
+- `start()`（開新局、再玩一個月）和 `showEnd` 都會刪掉存檔。讀檔的局照常記最高分。
+- 能用的條件：JSON 解析得了、`ver === SAVE_VER`、第 1–20 天、`issues`／`jobs`／`companies`／`log` 是陣列、`uid` 是非負整數、`morning` 是 `null` 或有 `rep` 陣列、每個跑著的 job 的工單都在佇列裡。跑著的 job 和佇列裡的工單是同一個物件，`readSave` 會依 id 重新接上。
+- **`SAVE_VER` 是存檔結構版本，跟 `GAME_VERSION` 無關**：只改數值不用動；`S`、`sel`、工單或 job 的欄位改到舊存檔讀進來會出錯時（新增沒有預設值的欄位、改名、改意義），`SAVE_VER` 要加 1，舊存檔就會被丟掉並提示。
+
 ## 程式碼地圖（`public/js/`）
 
 | 模組 | 內容 |
 |---|---|
-| `main.js` | 入口：`app` 上的事件委派（用 `data-*` 屬性分派）、開局，載入時呼叫一次 `start()`：`firstIssues`、`start` |
+| `main.js` | 入口：`app` 上的事件委派（用 `data-*` 屬性分派）、開局，載入時呼叫一次 `boot()`：`firstIssues`、`start`、`boot` |
 | `data.js` | 資料與工具函式，沒有狀態：`GAME_VERSION`、`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP`、`INV_KEYS`、`HOOK_PR`、`SCAN_AUDIT`、`FASTLANE_REJECT`、`MONITOR_LATE`、`MONITOR_KPI` |
-| `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`hardStack`、`unfamiliar`、`makeIssue`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs` |
+| `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件、存檔：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`SAVE_KEY`、`SAVE_VER`、`saveGame`、`clearSave`、`readSave`、`loadGame`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`hardStack`、`unfamiliar`、`makeIssue`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs` |
 | `calc.js` | 計算（`est(is, v, mid, rv, ef)` 會套推理強度）：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log` |
 | `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`parMul`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`endDay` |
 | `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`quickBtn`、`invPanel`、`qbox`、`dispatchPanel` |
-| `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showEnd` |
+| `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showResume`、`showBadSave`、`showEnd` |
 
 模組規則：
-- 每個頂層宣告都 `export`，各模組用到別的模組的名稱就具名 import。模組間允許循環 import，所以頂層只能宣告，不能在載入時呼叫別的模組的函式（`main.js` 最後的 `start()` 除外）。
+- 每個頂層宣告都 `export`，各模組用到別的模組的名稱就具名 import。模組間允許循環 import，所以頂層只能宣告，不能在載入時呼叫別的模組的函式（`main.js` 最後的 `boot()` 除外）。
 - `S`、`sel`、工單編號、`TRAP_RATE` 只有 `state.js` 能重新指定，其他模組用 `nextId()`／`resetIds()`／`setTrapRate()`；`draft` 只在 `modals.js` 裡改。改屬性（`S.day++`）不受限。
 - `tools/check.js`、`tools/sim.js` 要先 import `tools/fake-dom.js`（sim 還要 `tools/seed.js`），再 import `public/js/main.js`，順序和瀏覽器一樣。
 
@@ -343,7 +354,7 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 - 全部工程投資都買時（`SIM_INVEST=2`），平行模式 Rust、App 約 +21%～+27%，超過 +3%～+15%，使用者接受。拿 S 的比例約 98%，如果之後覺得平行模式評等失去意義，可以考慮評等門檻隨投資數調整。
 - 多團隊席位只量了上限（見「時間與資源」的席位實測）：平行模式 −4.3%～+6.0%，在目標內；單線模式 +14.6%～+50.0%。第 2、3 個席位對這個自動玩家幾乎沒有額外效果，重度使用 Opus 的玩家還沒量。照真實規則（要顧信任）的增幅也沒量，因為自動玩家不顧信任。
 - 單線模式下 Rust、App 公司明顯較難（見上方平衡實測），目前用難度星等交代；如果要拉近，可以考慮單線模式下這兩家每天少一張工單。
-- 可能的擴充：Cursor／Copilot 這類多模型訂閱、prompt caching 折扣、用 Sonnet 寫再用 Opus 審的交叉審核、多人比分、存檔與繼續、更多技術線（例如 Go、Python 資料管線）。
+- 可能的擴充：Cursor／Copilot 這類多模型訂閱、prompt caching 折扣、用 Sonnet 寫再用 Opus 審的交叉審核、多人比分、更多技術線（例如 Go、Python 資料管線）。
 
 ## 框架重構評估
 

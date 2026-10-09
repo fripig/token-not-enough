@@ -1,5 +1,5 @@
 import {COMPANIES,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
-import {S,addGigs,track} from './state.js';
+import {S,addGigs,clearSave,loadGame,saveGame,track} from './state.js';
 import {log} from './calc.js';
 import {PAR,SLOT_CHOICES,invCount} from './actions.js';
 import {app,mo,ov,render} from './view.js';
@@ -90,6 +90,7 @@ export function showSetup(adjust){
       if(draft.seat){S.seatReq={vendor:draft.seat,day:S.day};log('dim',`· 提出 ${VENDORS[draft.seat].name} 團隊席位採購申請`);}
       const names=SUBV.filter(v=>S.subs[v]!=='none').map(v=>`${VENDORS[v].name} ${planOf(v).name}`);
       log('dim',`· 訂閱：${names.join('、')||'無'}${c?`（付 ${nt(c)}）`:''}`);
+      if(!adjust) saveGame();
       ov.hidden=true; render();
     }
   };
@@ -103,6 +104,24 @@ export function showDay(rep,ev,monday){
   <div class="actions"><button class="btn primary" data-act="close">開工</button>${monday?'<button class="btn ghost" data-act="adj">調整訂閱</button>':''}</div>`;
   ov.hidden=false;
   mo.onclick=e=>{const t=e.target.closest('button');if(!t)return;if(t.dataset.act==='close')ov.hidden=true;if(t.dataset.act==='adj')showSetup(true);};
+}
+/* 開頁時有存檔：繼續回到當天早上（第 2 天以後再開一次早上報告），或開新局 */
+export function showResume(d){
+  const s=d.S;
+  mo.innerHTML=`<h2>繼續上一局？</h2>
+  <p class="lead">第 ${s.day} 天・${companyName(s.companies)}・${s.mode==='parallel'?`平行（同時 ${s.slots} 個 agent）`:'單線'}</p>
+  <div class="actions"><button class="btn primary" data-act="resume">繼續</button><button class="btn ghost" data-act="new">開新局</button></div>`;
+  ov.hidden=false;
+  mo.onclick=e=>{const t=e.target.closest('button');if(!t)return;
+    if(t.dataset.act==='resume'){loadGame(d);render();const m=d.morning;if(m)showDay(m.rep,m.ev,m.monday);else ov.hidden=true;}
+    if(t.dataset.act==='new')start();};
+}
+export function showBadSave(){
+  mo.innerHTML=`<h2>存檔無法讀取</h2>
+  <p class="lead">上一局的存檔來自舊版本或已經損壞，已經清掉了。</p>
+  <div class="actions"><button class="btn primary" data-act="new">開新局</button></div>`;
+  ov.hidden=false;
+  mo.onclick=e=>{const t=e.target.closest('button');if(!t)return;if(t.dataset.act==='new')start();};
 }
 export function showEnd(){
   const self=S.st.subFee+S.st.api+S.st.outPenalty-S.st.outIncome;
@@ -121,7 +140,7 @@ export function showEnd(){
   /* 最高分依模式與公司分開記錄；Laravel 沿用改版前的舊 key */
   let best=0; const bk=bestKey();
   try{best=+localStorage.getItem(bk)||(S.companies.join()==='laravel'?+localStorage.getItem('tokgame-best-'+S.mode)||0:0); if(score>best)localStorage.setItem(bk,score);}catch(e){}
-  track('game_end',{score,grade:g});
+  track('game_end',{score,grade:g}); clearSave();
   const vendorLines=Object.keys(S.st.tk).filter(v=>S.st.tk[v]>0).map(v=>`<div><span>${VENDORS[v].name}</span><span>${kt(S.st.tk[v])} tokens・${Math.round(S.st.tk[v]/tot*100)}%</span></div>`).join('')||'<div><span>沒有用到任何 agent</span><span>—</span></div>';
   mo.innerHTML=`<h2>月底結算・${companyName()}・${PAR()?`平行模式（${S.slots} 個 agent）`:'單線模式'}</h2>
   <div class="grade"><span class="g">${g}</span><div class="gt"><b>${title}</b><span>${desc}</span></div></div>

@@ -27,6 +27,28 @@ export function track(name,extra={}){
   }catch(e){}
 }
 
+/* 存檔：每天開工時存一格。S、sel、工單或 job 的結構改到舊存檔不能用時，SAVE_VER 要加 1 */
+export const SAVE_KEY='tokgame-save', SAVE_VER=1;
+export function saveGame(morning=null){
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify({ver:SAVE_VER,S,sel,uid,morning}));}catch(e){}
+}
+export function clearSave(){try{localStorage.removeItem(SAVE_KEY);}catch(e){}}
+/* 沒有存檔回 null；存檔不能用就刪掉並回 {bad:true}；檢查時不動到目前的 S、sel、uid */
+export function readSave(){
+  let raw=null; try{raw=localStorage.getItem(SAVE_KEY);}catch(e){return null;}
+  if(raw==null) return null;
+  try{
+    const d=JSON.parse(raw), s=d?.S, ok=d&&d.ver===SAVE_VER&&s&&typeof s==='object'&&Number.isInteger(s.day)&&s.day>=1&&s.day<=20
+      &&['issues','jobs','companies','log'].every(k=>Array.isArray(s[k]))&&d.sel&&typeof d.sel==='object'&&Number.isInteger(d.uid)&&d.uid>=0
+      &&(d.morning===null||(d.morning&&typeof d.morning==='object'&&Array.isArray(d.morning.rep)));
+    if(!ok) throw 0;
+    /* 跑著的 job 和佇列裡的工單是同一個物件，讀回來要重新接上 */
+    for(const j of s.jobs){const is=s.issues.find(i=>i.id===j?.issue?.id); if(!is) throw 0; j.issue=is;}
+    return {S:s,sel:d.sel,uid:d.uid,morning:d.morning};
+  }catch(e){clearSave(); return {bad:true};}
+}
+export function loadGame(d){S=d.S; sel=d.sel; uid=d.uid;}
+
 /* 一般工單：75% 平分給選到的主技術線、15% 前端、10% 平分給沒選的技術線 */
 export function pickStack(){
   const r=Math.random();

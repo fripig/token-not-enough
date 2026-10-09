@@ -1,5 +1,5 @@
 import {APIV,BASE,BILL_LABEL,COMPANIES,FASTLANE_REJECT,HOOK_PR,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,pick,rnd} from './data.js';
-import {GIG_LATE,S,addGigs,hardStack,makeIssue,sel,track} from './state.js';
+import {GIG_LATE,S,addGigs,hardStack,makeIssue,saveGame,sel,track} from './state.js';
 import {REVIEW,est,gigBlocked,localBusy,log,manualHrs,presetFor,quotaLeft,storeReject,useQuota} from './calc.js';
 import {render} from './view.js';
 import {showDay,showEnd} from './modals.js';
@@ -277,6 +277,7 @@ export function endDay(){
   log('dim',`— 第 ${S.day} 天開工，新進 ${n} 張工單${g?`，外包 ${g} 張`:''} —`);
   sel.issue=null;
   track('day_reached');
+  saveGame({rep,ev,monday});
   render(); showDay(rep,ev,monday);
 }
 
