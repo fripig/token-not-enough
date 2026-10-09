@@ -1,6 +1,8 @@
 import {S} from './state.js';
 
 /* ===== 資料（數字為遊戲平衡用，非實際報價） ===== */
+/* 遊戲版本：部署時 .github/workflows/pages.yml 把 'dev' 換成短 commit hash，本機與 node 工具維持 dev */
+export const GAME_VERSION='dev';
 export const VENDORS={
   anthropic:{name:'Anthropic',agent:'Claude Code',vc:'--anth',corp:true,
     plans:[{id:'none',name:'不訂閱',price:0},{id:'pro',name:'Pro',price:650,day:450,week:1800},{id:'max5',name:'Max 5×',price:3300,day:2200,week:9000},{id:'max20',name:'Max 20×',price:6500,day:9000,week:36000}],

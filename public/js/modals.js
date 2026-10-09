@@ -1,5 +1,5 @@
 import {COMPANIES,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
-import {S,addGigs} from './state.js';
+import {S,addGigs,track} from './state.js';
 import {log} from './calc.js';
 import {PAR,SLOT_CHOICES,invCount} from './actions.js';
 import {app,mo,ov,render} from './view.js';
@@ -84,6 +84,7 @@ export function showSetup(adjust){
         if(draft.companies.join()!==S.companies.join()){S.companies=draft.companies;firstIssues();}
         else if(outChanged){S.issues=S.issues.filter(i=>!i.out);const g=addGigs();if(g)log('dim',`· 接外包：第 1 天多 ${g} 張外包單`);}
         S.mode=draft.mode; S.slots=draft.slots; S.advanced=draft.advanced; log('dim',`· ${companyName()}・遊戲模式：${PAR()?`平行（同時 ${S.slots} 個 agent）`:'單線'}${S.advanced?'・進階':''}`);
+        track('game_start'); track('day_reached');
       }
       for(const v in draft.subs) if(draft.subs[v]!==S.subs[v]){ S.subs[v]=draft.subs[v]; }
       if(draft.seat){S.seatReq={vendor:draft.seat,day:S.day};log('dim',`· 提出 ${VENDORS[draft.seat].name} 團隊席位採購申請`);}
@@ -120,6 +121,7 @@ export function showEnd(){
   /* 最高分依模式與公司分開記錄；Laravel 沿用改版前的舊 key */
   let best=0; const bk=bestKey();
   try{best=+localStorage.getItem(bk)||(S.companies.join()==='laravel'?+localStorage.getItem('tokgame-best-'+S.mode)||0:0); if(score>best)localStorage.setItem(bk,score);}catch(e){}
+  track('game_end',{score,grade:g});
   const vendorLines=Object.keys(S.st.tk).filter(v=>S.st.tk[v]>0).map(v=>`<div><span>${VENDORS[v].name}</span><span>${kt(S.st.tk[v])} tokens・${Math.round(S.st.tk[v]/tot*100)}%</span></div>`).join('')||'<div><span>沒有用到任何 agent</span><span>—</span></div>';
   mo.innerHTML=`<h2>月底結算・${companyName()}・${PAR()?`平行模式（${S.slots} 個 agent）`:'單線模式'}</h2>
   <div class="grade"><span class="g">${g}</span><div class="gt"><b>${title}</b><span>${desc}</span></div></div>
