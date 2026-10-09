@@ -93,11 +93,29 @@ const vc=v=>`var(${VENDORS[v].vc})`;
 const model=(v,m)=>VENDORS[v].models.find(x=>x.id===m);
 const planOf=v=>VENDORS[v].plans.find(p=>p.id===S.subs[v])||{id:'none',price:0,day:0,week:0};
 
+/* 派工方案：三組常用的廠商／模型／付費方式／審核等級，一鍵派工照 A→B→C 用第一個能用的 */
+const PN=['A','B','C'];
+const DEFAULT_PRESETS=[{v:'deepseek',m:'chat',b:'api',rv:1},{v:'anthropic',m:'sonnet',b:'corp',rv:1},{v:'anthropic',m:'opus',b:'corp',rv:2}];
+const BILL_LABEL={sub:'個人訂閱',seat:'公司席位',api:'個人 API',corp:'公司 API',local:'本地 GPU'};
+const validPreset=p=>!!(p&&VENDORS[p.v]&&model(p.v,p.m)&&BILL_LABEL[p.b]&&(p.v==='local')===(p.b==='local')&&[0,1,2].includes(p.rv));
+const presetsOf=ps=>(Array.isArray(ps)&&ps.length===3&&ps.every(validPreset)?ps:DEFAULT_PRESETS).map(p=>({...p}));
+
+/* 工程投資：花工時和公司預算，效果維持到月底 */
+const INVEST={
+  md:{name:'寫 CLAUDE.md',hrs:3,cost:300,desc:'這條技術線的工單 token ×0.85、成功率 +6%'},
+  tests:{name:'補測試',hrs:6,cost:600,desc:'自我審核抓錯率 +10%、合併衝突機率減半'},
+  skills:{name:'做 skills',hrs:3,cost:400,desc:'解鎖批次派工：一次派出所有複雜度 ≤2 的工單'},
+  mcp:{name:'接 MCP 文件',hrs:3,cost:400,desc:'評估架構識破率 +20%、評估時間減半'},
+  sdd:{name:'導入 SDD',hrs:6,cost:500,desc:'先寫規格再派工：每次派工 token ×1.1；複雜度 3 以上成功率 +8%；陷阱在寫規格時就會發現，只燒 15%'},
+};
+const MD_TK=.85, MD_P=.06, TEST_CATCH=.1, MCP_REVEAL=.2, SDD_TK=1.1, SDD_P=.08, SDD_TRAP_STOP=.15;
+
 /* ===== 狀態 ===== */
 let S, sel, uid=0;
 function fresh(){
   uid=0;
-  S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',company:COMPANIES.includes(S?.company)?S.company:'laravel',slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,jobs:[],
+  S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',company:COMPANIES.includes(S?.company)?S.company:'laravel',slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,presets:presetsOf(S?.presets),jobs:[],
+    inv:{md:{},tests:false,skills:false,mcp:false,sdd:false},
     subs:objOf(APIV,()=>'none'),
     used:{sub:objOf(APIV,()=>({d:0,w:0})),seat:{anthropic:{d:0,w:0},google:{d:0,w:0}}},
     capMod:objOf(APIV,()=>1),priceMod:objOf(Object.keys(VENDORS),()=>1),cnBan:false,
@@ -145,7 +163,7 @@ function useQuota(kind,v,x){const u=S.used[kind][v];u.d+=x;u.w+=x;}
 
 /* 自我審核：多花 token 與時間，agent 改壞時有機會當場抓到並修正，避免整單重做 */
 const REVIEW=[{name:'不審核',tk:1,hrs:1},{name:'自審',tk:1.3,hrs:1.2},{name:'嚴格審核',tk:1.6,hrs:1.35}];
-const catchRate=(rv,M)=>rv===0?0:Math.min(.95,.45+.08*M.cap+(rv===2?.2:0));
+const catchRate=(rv,M)=>rv===0?0:Math.min(.95,.45+.08*M.cap+(rv===2?.2:0)+(S.inv.tests?TEST_CATCH:0));
 /* 技術線效果：只看技術線本身的特性，不替各家模型設「誰比較會」的分數 */
 const conventional=is=>(is.stack==='laravel'||is.stack==='rails')&&is.cx<=3; // 框架慣例多
 const STORE_REJECT=.2;                                                       // App Store 退件機率
@@ -166,9 +184,11 @@ const localBusy=()=>S.jobs.some(j=>j.b==='local');
 const manualHrs=is=>is.cx*2.2*(is.tries?.8:1)*(unfamiliar(is)?2:1);
 function est(is,v,mid,rv=sel.rv){
   const M=model(v,mid), raw=M.cap-is.cx, diff=raw+stackGap(is,M);
-  const tk=is.base*M.verb*(is.big&&M.ctx?.7:1)*(raw>=1?.85:1)*parMul()*REVIEW[rv].tk;
+  const md=!!S.inv.md[is.stack], sdd=S.inv.sdd;
+  const tk=is.base*M.verb*(is.big&&M.ctx?.7:1)*(raw>=1?.85:1)*parMul()*REVIEW[rv].tk*(md?MD_TK:1)*(sdd?SDD_TK:1);
   let p=diff>=1?.95:diff===0?.8:diff===-1?.5:diff===-2?.25:.1;
   if(is.big&&M.ctx)p+=.08; if(is.big&&!M.ctx&&M.cap<4)p-=.08;
+  if(md)p+=MD_P; if(sdd&&is.cx>=3)p+=SDD_P;
   p=Math.max(.05,Math.min(.97,p));
   const c=catchRate(rv,M);
   return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:(p+(1-p)*c)*(is.store?1-STORE_REJECT:1),hrs:is.cx*M.speed*(is.tries?.8:1)*REVIEW[rv].hrs*stackHrs(is)};
@@ -189,10 +209,30 @@ function costLine(b,M,v,e){
   const pm=S.priceMod[v]; return {t:b==='corp'?'公司付':'自付',lo:e.lo*M.price*pm,hi:e.hi*M.price*pm,unit:'$'};
 }
 
+/* 派工方案對這張工單能不能用；不能用時回傳原因（工作槽與工時不算方案的問題） */
+function presetBlock(is,p){
+  const M=model(p.v,p.m);
+  if(S.outage===p.v) return '今日當機';
+  const why=cnBlock(is,p.v,M); if(why) return why;
+  if(p.b==='seat'&&!(S.seat.status==='approved'&&S.seat.vendor===p.v)) return '沒有公司席位';
+  const bl=bills(p.v).find(b=>b.id===p.b); if(!bl) return '不能用這種付費方式'; if(!bl.ok) return bl.note;
+  if(p.b==='local'&&PAR()&&localBusy()) return '本地 GPU 忙';
+  const cl=costLine(p.b,M,p.v,est(is,p.v,p.m,p.rv));
+  if((p.b==='sub'||p.b==='seat')&&cl.hi>quotaLeft(p.b,p.v)) return '額度不夠';
+  if(p.b==='api'&&cl.hi>S.wallet) return '錢包不夠';
+  return '';
+}
+function presetFor(is){
+  const skip=[];
+  for(let i=0;i<S.presets.length;i++){ const r=presetBlock(is,S.presets[i]); if(!r) return {i,skip}; skip.push({i,r}); }
+  return {i:-1,skip};
+}
+
 function log(cls,msg){S.log.unshift({cls,msg:`D${String(S.day).padStart(2,'0')} ${msg}`}); if(S.log.length>80)S.log.pop();}
 
 /* ===== 動作 ===== */
 const PAR=()=>S.mode==='parallel';
+const queueOrder=(a,b)=>a.due-b.due||b.kpi-a.kpi;
 const SLOT_CHOICES=[2,3,4,5,6];
 const clock=el=>{const m=Math.round((9+el)*60);return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;};
 /* 平行加成：同時在跑的 agent 越多，重複載入 context 與協調的 token 越多 */
@@ -204,9 +244,9 @@ const trueView=is=>hiddenTrap(is)?{...is,cx:is.trueCx,base:is.trueBase}:is;
 function reveal(is){ if(!hiddenTrap(is)) return; is.shownCx=is.cx; is.cx=is.trueCx; is.base=is.trueBase; is.revealed=true; }
 function makeJob(is){
   const hidden=hiddenTrap(is), e=est(trueView(is),sel.v,sel.m);
-  const stop=hidden&&e.M.cap<is.trueCx, f=stop?TRAP_STOP:1;
+  const stop=hidden&&e.M.cap<is.trueCx, f=stop?(S.inv.sdd?SDD_TRAP_STOP:TRAP_STOP):1;
   const ok=!stop&&Math.random()<e.p;
-  return {issue:is,v:sel.v,b:sel.b,M:e.M,mul:parMul(),rv:sel.rv,tk:e.tk*f*R(.7,1.3),hrs:e.hrs*f*R(.8,1.2),ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop};
+  return {issue:is,v:sel.v,b:sel.b,M:e.M,mul:parMul(),rv:sel.rv,tk:e.tk*f*R(.7,1.3),hrs:e.hrs*f*R(.8,1.2),ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd:S.inv.sdd};
 }
 function dispatch(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is) return;
@@ -223,6 +263,20 @@ function dispatch(){
   S.hours=Math.max(0,S.hours-r.hrs);
   render();
 }
+/* 一鍵派工：用第一個能用的派工方案，照派工台的流程派出去 */
+const canQuick=()=>S.hours>=.2&&(!PAR()||S.jobs.length<S.slots);
+function quick(id){
+  const is=S.issues.find(i=>i.id===id); if(!is||is.running||!canQuick()) return false;
+  const {i,skip}=presetFor(is); if(i<0) return false;
+  Object.assign(sel,S.presets[i],{issue:id});
+  if(skip.length) log('dim',`· 一鍵派工用方案 ${PN[i]}（略過 ${skip.map(s=>`${PN[s.i]}：${s.r}`).join('、')}）`);
+  dispatch(); return true;
+}
+const loadPreset=i=>Object.assign(sel,S.presets[i]);
+function savePreset(i){
+  S.presets[i]={v:sel.v,m:sel.m,b:sel.b,rv:sel.rv};
+  log('dim',`· 存成方案 ${PN[i]}：${VENDORS[sel.v].agent} / ${model(sel.v,sel.m).name}・${BILL_LABEL[sel.b]}・${REVIEW[sel.rv].name}`);
+}
 /* 平行模式：推進時鐘，背景 agent 跑完就結算，成功的要花時間審 PR */
 function advance(dt){
   while(dt>1e-9&&S.hours>1e-9){
@@ -232,7 +286,7 @@ function advance(dt){
     const fin=S.jobs.filter(j=>j.left<=1e-9); S.jobs=S.jobs.filter(j=>j.left>1e-9);
     for(const j of fin){
       j.issue.running=false;
-      const r=settle(j,{conflict:.1*S.jobs.length});
+      const r=settle(j,{conflict:.1*S.jobs.length*(S.inv.tests?.5:1)});
       if(r.ok||r.rejected){const rv=j.issue.cx*.2*(j.rv?.5:1);dt+=rv;log('dim',`  ↳ 審 PR 花了 ${h1(rv)}h`);}
     }
   }
@@ -255,8 +309,10 @@ function charge(b,v,M,tk){
   return {spend:'電費',short:false,frac:1};
 }
 /* 機敏程式碼送進個人帳號的稽核風險；派工與評估共用 */
+const auditRisk=(is,b)=>is.sens&&(b==='sub'||b==='api');
+const auditOdds=v=>VENDORS[v].cn?.6:.35;
 function auditRoll(is,b,v){
-  if(is.sens&&(b==='sub'||b==='api')&&Math.random()<(VENDORS[v].cn?.6:.35)){
+  if(auditRisk(is,b)&&Math.random()<auditOdds(v)){
     S.trust=Math.max(0,S.trust-12); S.st.audits++;
     log('warn',`! 資安稽核：機敏程式碼送進${VENDORS[v].cn?'中國雲端模型':'個人帳號'}被抓到，主管信任 -12`);
   }
@@ -268,7 +324,7 @@ function settle(j,o={}){
   let tk=j.tk*frac, hrs=j.hrs*frac, ok=j.ok&&!o.fail, note=o.note||'', spend='', conflict=false, fixed=false, rejected=false;
   if(!j.ok&&j.caught&&!o.fail){tk*=1.25;ok=true;fixed=true;}
   if(!j.ok&&!j.caught&&j.rv&&!o.fail) note='審核沒抓到，上線後測試才爆';
-  if(j.stop&&!o.fail) note='做到一半發現牽扯整個架構，先停下來';
+  if(j.stop&&!o.fail) note=j.sdd?'寫規格時就發現牽扯整個架構，先停下來':'做到一半發現牽扯整個架構，先停下來';
   const ch=charge(b,v,M,tk); spend=ch.spend;
   if(ch.short){ tk*=ch.frac; hrs=Math.max(.3,hrs*Math.max(.3,ch.frac)); ok=false; note='撞到用量上限，agent 停在一半'; }
   if(ok&&o.conflict&&Math.random()<o.conflict){ok=false;conflict=true;note='和其他 agent 的改動合併衝突';}
@@ -313,8 +369,8 @@ function manual(){
 /* 評估架構：先花少量 token 讓 agent 讀架構，模型越強越容易識破陷阱 */
 const EVAL_TK=40;
 const canEvaluate=is=>!is.inc&&!is.evaluated&&!is.revealed;
-const evalCost=M=>({tk:EVAL_TK*M.verb,hrs:.5*M.speed});
-const revealRate=M=>Math.min(.95,.35+.15*M.cap);
+const evalCost=M=>({tk:EVAL_TK*M.verb,hrs:.5*M.speed*(S.inv.mcp?.5:1)});
+const revealRate=M=>Math.min(.95,.35+.15*M.cap+(S.inv.mcp?MCP_REVEAL:0));
 function evaluate(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is||!canEvaluate(is)) return;
   const M=model(sel.v,sel.m), {tk,hrs}=evalCost(M);
@@ -340,6 +396,47 @@ function rescope(){
     log('ok',`★ ${is.title}｜主管同意重新評估：KPI 改成 +${is.kpi}，期限延到第 ${is.due} 天｜信任 -5`);
   } else { S.trust=Math.max(0,S.trust-3); log('warn',`! ${is.title}｜主管：不是說很簡單嗎？｜信任 -3`); }
   render();
+}
+
+/* 工程投資：花自己的工時和公司預算，平行模式下背景 agent 照樣跑 */
+const invCount=()=>Object.keys(S.inv.md).length+['tests','skills','mcp','sdd'].filter(k=>S.inv[k]).length;
+function investBlock(k,st){
+  const I=INVEST[k];
+  if(k==='md'?S.inv.md[st]:S.inv[k]) return '已完成';
+  if(S.hours<I.hrs-1e-9) return '工時不夠';
+  if(S.corp<I.cost) return '公司預算不夠';
+  return '';
+}
+function invest(k,st){
+  if(!INVEST[k]||(k==='md'&&!STACKS[st])||investBlock(k,st)) return false;
+  const I=INVEST[k];
+  S.corp-=I.cost; S.corpDay+=I.cost; S.st.corp+=I.cost;
+  if(k==='md') S.inv.md[st]=true; else S.inv[k]=true;
+  if(PAR()) advance(I.hrs); else S.hours-=I.hrs;
+  log('ok',`★ 工程投資：${I.name}${k==='md'?`（${STACKS[st].name}）`:''}｜${h1(I.hrs)}h｜公司 ${nt(I.cost)}`);
+  return true;
+}
+/* 做 skills 之後：一次派出所有複雜度 ≤2 的工單 */
+function batch(){
+  if(!S.inv.skills) return;
+  let n=0,skip=0;
+  for(const is of S.issues.filter(i=>!i.running&&i.cx<=2).sort(queueOrder)){
+    if(!canQuick()) break;
+    const {i}=presetFor(is);
+    if(i<0){skip++;continue;}
+    if(!PAR()){const p=S.presets[i]; if(est(is,p.v,p.m,p.rv).hrs>S.hours) break;}
+    if(quick(is.id)) n++; else skip++;
+  }
+  log('dim',`· 批次派工：派出 ${n} 張，略過 ${skip} 張`);
+}
+const INV_STACKS=()=>[S.company,...COMPANIES.filter(k=>k!==S.company),'fe'];
+function invHint(is){
+  const out=[];
+  if(S.inv.md[is.stack]) out.push(`${STACKS[is.stack].name} 有 CLAUDE.md：token ×${MD_TK}、成功率 +${Math.round(MD_P*100)}%`);
+  if(S.inv.sdd) out.push(`SDD：token ×${SDD_TK}${is.cx>=3?`、成功率 +${Math.round(SDD_P*100)}%`:''}`);
+  if(S.inv.tests) out.push(`有測試：抓錯率 +${Math.round(TEST_CATCH*100)}%、合併衝突減半`);
+  if(S.inv.mcp) out.push(`MCP 文件：識破率 +${Math.round(MCP_REVEAL*100)}%、評估時間減半`);
+  return out.length?`工程投資：${out.join('；')}。`:'';
 }
 
 const EVENTS=[
@@ -411,21 +508,21 @@ function render(){
   if(!qs) qs=`<div class="q none">目前沒有任何訂閱。只能用 API、公司預算或本地模型。</div>`;
 
   const jobsHtml=!PAR()?'':`<div class="ph" style="margin-top:6px"><h2>背景 agent</h2><span>${S.jobs.length} / ${S.slots} 個工作槽</span></div>
-    <div class="jobs">${S.jobs.map(j=>{const pr=Math.max(0,1-j.left/j.hrs);const lbl={sub:'個人訂閱',seat:'公司席位',api:'個人 API',corp:'公司 API',local:'本地 GPU'}[j.b];
+    <div class="jobs">${S.jobs.map(j=>{const pr=Math.max(0,1-j.left/j.hrs);const lbl=BILL_LABEL[j.b];
       return `<div class="job" style="--vc:${vc(j.v)}"><div class="jt"><b>${j.issue.title}</b><span class="num">${clock(8-S.hours+j.left)} 完成</span></div>
       <div class="jm">${VENDORS[j.v].agent} / ${j.M.name}・${lbl}${j.issue.due<=S.day?'・<span style="color:var(--bad)">今天到期</span>':''}</div>
       <div class="bar"><i style="width:${pr*100}%;background:var(--vc)"></i></div></div>`;}).join('')
       ||'<div class="empty" style="padding:14px">沒有 agent 在跑。派出去的工作會在這裡同時進行。</div>'}</div>`;
-  const list=S.issues.filter(i=>!i.running).slice().sort((a,b)=>a.due-b.due||b.kpi-a.kpi).map(i=>{
+  const list=S.issues.filter(i=>!i.running).sort(queueOrder).map(i=>{
     const left=i.due-S.day;
-    return `<button class="iss ${sel.issue===i.id?'sel':''}" data-iss="${i.id}">
+    return `<div class="issw"><button class="iss ${sel.issue===i.id?'sel':''}" data-iss="${i.id}">
       <span class="t">${i.title}</span><span class="k">+${i.kpi}</span>
       <span class="meta"><span class="pips" title="複雜度 ${i.cx}">${[1,2,3,4,5].map(n=>`<i class="${n<=i.cx?'on':''}"></i>`).join('')}</span>
       <span class="num">~${kt(i.base)} tokens</span>
       <span class="chip stack">${STACKS[i.stack].name}</span>${unfamiliar(i)?'<span class="chip unfam">不熟</span>':''}${i.store?'<span class="chip store">需上架審核</span>':''}${i.revealed?`<span class="chip trap">牽一髮動全身・原估 ${i.shownCx}</span>`:i.evaluated?'<span class="chip">已評估</span>':''}
       ${i.inc?'<span class="chip inc">事故</span>':''}${i.sens?'<span class="chip sens">機敏</span>':''}${i.big?'<span class="chip big">大型 codebase</span>':''}${i.client.ban?`<span class="chip ban">${i.client.name}・${i.client.ban==='all'?'禁中國模型':'禁中國雲端'}</span>`:S.cnBan?'<span class="chip ban">禁中國雲端</span>':`<span class="chip">${i.client.name}</span>`}
       <span class="chip ${left<=0?'due':''}">${left<=0?'今天到期':`剩 ${left} 天`}</span>${i.tries?`<span class="chip">已失敗 ${i.tries} 次</span>`:''}</span>
-    </button>`;}).join('') || `<div class="empty">工單清空了。可以提早下班，把工時留給明天。</div>`;
+    </button>${quickBtn(i)}</div>`;}).join('') || `<div class="empty">工單清空了。可以提早下班，把工時留給明天。</div>`;
 
   app.innerHTML=`
   <header class="top">
@@ -435,15 +532,30 @@ function render(){
   ${meters}
   <div class="quotas">${qs}</div>
   <div class="main">
-    <section class="panel"><div class="ph"><h2>工單佇列</h2><span>${S.issues.filter(i=>!i.running).length} 張・依到期排序</span></div><div class="issues">${list}</div>${jobsHtml}</section>
+    <section class="panel"><div class="ph"><h2>工單佇列</h2><span>${S.issues.filter(i=>!i.running).length} 張・依到期排序</span></div>${S.inv.skills?`<button class="btn ghost" data-act="batch" ${canQuick()?'':'disabled'}>批次派工（複雜度 ≤2）</button>`:''}<div class="issues">${list}</div>${jobsHtml}</section>
     <section class="panel">${dispatchPanel()}</section>
   </div>
+  ${invPanel()}
   <section class="panel">
     <div class="foot"><div class="ph"><h2>執行紀錄</h2></div>
       <div class="actions">${PAR()?`<button class="btn ghost" data-act="wait1" ${S.hours<=0?'disabled':''}>等 1 小時</button><button class="btn ghost" data-act="waitn" ${!S.jobs.length||S.hours<=0?'disabled':''}>等到下一個 agent 完成</button>`:''}${((S.day-1)%5===0)?'<button class="btn ghost" data-act="adjust">調整訂閱</button>':''}<button class="btn" data-act="end">下班，結束第 ${S.day} 天</button></div></div>
     <div class="log">${S.log.map(l=>`<p class="${l.cls}">${l.msg}</p>`).join('')||'<p class="dim">還沒有紀錄。點左邊一張工單開始派工。</p>'}</div>
     <small style="color:var(--muted);font-size:12px">價格、額度與模型能力都是遊戲平衡用的虛構數字，不代表各家實際方案。</small>
   </section>`;
+}
+/* 工單卡片上的一鍵派工按鈕：顯示會用哪個方案、前面的方案為什麼不能用 */
+function quickBtn(is){
+  const {i,skip}=presetFor(is);
+  if(i<0) return `<button class="qk" disabled><b>沒有可用方案</b>${skip.length?`<span class="why">${PN[skip[0].i]} 不能用：${skip[0].r}</span>`:''}</button>`;
+  const p=S.presets[i], risk=auditRisk(is,p.b);
+  return `<button class="qk" data-quick="${is.id}" ${canQuick()?'':'disabled'}><b>一鍵派工：方案 ${PN[i]}</b><span>${VENDORS[p.v].agent} / ${model(p.v,p.m).name}・${BILL_LABEL[p.b]}</span>${skip.length?`<span class="why">${PN[skip[0].i]} 不能用：${skip[0].r}</span>`:''}${risk?`<span class="why">機敏工單用個人帳號：${Math.round(auditOdds(p.v)*100)}% 機率被資安稽核</span>`:''}</button>`;
+}
+function invPanel(){
+  const btn=(k,st)=>{const I=INVEST[k], why=investBlock(k,st);
+    return `<button class="sb" data-inv="${k}" ${st?`data-st="${st}"`:''} ${why?'disabled':''}><b>${k==='md'?STACKS[st].name:I.name}</b><small>${why||`${I.hrs}h・公司 ${nt(I.cost)}`}</small></button>`;};
+  const row=(k,body)=>`<div class="inv"><div><b>${INVEST[k].name}</b><span>${INVEST[k].desc}${k==='md'?`・每條技術線 ${INVEST.md.hrs}h、公司 ${nt(INVEST.md.cost)}`:''}</span></div><div class="seg">${body}</div></div>`;
+  return `<section class="panel"><div class="ph"><h2>工程投資</h2><span>效果維持到月底・已做 ${invCount()} 項</span></div>
+    <div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${['tests','skills','mcp','sdd'].map(k=>row(k,btn(k))).join('')}</div></section>`;
 }
 function qbox(name,sub,dl,dc,wl,wc){
   const dp=dc?dl/dc*100:0, wp=wc?wl/wc*100:0;
@@ -470,8 +582,8 @@ function dispatchPanel(){
   let warn='';
   if(S.outage===sel.v) warn='這家今天當機，換一家吧。';
   else if(sel.b==='local'&&localBusy()) warn='本地 GPU 已經有一個 agent 在跑，等它跑完才能再派。';
-  else if(is.sens&&VENDORS[sel.v].cn) warn='機敏工單送到中國雲端：有 60% 機率被資安稽核抓到。';
-  else if(is.sens&&(sel.b==='sub'||sel.b==='api')) warn='機敏工單用個人帳號：有 35% 機率被資安稽核抓到。';
+  else if(is.sens&&VENDORS[sel.v].cn) warn=`機敏工單送到中國雲端：有 ${Math.round(auditOdds(sel.v)*100)}% 機率被資安稽核抓到。`;
+  else if(is.sens&&(sel.b==='sub'||sel.b==='api')) warn=`機敏工單用個人帳號：有 ${Math.round(auditOdds(sel.v)*100)}% 機率被資安稽核抓到。`;
   else if((sel.b==='sub'||sel.b==='seat')&&cl.hi>quotaLeft(sel.b,sel.v)) warn='剩餘額度可能不夠，跑到一半會被限流。';
   else if(PAR()&&S.jobs.length>=S.slots) warn='工作槽都滿了，先等一個 agent 跑完。';
   else if(PAR()&&is.due<=S.day&&e.hrs+.2>S.hours) warn='這張今天到期，但下班前跑不完，會逾期。';
@@ -484,6 +596,8 @@ function dispatchPanel(){
   <div class="sec"><label>選 AGENT 與模型</label>${rows}</div>
   <div class="sec"><label>誰付這筆 TOKEN</label><div class="seg">${segs}</div>${S.seat.status==='approved'&&S.seat.vendor!==sel.v?`<p class="hint">你有 ${VENDORS[S.seat.vendor].name} 團隊席位，選 ${VENDORS[S.seat.vendor].agent} 的模型才能用公司席位付款。</p>`:''}</div>
   <div class="sec"><label>自我審核</label><div class="seg">${REVIEW.map((r,i)=>`<button class="sb ${sel.rv===i?'sel':''}" data-rv="${i}">${r.name}<small>${i?`token ×${r.tk}・抓錯 ${Math.round(catchRate(i,M)*100)}%`:'改壞就整單重做'}</small></button>`).join('')}</div></div>
+  <div class="sec"><label>派工方案</label><div class="seg">${S.presets.map((p,i)=>`<button class="sb" data-load="${i}">載入方案 ${PN[i]}<small>${model(p.v,p.m).name}・${BILL_LABEL[p.b]}・${REVIEW[p.rv].name}</small></button>`).join('')}</div>
+    <div class="seg">${PN.map((n,i)=>`<button class="sb" data-save="${i}">存成方案 ${n}<small>用上面的選擇</small></button>`).join('')}</div></div>
   <div class="est">
     <div><label>預估 tokens${parMul()>1?` ×${parMul().toFixed(2)}`:''}</label><b>${kt(e.lo)}–${kt(e.hi)}</b></div>
     <div><label>${cl.t}</label><b>${cl.unit==='q'?`${kt(cl.lo)}–${kt(cl.hi)}`:cl.hi?`${nt(cl.lo)}–${nt(cl.hi)}`:'NT$0'}</b></div>
@@ -491,6 +605,7 @@ function dispatchPanel(){
     <div><label>${PAR()?'執行時間':'工時'}</label><b>${h1(e.hrs)}h</b></div>
   </div>
   ${stackHint(is)?`<p class="hint">${stackHint(is)}</p>`:''}
+  ${invHint(is)?`<p class="hint">${invHint(is)}</p>`:''}
   ${PAR()&&S.jobs.length?`<p class="hint">平行加成：已有 ${S.jobs.length} 個 agent 在跑，這張的 token 用量 ×${parMul().toFixed(2)}；完成時每多一個同時在跑的 agent，合併衝突機率 +10%。</p>`:''}
   <div class="warnline">${warn}</div>
   <div class="actions">
@@ -535,6 +650,7 @@ function showSetup(adjust){
       <li><b>自我審核</b>讓 agent 寫完再自己檢查一輪：token 和時間會加成，但改壞時有機會當場修好，不用整單重做。能力越強的模型越會抓錯。</li>
       <li><b>中國模型</b>（DeepSeek、GLM、Kimi）便宜又夠用，但每張工單有案主：金融客戶禁止資料送往中國雲端，政府標案連本地跑的中國開源權重（Qwen）都不能用。</li>
       <li><b>技術線</b>：大部分工單是公司的主技術線，也會有前端工單和少量其他技術線的工單。不熟的技術線自己手寫要花兩倍時間。</li>
+      <li><b>派工方案與工程投資</b>：存三組常用組合，工單卡片上一鍵派工；花工時和公司預算寫 CLAUDE.md、補測試、做 skills、接 MCP 文件、導入 SDD，越早做越划算。</li>
       <li>工單逾期扣 KPI 和信任。月底結算看 KPI、信任，還有你自己花了多少錢。</li>
     </ul>
     <div class="sec"><label>公司</label><div class="modes">
@@ -613,6 +729,7 @@ function showEnd(){
     <div><span>審核救回</span><span>${S.st.caught} 張</span></div>
     <div><span>踩到陷阱</span><span>${S.st.trapHit} 次</span></div>
     <div><span>事先識破</span><span>${S.st.trapFound} 次</span></div>
+    <div><span>工程投資</span><span>${invCount()} 項</span></div>
     ${PAR()?`<div><span>合併衝突</span><span>${S.st.conflicts} 次</span></div>`:''}
     <div><span>資安稽核</span><span>${S.st.audits} 次</span></div>
     <div><span>主管信任</span><span>${Math.round(S.trust)}</span></div>
@@ -633,6 +750,11 @@ app.addEventListener('click',e=>{
   else if(t.dataset.v){sel.v=t.dataset.v;sel.m=t.dataset.m;if(sel.v==='local')sel.b='local';else if(sel.b==='local')sel.b='api';render();}
   else if(t.dataset.b){sel.b=t.dataset.b;render();}
   else if(t.dataset.rv){sel.rv=+t.dataset.rv;render();}
+  else if(t.dataset.quick)quick(+t.dataset.quick);
+  else if(t.dataset.inv){invest(t.dataset.inv,t.dataset.st);render();}
+  else if(t.dataset.act==='batch'){batch();render();}
+  else if(t.dataset.load){loadPreset(+t.dataset.load);render();}
+  else if(t.dataset.save){savePreset(+t.dataset.save);render();}
   else if(t.dataset.act==='go')dispatch();
   else if(t.dataset.act==='manual')manual();
   else if(t.dataset.act==='eval')evaluate();

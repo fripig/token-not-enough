@@ -3,6 +3,7 @@
 // 讀入遊戲腳本，用假的 DOM 跑自動玩家：兩種模式 × 四家公司 × 三種審核等級各跑 N 個月（預設 100，可用 SIM_N 調整），
 // 印出抽樣結果，最後每個模式 × 公司印一行平均分、對照同模式 Laravel 的差距與評等分布。
 // SIM_TRAP=<比例> 可覆寫陷阱題比例（例如 SIM_TRAP=0 關掉陷阱）；SIM_SLOTS=2..6 指定平行模式工作槽數。
+// SIM_INVEST=1 讓自動玩家做工程投資：每天開工時依序買 CLAUDE.md（主技術線）、補測試、導入 SDD 裡下一項付得起的。
 const el=()=>({innerHTML:'',hidden:true,addEventListener(){},querySelector(){return null},onclick:null});
 const els={app:el(),ov:el(),mo:el()};
 global.document={getElementById:id=>els[id]};
@@ -18,6 +19,7 @@ if(process.env.SIM_TRAP!==undefined){
   src=next;
 }
 const N=+process.env.SIM_N||100;
+const INV=process.env.SIM_INVEST==='1';
 // SIM_SLOTS=2..6 指定平行模式的工作槽數（預設 3）
 const SLOTS=process.env.SIM_SLOTS===undefined?3:Number(process.env.SIM_SLOTS);
 if(![2,3,4,5,6].includes(SLOTS)){ console.error(`SIM_SLOTS 必須是 2–6 的整數，收到「${process.env.SIM_SLOTS}」`); process.exit(1); }
@@ -31,6 +33,10 @@ function sim(){
         S.mode=mode; if(mode==='parallel')S.slots=SLOTS; S.subs.anthropic='max5'; S.wallet-=3300; S.st.subFee+=3300;
         let guard=0;
         while(S.day<=20&&guard++<2000){
+          if(INV&&typeof invest==='function'){
+            const next=[['md',S.company],['tests'],['sdd']].find(([k,st])=>!(k==='md'?S.inv.md[st]:S.inv[k]));
+            if(next) invest(...next);
+          }
           let acted=true;
           while(acted){acted=false;
             const free=S.issues.filter(i=>!i.running);

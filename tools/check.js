@@ -304,6 +304,141 @@ function tests(){
   S.seat={vendor:'google',status:'pending',day:1}; sel.v='anthropic'; sel.m='sonnet'; render();
   ok(!els.app.innerHTML.includes('團隊席位，選'),'席位還在審核時不提示');
 
+  /* dispatch-presets：預設、沿用、不合法退回 */
+  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+  start(); ok(same(S.presets,DEFAULT_PRESETS),'第一次開局是預設方案',JSON.stringify(S.presets));
+  ok(same(S.presets.map(p=>[p.v,p.m,p.b,p.rv].join('/')),['deepseek/chat/api/1','anthropic/sonnet/corp/1','anthropic/opus/corp/2']),'預設 A/B/C 內容');
+  S.presets[0]={v:'anthropic',m:'haiku',b:'sub',rv:0}; start();
+  ok(same(S.presets[0],{v:'anthropic',m:'haiku',b:'sub',rv:0}),'再玩一個月沿用方案 A');
+  S.presets[1]={v:'anthropic',m:'nope',b:'corp',rv:1}; fresh();
+  ok(same(S.presets,DEFAULT_PRESETS),'有不存在的模型時三組都退回預設');
+  S.presets[0].rv=0; ok(DEFAULT_PRESETS[0].rv===1,'修改方案不會改到預設值');
+
+  /* 方案能不能用：原因與優先順序 */
+  const P=(v,m,b,rv=0)=>({v,m,b,rv});
+  const fin=extra=>ticket('fe',2,{client:CLIENTS[2],...extra});
+  newRun('laravel');
+  const finT=fin(); S.issues=[finT];
+  ok(presetBlock(finT,P('deepseek','chat','api'))===cnBlock(finT,'deepseek',model('deepseek','chat'))&&presetBlock(finT,P('deepseek','chat','api'))!=='','金融客戶 × DeepSeek → 禁用原因',presetBlock(finT,P('deepseek','chat','api')));
+  S.outage='anthropic'; ok(presetBlock(finT,P('anthropic','sonnet','corp'))==='今日當機','當機 → 今日當機'); S.outage=null;
+  ok(presetBlock(finT,P('google','flash','sub'))==='沒有訂閱','沒有 Google 訂閱 → 沒有訂閱',presetBlock(finT,P('google','flash','sub')));
+  S.seat={vendor:'google',status:'approved',day:1}; ok(presetBlock(finT,P('anthropic','sonnet','seat'))==='沒有公司席位','席位是 Google、方案用 Anthropic 席位 → 沒有公司席位'); S.seat={vendor:null,status:'none',day:0};
+  S.subs.anthropic='pro'; S.used.sub.anthropic={d:1e9,w:1e9}; ok(presetBlock(finT,P('anthropic','opus','sub'))==='額度不夠','訂閱額度不夠 → 額度不夠',presetBlock(finT,P('anthropic','opus','sub')));
+  S.wallet=100; ok(presetBlock(ticket('fe',4),P('anthropic','opus','api'))==='錢包不夠','錢包 NT$100、Opus API → 錢包不夠'); S.wallet=8000;
+  ok(presetBlock(finT,P('anthropic','sonnet','corp'))==='','都沒問題 → 可用');
+  newRun('laravel','parallel'); S.jobs=[{b:'local',left:1,hrs:1,issue:{}}];
+  ok(presetBlock(ticket('fe',2),P('local','qwen','local'))==='本地 GPU 忙','平行模式本地 GPU 有人在跑 → 本地 GPU 忙');
+  newRun('laravel'); S.outage='deepseek';
+  let pf=presetFor(finT); ok(pf.i===1&&pf.skip.length===1&&pf.skip[0].i===0&&pf.skip[0].r==='今日當機','照 A→B→C 用第一個能用的，當機優先於案主禁用',JSON.stringify(pf));
+  S.outage=null; S.presets=DEFAULT_PRESETS.map(p=>({...p,v:'deepseek',m:'chat',b:'api'}));
+  ok(presetFor(finT).i===-1,'三組都不能用 → -1');
+
+  /* 一鍵派工 */
+  newRun('laravel'); S.presets=presetsOf(); S.hours=8;
+  const f2=fin(); S.issues=[f2]; render();
+  ok(els.app.innerHTML.includes('一鍵派工：方案 B')&&els.app.innerHTML.includes('A 不能用：金融客戶禁用'),'金融客戶卡片顯示方案 B 與 A 的原因');
+  ok(quick(f2.id)&&sel.v==='anthropic'&&sel.m==='sonnet'&&sel.b==='corp','金融客戶一鍵派工用方案 B');
+  ok(S.log.some(l=>l.msg.includes('一鍵派工用方案 B（略過 A：金融客戶禁用）')),'紀錄寫出略過 A 的原因');
+  newRun('laravel'); S.hours=8; S.presets=DEFAULT_PRESETS.map(p=>({...p,v:'deepseek',m:'chat',b:'api'}));
+  const f3=fin(); S.issues=[f3]; render();
+  ok(/<button class="qk" disabled><b>沒有可用方案/.test(els.app.innerHTML),'都不能用時按鈕停用、顯示沒有可用方案');
+  ok(!quick(f3.id)&&S.issues.includes(f3),'都不能用時一鍵派工不動作');
+  newRun('laravel'); S.hours=8; S.presets=presetsOf();
+  const sens=ticket('fe',2,{sens:true}); S.issues=[sens]; render();
+  ok(els.app.innerHTML.includes('一鍵派工：方案 A')&&els.app.innerHTML.includes('60% 機率被資安稽核'),'機敏工單不跳過個人 API，改顯示稽核風險');
+  newRun('laravel','parallel'); S.hours=8; S.slots=2; const fj=()=>({v:'anthropic',M:model('anthropic','sonnet'),b:'api',left:1,hrs:1,issue:{title:'x',due:20}}); S.jobs=[fj(),fj()];
+  const full=ticket('fe',2); S.issues=[full]; render();
+  ok(new RegExp(`data-quick="${full.id}" disabled`).test(els.app.innerHTML)&&!quick(full.id),'工作槽滿了一鍵派工停用');
+  newRun('laravel'); S.hours=.1; const late=ticket('fe',1); S.issues=[late]; ok(!quick(late.id),'不到 0.2h 不能一鍵派工');
+
+  /* 存成／載入方案 */
+  newRun('laravel'); S.hours=8; const keep=ticket('fe',2); S.issues=[keep]; sel.issue=keep.id;
+  Object.assign(sel,{v:'google',m:'pro',b:'corp',rv:0}); savePreset(1);
+  ok(same(S.presets[1],{v:'google',m:'pro',b:'corp',rv:0})&&S.issues.includes(keep),'存成方案 B 不會派工');
+  Object.assign(sel,{v:'anthropic',m:'haiku',b:'api',rv:2}); loadPreset(1);
+  ok(sel.v==='google'&&sel.m==='pro'&&sel.b==='corp'&&sel.rv===0&&sel.issue===keep.id,'載入方案 B 回到 google/pro/corp/0，選取的工單不變');
+  render(); ok(els.app.innerHTML.includes('data-save="2"')&&els.app.innerHTML.includes('載入方案 C'),'派工台有存成與載入按鈕');
+  loadPreset(2); render(); const eC=est(keep,'anthropic','opus',2);
+  ok(els.app.innerHTML.includes(`${kt(eC.lo)}–${kt(eC.hi)}`)&&els.app.innerHTML.includes(`${Math.round(eC.pe*100)}%`),'載入方案 C 後預估改用 Opus＋嚴格審核重算');
+
+  {
+  /* engineering-investments：購買與拒絕 */
+  const snap=()=>JSON.stringify([S.hours,S.corp,S.inv]);
+  newRun('laravel'); S.hours=8;
+  ok(invest('tests')&&near(S.hours,2)&&S.corp===11400&&S.st.corp===600&&S.corpDay===600&&S.inv.tests,'單線買補測試：剩 2h、公司預算 11,400、計入公司帳單');
+  render(); ok(/data-inv="tests"\s+disabled><b>補測試<\/b><small>已完成/.test(els.app.innerHTML),'買過的投資顯示已完成');
+  let before=snap(); ok(!invest('tests')&&snap()===before,'已買過不能再買');
+  newRun('laravel'); S.hours=5; before=snap(); ok(!invest('sdd')&&snap()===before,'剩 5h 買不了導入 SDD');
+  newRun('laravel'); S.corp=200; before=snap(); ok(!invest('md','laravel')&&snap()===before,'公司預算 200 買不了 CLAUDE.md');
+  newRun('laravel'); ok(!invest('md','nope')&&!invest('nope'),'不存在的技術線或投資不動作');
+  newRun('laravel','parallel'); S.hours=8; const bj={v:'anthropic',b:'local',M:model('local','qwen'),issue:ticket('fe',1),left:1,hrs:1,ok:true,caught:false,tk:10,rv:0};
+  bj.v='local'; S.issues=[bj.issue]; bj.issue.running=true; S.jobs=[bj];
+  ok(invest('md','rails')&&S.hours<=5+1e-9&&S.hours>=4.5&&S.jobs.length===0,'平行模式投資推進時鐘 3h（加上審 PR）、背景 agent 照跑完；本地 GPU 忙也能投資',S.hours);
+  start(); ok(invCount()===0&&!S.inv.md.rails,'新的一局投資歸零');
+
+  /* CLAUDE.md 效果 */
+  newRun('laravel'); S.hours=8;
+  const l4=ticket('laravel',4), fe4=ticket('fe',4);
+  const e0=est(l4,'anthropic','sonnet',0), f0=est(fe4,'anthropic','sonnet',0);
+  invest('md','laravel');
+  const e1=est(l4,'anthropic','sonnet',0), f1=est(fe4,'anthropic','sonnet',0);
+  ok(near(e1.tk,e0.tk*.85)&&near(e0.p,.8)&&near(e1.p,.86),'Laravel CLAUDE.md：token ×0.85、成功率 0.80 → 0.86',`${e0.p} ${e1.p}`);
+  ok(near(f1.tk,f0.tk)&&near(f1.p,f0.p),'Laravel CLAUDE.md 不影響 fe 工單');
+  sel.issue=l4.id; S.issues=[l4]; render(); ok(els.app.innerHTML.includes('Laravel 有 CLAUDE.md：token ×0.85、成功率 +6%'),'派工台提示生效的投資（數字四捨五入）');
+
+  /* 補測試效果 */
+  newRun('laravel','parallel'); S.inv.tests=true;
+  ok(near(catchRate(1,model('anthropic','sonnet')),.87)&&catchRate(0,model('anthropic','sonnet'))===0,'補測試：Sonnet 自審抓錯率 0.77 → 0.87，不審核仍是 0');
+  ok(near(catchRate(2,model('anthropic','opus')),.95),'抓錯率上限 0.95');
+  const realSettle=settle; let seen=null; settle=(j,o)=>{seen=o.conflict;return {ok:false,hrs:0};};
+  const mk=left=>({v:'anthropic',b:'api',M:model('anthropic','sonnet'),issue:ticket('fe',1),left,hrs:5});
+  S.hours=8; S.jobs=[mk(.1),mk(5),mk(5)]; advance(.2); settle=realSettle;
+  ok(near(seen,.1),'補測試：另外 2 個在跑時合併衝突 0.2 → 0.1',seen);
+
+  /* 接 MCP 文件效果 */
+  newRun('laravel'); const son=model('anthropic','sonnet'), hai=model('anthropic','haiku');
+  const ev0=evalCost(son), hr0=revealRate(hai); S.inv.mcp=true;
+  ok(near(revealRate(son),.95)&&near(evalCost(son).hrs,.2)&&near(evalCost(son).tk,ev0.tk),'MCP：Sonnet 識破率 0.95、評估 0.2h、token 不變');
+  ok(near(hr0,.65)&&near(revealRate(hai),.85),'MCP：Haiku 識破率 0.65 → 0.85');
+
+  /* 導入 SDD 效果 */
+  newRun('laravel'); const c2=ticket('fe',2), c4=ticket('fe',4);
+  const s0=est(c2,'anthropic','sonnet',0), ec0=evalCost(son); S.inv.sdd=true; const s1=est(c2,'anthropic','sonnet',0);
+  ok(near(s1.tk,s0.tk*1.1)&&near(s1.p,s0.p),'SDD：複雜度 2 token ×1.1、成功率不變');
+  ok(near(est(c4,'anthropic','sonnet',0).p,.88),'SDD：複雜度 4 fe × Sonnet → 0.88');
+  ok(near(evalCost(son).tk,ec0.tk)&&near(evalCost(son).hrs,ec0.hrs),'SDD 不影響評估架構');
+  const sddTrap=ticket('fe',1,{trap:true,trueCx:5,trueBase:BASE[5],revealed:false,evaluated:false});
+  S.issues=[sddTrap]; sel.issue=sddTrap.id; Object.assign(sel,{v:'deepseek',m:'chat',b:'api',rv:0});
+  const te=est(trueView(sddTrap),'deepseek','chat',0), tj=makeJob(sddTrap);
+  ok(tj.stop&&tj.tk>=te.tk*.15*.7-1e-9&&tj.tk<=te.tk*.15*1.3+1e-9&&tj.hrs<=te.hrs*.15*1.2+1e-9,'SDD：陷阱只燒真實估計的 0.15',`${tj.tk/te.tk}`);
+  const tr=settle(tj); ok(!tr.ok&&sddTrap.revealed&&S.log.some(l=>l.msg.includes('寫規格時就發現牽扯整個架構')),'SDD：陷阱失敗、曝光，紀錄寫出寫規格時發現');
+
+  /* 批次派工 */
+  newRun('laravel','parallel'); S.hours=8; S.slots=3; S.presets=presetsOf(DEFAULT_PRESETS);
+  render(); ok(!els.app.innerHTML.includes('data-act="batch"'),'沒做 skills 不顯示批次派工');
+  S.inv.skills=true; const bt=[1,2,3,2].map(cx=>ticket('fe',cx,{due:5})); S.issues=[...bt]; render();
+  ok(els.app.innerHTML.includes('data-act="batch"'),'做了 skills 顯示批次派工');
+  batch();
+  ok(S.jobs.length===3&&S.jobs.every(j=>j.issue.cx<=2)&&S.issues.includes(bt[2])&&!bt[2].running,'批次派工：派出三張 ≤2，複雜度 3 留在佇列',S.jobs.length);
+  ok(S.log.some(l=>l.msg.includes('批次派工：派出 3 張，略過 0 張')),'批次派工紀錄張數');
+  newRun('laravel','parallel'); S.inv.skills=true; S.hours=8; S.slots=2; S.presets=presetsOf(DEFAULT_PRESETS);
+  const oA=ticket('fe',1,{due:5,kpi:3}), oB=ticket('fe',2,{due:3,kpi:6}), oC=ticket('fe',1,{due:3,kpi:10}); S.issues=[oA,oB,oC]; batch();
+  ok(S.jobs.map(j=>j.issue).join()===[oC,oB].join()&&S.jobs[0].issue===oC&&S.jobs[1].issue===oB&&!oA.running,'批次派工順序：期限早的先，同期限 KPI 高的先（C、B，A 等下一輪）');
+  newRun('laravel'); S.inv.skills=true; S.hours=.5; const slow=ticket('fe',2); S.issues=[slow]; batch();
+  ok(S.issues.includes(slow)&&near(S.hours,.5),'單線模式工時不夠時批次派工停下來');
+  newRun('laravel','parallel'); S.inv.skills=true; S.hours=8; S.presets=DEFAULT_PRESETS.map(p=>({...p,v:'deepseek',m:'chat',b:'api'}));
+  const gov=ticket('fe',1,{client:CLIENTS[3]}), okT=ticket('fe',1); S.issues=[gov,okT]; batch();
+  ok(gov.running!==true&&okT.running===true&&S.log.some(l=>l.msg.includes('派出 1 張，略過 1 張')),'沒有可用方案的工單被略過');
+
+  /* 投資面板、結算、開局說明 */
+  newRun('rails'); render();
+  const order=[...els.app.innerHTML.matchAll(/data-inv="md" data-st="(\w+)"/g)].map(m=>m[1]).join(',');
+  ok(order==='rails,laravel,rust,app,fe','CLAUDE.md 按鈕：主技術線優先，再其他公司，最後 fe',order);
+  newRun('laravel'); S.hours=8; invest('md','laravel'); S.hours=8; invest('tests'); S.day=20; showEnd();
+  ok(els.mo.innerHTML.includes('<span>工程投資</span><span>2 項</span>'),'結算顯示工程投資 2 項');
+  start(); ok(els.mo.innerHTML.includes('派工方案與工程投資'),'開局說明提到派工方案與工程投資');
+
+  }
   console.log(`\n${pass} passed, ${fail} failed`);
   if(fail) process.exitCode=1;
 }
