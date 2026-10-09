@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://token-not-enough.youareright.app/sitemap.xml
