@@ -81,6 +81,14 @@ const STACKS={
     inc:[]}}
 };
 const COMPANIES=['laravel','rails','rust','app'];
+/* 主技術線可選 1–2 條，固定照 COMPANIES 的順序存；舊版存的單一字串視為只選一條 */
+function normCompanies(c){
+  const a=typeof c==='string'?[c]:c;
+  const ok=Array.isArray(a)&&a.length>=1&&a.length<=2&&new Set(a).size===a.length&&a.every(k=>COMPANIES.includes(k));
+  return ok?COMPANIES.filter(k=>a.includes(k)):['laravel'];
+}
+const companyName=(cs=S.companies)=>cs.map(k=>STACKS[k].company).join('＋');
+const bestKey=()=>`tokgame-best-${S.mode}-${S.companies.join('+')}`;
 
 /* ===== 工具 ===== */
 const R=(a,b)=>a+Math.random()*(b-a);
@@ -114,7 +122,7 @@ const MD_TK=.85, MD_P=.06, TEST_CATCH=.1, MCP_REVEAL=.2, SDD_TK=1.1, SDD_P=.08, 
 let S, sel, uid=0;
 function fresh(){
   uid=0;
-  S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',company:COMPANIES.includes(S?.company)?S.company:'laravel',slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,presets:presetsOf(S?.presets),jobs:[],
+  S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,presets:presetsOf(S?.presets),jobs:[],
     inv:{md:{},tests:false,skills:false,mcp:false,sdd:false},
     subs:objOf(APIV,()=>'none'),
     used:{sub:objOf(APIV,()=>({d:0,w:0})),seat:{anthropic:{d:0,w:0},google:{d:0,w:0}}},
@@ -125,24 +133,24 @@ function fresh(){
   sel={issue:null,v:'anthropic',m:'sonnet',b:'api',rv:sel?.rv??1};
 }
 
-/* 一般工單：75% 主技術線、15% 前端、10% 其他公司的技術線 */
+/* 一般工單：75% 平分給選到的主技術線、15% 前端、10% 平分給沒選的技術線 */
 function pickStack(){
   const r=Math.random();
-  if(r<.75) return S.company;
+  if(r<.75) return pick(S.companies);
   if(r<.9) return 'fe';
-  return pick(COMPANIES.filter(k=>k!==S.company));
+  return pick(COMPANIES.filter(k=>!S.companies.includes(k)));
 }
 /* 陷阱題：看起來是小單（複雜度 1–2），其實牽扯架構（真實複雜度 4–5） */
 const TRAP_RATE=.1;
 /* Rust、App 比較慢：期限多一天、KPI ×1.3 作為補償 */
 const hardStack=st=>st==='rust'||st==='app';
-const unfamiliar=is=>is.stack!==S.company&&is.stack!=='fe';
+const unfamiliar=is=>!S.companies.includes(is.stack)&&is.stack!=='fe';
 function makeIssue(inc){
   let cx;
   if(inc) cx=4; else { const r=Math.random()+S.day/20*.38; cx=r<.28?1:r<.6?2:r<.9?3:r<1.12?4:5; }
   const base=BASE[cx]*R(.85,1.15);
   let due=inc?S.day:S.day+(cx<=2?1+rnd(3):2+rnd(4));
-  const stack=inc?S.company:pickStack();
+  const stack=inc?pick(S.companies):pickStack();
   const trap=!inc&&cx<=2&&Math.random()<TRAP_RATE, trueCx=Math.random()<.6?4:5;
   const title=trap&&Math.random()<.5?pick(STACKS[stack].pool.trap):pick(STACKS[stack].pool[inc?'inc':cx]);
   return {id:++uid,title,cx,base,inc:!!inc,stack,
@@ -429,7 +437,7 @@ function batch(){
   }
   log('dim',`· 批次派工：派出 ${n} 張，略過 ${skip} 張`);
 }
-const INV_STACKS=()=>[S.company,...COMPANIES.filter(k=>k!==S.company),'fe'];
+const INV_STACKS=()=>[...S.companies,...COMPANIES.filter(k=>!S.companies.includes(k)),'fe'];
 function invHint(is){
   const out=[];
   if(S.inv.md[is.stack]) out.push(`${STACKS[is.stack].name} 有 CLAUDE.md：token ×${MD_TK}、成功率 +${Math.round(MD_P*100)}%`);
@@ -526,7 +534,7 @@ function render(){
 
   app.innerHTML=`
   <header class="top">
-    <div class="brand"><h1><span class="tk">Token</span> 撐到月底</h1><p>${STACKS[S.company].company}・全端工程師・20 個工作天，有限的錢和額度，把工單做完。</p></div>
+    <div class="brand"><h1><span class="tk">Token</span> 撐到月底</h1><p>${companyName()}・全端工程師・20 個工作天，有限的錢和額度，把工單做完。</p></div>
     <div class="cal">${cal}</div>
   </header>
   ${meters}
@@ -637,11 +645,16 @@ function planCost(adjust){
   }
   return c;
 }
+/* 開局的公司按鈕：選滿兩條不能再加、最後一條不能取消，結果照固定順序 */
+function toggleCompany(cs,k){
+  if(cs.includes(k)) return cs.length>1?cs.filter(x=>x!==k):cs;
+  return cs.length<2?COMPANIES.filter(x=>x===k||cs.includes(x)):cs;
+}
 function showSetup(adjust){
-  draft={subs:{...S.subs},seat:'',mode:S.mode,company:S.company,slots:S.slots};
+  draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],slots:S.slots};
   const draw=()=>{
     mo.innerHTML=`<h2>${adjust?'週一：調整訂閱':'月初：決定這個月怎麼付 token'}</h2>
-    ${adjust?`<p class="lead">升級只補剩下週數的差價，降級不退費。</p>`:`<p class="lead">你是全端工程師，任職於「${STACKS[draft.company].company}」。接下來 20 個工作天，每天都會有新工單進來。你有 ${nt(S.wallet)} 的個人 AI 預算，部門另外有 ${nt(S.corp)} 的公司 API 預算。</p>
+    ${adjust?`<p class="lead">升級只補剩下週數的差價，降級不退費。</p>`:`<p class="lead">你是全端工程師，任職於「${companyName(draft.companies)}」。接下來 20 個工作天，每天都會有新工單進來。你有 ${nt(S.wallet)} 的個人 AI 預算，部門另外有 ${nt(S.corp)} 的公司 API 預算。</p>
     <ul class="rules">
       <li><b>個人訂閱</b>月費固定，有每日與每週額度，越強的模型吃額度越快。額度用完 agent 會停在一半。</li>
       <li><b>個人 API</b> 用多少付多少，沒有上限，錢從你口袋出。</li>
@@ -649,12 +662,12 @@ function showSetup(adjust){
       <li>標著「機敏」的工單送進個人帳號，有機率被資安稽核抓到；送到中國雲端機率更高。</li>
       <li><b>自我審核</b>讓 agent 寫完再自己檢查一輪：token 和時間會加成，但改壞時有機會當場修好，不用整單重做。能力越強的模型越會抓錯。</li>
       <li><b>中國模型</b>（DeepSeek、GLM、Kimi）便宜又夠用，但每張工單有案主：金融客戶禁止資料送往中國雲端，政府標案連本地跑的中國開源權重（Qwen）都不能用。</li>
-      <li><b>技術線</b>：大部分工單是公司的主技術線，也會有前端工單和少量其他技術線的工單。不熟的技術線自己手寫要花兩倍時間。</li>
+      <li><b>技術線</b>：可以選 1–2 條主技術線，大部分工單平分給它們，也會有前端工單和少量其他技術線的工單。沒選的技術線算不熟，自己手寫要花兩倍時間。</li>
       <li><b>派工方案與工程投資</b>：存三組常用組合，工單卡片上一鍵派工；花工時和公司預算寫 CLAUDE.md、補測試、做 skills、接 MCP 文件、導入 SDD，越早做越划算。</li>
       <li>工單逾期扣 KPI 和信任。月底結算看 KPI、信任，還有你自己花了多少錢。</li>
     </ul>
-    <div class="sec"><label>公司</label><div class="modes">
-      ${COMPANIES.map(k=>`<button class="sb ${draft.company===k?'sel':''}" data-company="${k}"><b>${STACKS[k].company}</b><small>難度 ${'★'.repeat(STACKS[k].level)}・${STACKS[k].desc}</small></button>`).join('')}
+    <div class="sec"><label>公司（可選 1–2 條主技術線）</label><div class="modes">
+      ${COMPANIES.map(k=>{const on=draft.companies.includes(k);return `<button class="sb ${on?'sel':''}" data-company="${k}" ${!on&&draft.companies.length>=2?'disabled':''}><b>${STACKS[k].company}</b><small>難度 ${'★'.repeat(STACKS[k].level)}・${STACKS[k].desc}</small></button>`;}).join('')}
     </div></div>
     <div class="sec"><label>遊戲模式</label><div class="modes">
       <button class="sb ${draft.mode==='parallel'?'sel':''}" data-mode="parallel"><b>平行模式</b><small>最多 ${draft.slots} 個 agent 在背景同時跑，你的時間花在派工和審 PR。同時跑越多，token 用量加成越高，也越容易合併衝突。跑不完的會過夜。</small></button>
@@ -670,14 +683,14 @@ function showSetup(adjust){
     if(t.dataset.pv){draft.subs[t.dataset.pv]=t.dataset.pp;draw();}
     else if(t.dataset.seat!==undefined){draft.seat=t.dataset.seat;draw();}
     else if(t.dataset.mode){draft.mode=t.dataset.mode;draw();}
-    else if(t.dataset.company){draft.company=t.dataset.company;draw();}
+    else if(t.dataset.company){draft.companies=toggleCompany(draft.companies,t.dataset.company);draw();}
     else if(t.dataset.slots){draft.slots=+t.dataset.slots;draw();}
     else if(t.dataset.act==='close'){ov.hidden=true;}
     else if(t.dataset.act==='confirm'){
       const c=planCost(adjust); S.wallet-=c; S.st.subFee+=c;
       if(!adjust){
-        if(draft.company!==S.company){S.company=draft.company;firstIssues();}
-        S.mode=draft.mode; S.slots=draft.slots; log('dim',`· ${STACKS[S.company].company}・遊戲模式：${PAR()?`平行（同時 ${S.slots} 個 agent）`:'單線'}`);
+        if(draft.companies.join()!==S.companies.join()){S.companies=draft.companies;firstIssues();}
+        S.mode=draft.mode; S.slots=draft.slots; log('dim',`· ${companyName()}・遊戲模式：${PAR()?`平行（同時 ${S.slots} 個 agent）`:'單線'}`);
       }
       for(const v in draft.subs) if(draft.subs[v]!==S.subs[v]){ S.subs[v]=draft.subs[v]; }
       if(draft.seat){S.seat={vendor:draft.seat,status:'pending',day:S.day};log('dim',`· 提出 ${VENDORS[draft.seat].name} 團隊席位採購申請`);}
@@ -712,10 +725,10 @@ function showEnd(){
   else if(g==='S'||g==='A'){title='Token 精算師';desc='每一個 token 都花在刀口上。'}
   else {title='還在摸索的開發者';desc='下個月再調整組合試試。'}
   /* 最高分依模式與公司分開記錄；Laravel 沿用改版前的舊 key */
-  let best=0; const bk=`tokgame-best-${S.mode}-${S.company}`;
-  try{best=+localStorage.getItem(bk)||(S.company==='laravel'?+localStorage.getItem('tokgame-best-'+S.mode)||0:0); if(score>best)localStorage.setItem(bk,score);}catch(e){}
+  let best=0; const bk=bestKey();
+  try{best=+localStorage.getItem(bk)||(S.companies.join()==='laravel'?+localStorage.getItem('tokgame-best-'+S.mode)||0:0); if(score>best)localStorage.setItem(bk,score);}catch(e){}
   const vendorLines=Object.keys(S.st.tk).filter(v=>S.st.tk[v]>0).map(v=>`<div><span>${VENDORS[v].name}</span><span>${kt(S.st.tk[v])} tokens・${Math.round(S.st.tk[v]/tot*100)}%</span></div>`).join('')||'<div><span>沒有用到任何 agent</span><span>—</span></div>';
-  mo.innerHTML=`<h2>月底結算・${STACKS[S.company].company}・${PAR()?`平行模式（${S.slots} 個 agent）`:'單線模式'}</h2>
+  mo.innerHTML=`<h2>月底結算・${companyName()}・${PAR()?`平行模式（${S.slots} 個 agent）`:'單線模式'}</h2>
   <div class="grade"><span class="g">${g}</span><div class="gt"><b>${title}</b><span>${desc}</span></div></div>
   <div class="rc">
     <div><span>個人訂閱月費</span><span>${nt(S.st.subFee)}</span></div>

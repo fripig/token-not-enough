@@ -15,7 +15,7 @@ function near(a,b,eps=1e-9){return Math.abs(a-b)<=eps;}
 
 function tests(){
   // 開一局但不經過彈窗：直接設定公司與模式
-  const newRun=(company,mode='serial')=>{start();S.company=company;S.mode=mode;S.issues=[];S.jobs=[];sel.rv=0;};
+  const newRun=(company,mode='serial')=>{start();S.companies=[].concat(company);S.mode=mode;S.issues=[];S.jobs=[];sel.rv=0;};
   const ticket=(stack,cx,extra={})=>({id:++uid,title:'t',cx,base:BASE[cx],inc:false,sens:false,big:false,client:CLIENTS[0],due:20,kpi:KPI[cx],tries:0,stack,store:false,...extra});
 
   /* 1.1 技術線資料 */
@@ -24,8 +24,8 @@ function tests(){
   }
   for(const lv of [1,2,3,4,5]) ok(STACKS.fe.pool[lv].length>=3,`STACKS.fe.pool[${lv}] 至少 3 個標題`);
   ok(typeof POOL==='undefined','POOL 已移除');
-  newRun('nope'); fresh(); ok(S.company==='laravel','未知公司退回 laravel');
-  newRun('rust'); fresh(); ok(S.company==='rust','fresh() 保留公司');
+  newRun('nope'); fresh(); ok(S.companies.join()==='laravel','未知公司退回 laravel');
+  newRun('rust'); fresh(); ok(S.companies.join()==='rust','fresh() 保留公司');
 
   /* 1.2 工單技術線分布 */
   newRun('rails');
@@ -88,7 +88,7 @@ function tests(){
   /* 5.2 公司按鈕的難度標示 */
   newRun('laravel'); showSetup(false);
   for(const [k,stars] of [['laravel','★'],['rails','★'],['app','★★'],['rust','★★★']]){
-    const btn=els.mo.innerHTML.match(new RegExp(`data-company="${k}">([\\s\\S]*?)</button>`))?.[1]||'';
+    const btn=els.mo.innerHTML.match(new RegExp(`data-company="${k}"[^>]*>([\\s\\S]*?)</button>`))?.[1]||'';
     ok(btn.includes(`難度 ${stars}・`),`${STACKS[k].company} 標示難度 ${stars}`,btn);
   }
 
@@ -439,6 +439,60 @@ function tests(){
   start(); ok(els.mo.innerHTML.includes('派工方案與工程投資'),'開局說明提到派工方案與工程投資');
 
   }
+  {
+  /* multi-stack-company：狀態、沿用、退回 */
+  start(); ok(S.companies.join()==='laravel','預設只選 Laravel');
+  S.companies='rust'; fresh(); ok(S.companies.join()==='rust','舊版字串 rust 讀成只選 rust');
+  S.companies=['laravel','rails','rust']; fresh(); ok(S.companies.join()==='laravel','三條退回 Laravel');
+  S.companies=['laravel','go']; fresh(); ok(S.companies.join()==='laravel','未知技術線退回 Laravel');
+  S.companies=['app','laravel']; fresh(); ok(S.companies.join()==='laravel,app','照固定順序存');
+  S.companies=['rust','app']; start(); ok(S.companies.join()==='rust,app'&&/class="sb sel" data-company="rust"/.test(els.mo.innerHTML)&&/class="sb sel" data-company="app"/.test(els.mo.innerHTML),'再玩一個月預選 Rust＋App');
+
+  /* 開局按鈕：照 spec 的 toggle 表 */
+  const press=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+  const picked=()=>COMPANIES.filter(k=>new RegExp(`class="sb sel" data-company="${k}"`).test(els.mo.innerHTML)).join();
+  start(); S.companies=['laravel']; showSetup(false);
+  ok(els.mo.innerHTML.includes('公司（可選 1–2 條主技術線）'),'標籤寫出可選 1–2 條');
+  press({company:'app'}); ok(picked()==='laravel,app','laravel + 點 app → laravel, app');
+  ok(/data-company="rust" disabled/.test(els.mo.innerHTML)&&/data-company="rails" disabled/.test(els.mo.innerHTML),'選滿兩條時其他按鈕停用');
+  press({company:'rust'}); ok(picked()==='laravel,app','選滿時點 rust 不變');
+  press({company:'laravel'}); ok(picked()==='app','再點 laravel → 只剩 app');
+  press({company:'app'}); ok(picked()==='app','最後一條不能取消');
+  press({company:'laravel'}); ok(picked()==='laravel,app','先 app 再 laravel → 固定順序 laravel, app');
+  ok(els.mo.innerHTML.includes('任職於「Laravel 新聞站＋App 團隊」'),'開局說明用合併的公司名稱');
+  press({act:'confirm'});
+  ok(S.companies.join()==='laravel,app'&&S.issues.length===4,'確認後存成 laravel, app 並重抽第 1 天工單');
+  ok(els.app.innerHTML.includes('Laravel 新聞站＋App 團隊・全端工程師')&&S.log.some(l=>l.msg.includes('Laravel 新聞站＋App 團隊・遊戲模式')),'標頭與紀錄顯示 Laravel 新聞站＋App 團隊');
+  showSetup(true); ok(!els.mo.innerHTML.includes('data-company'),'週一調整仍不顯示公司');
+
+  /* 工單分布與不熟 */
+  newRun(['laravel','app']); const M2=10000, cnt2={laravel:0,rails:0,rust:0,app:0,fe:0};
+  for(let i=0;i<M2;i++)cnt2[pickStack()]++;
+  ok(Math.abs(cnt2.laravel/M2-.375)<=.02&&Math.abs(cnt2.app/M2-.375)<=.02,'雙選：laravel、app 各約 0.375',JSON.stringify(cnt2));
+  ok(Math.abs(cnt2.fe/M2-.15)<=.02,'雙選：fe 約 0.15',cnt2.fe/M2);
+  ok(Math.abs(cnt2.rails/M2-.05)<=.01&&Math.abs(cnt2.rust/M2-.05)<=.01,'雙選：rails、rust 各約 0.05',`${cnt2.rails/M2} ${cnt2.rust/M2}`);
+  const incs2=[...Array(1000)].map(()=>makeIssue(true));
+  ok(incs2.every(i=>i.stack==='laravel'||i.stack==='app')&&incs2.some(i=>i.stack==='laravel')&&incs2.some(i=>i.stack==='app'),'雙選：事故單只出 laravel 或 app，兩條都有');
+  newRun(['laravel','rust']);
+  ok(h1(manualHrs(ticket('rust',2)))==='4.4'&&!unfamiliar(ticket('rust',2)),'laravel+rust：rust 不算不熟，手寫 4.4h');
+  ok(h1(manualHrs(ticket('app',2)))==='8.8'&&unfamiliar(ticket('app',2)),'laravel+rust：app 不熟，手寫 8.8h');
+
+  /* 公司名稱與最高分 key */
+  const endPair=(cs,seed)=>{newRun(cs,'parallel');store={...seed};S.day=20;S.kpi=900;showEnd();return els.mo.innerHTML;};
+  let h2=endPair(['laravel','app'],{'tokgame-best-parallel':'999999'});
+  ok(h2.includes('月底結算・Laravel 新聞站＋App 團隊・'),'結算標題顯示 Laravel 新聞站＋App 團隊');
+  ok('tokgame-best-parallel-laravel+app' in store&&!h2.includes('999,999'),'雙選寫入 tokgame-best-parallel-laravel+app，不讀舊 key');
+  h2=endPair(['laravel'],{'tokgame-best-parallel':'4200'}); ok(h2.includes('4,200'),'只選 Laravel 仍讀舊 key');
+  newRun('rails','serial'); ok(bestKey()==='tokgame-best-serial-rails','單選 key 不變');
+
+  /* 投資按鈕順序 */
+  newRun(['rails','app']); render();
+  const ord2=[...els.app.innerHTML.matchAll(/data-inv="md" data-st="(\w+)"/g)].map(m=>m[1]).join(',');
+  ok(ord2==='rails,app,laravel,rust,fe','rails+app：CLAUDE.md 按鈕順序 rails, app, laravel, rust, fe',ord2);
+  newRun(['rust','app']); S.day=20; showEnd(); press({act:'again'});
+  ok(S.companies.join()==='rust,app'&&/class="sb sel" data-company="rust"/.test(els.mo.innerHTML)&&/class="sb sel" data-company="app"/.test(els.mo.innerHTML),'結算按「再玩一個月」沿用 Rust＋App 並預選');
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   if(fail) process.exitCode=1;
 }

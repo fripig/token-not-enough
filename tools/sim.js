@@ -3,7 +3,8 @@
 // 讀入遊戲腳本，用假的 DOM 跑自動玩家：兩種模式 × 四家公司 × 三種審核等級各跑 N 個月（預設 100，可用 SIM_N 調整），
 // 印出抽樣結果，最後每個模式 × 公司印一行平均分、對照同模式 Laravel 的差距與評等分布。
 // SIM_TRAP=<比例> 可覆寫陷阱題比例（例如 SIM_TRAP=0 關掉陷阱）；SIM_SLOTS=2..6 指定平行模式工作槽數。
-// SIM_INVEST=1 讓自動玩家做工程投資：每天開工時依序買 CLAUDE.md（主技術線）、補測試、導入 SDD 裡下一項付得起的。
+// SIM_INVEST=1 讓自動玩家做工程投資：每天開工時依序買 CLAUDE.md（每條主技術線）、補測試、導入 SDD 裡下一項付得起的。
+// SIM_COMBOS=1 改跑六種雙選組合（另跑單選 Laravel 當對照）。
 const el=()=>({innerHTML:'',hidden:true,addEventListener(){},querySelector(){return null},onclick:null});
 const els={app:el(),ov:el(),mo:el()};
 global.document={getElementById:id=>els[id]};
@@ -20,6 +21,7 @@ if(process.env.SIM_TRAP!==undefined){
 }
 const N=+process.env.SIM_N||100;
 const INV=process.env.SIM_INVEST==='1';
+const COMBOS=process.env.SIM_COMBOS==='1';
 // SIM_SLOTS=2..6 指定平行模式的工作槽數（預設 3）
 const SLOTS=process.env.SIM_SLOTS===undefined?3:Number(process.env.SIM_SLOTS);
 if(![2,3,4,5,6].includes(SLOTS)){ console.error(`SIM_SLOTS 必須是 2–6 的整數，收到「${process.env.SIM_SLOTS}」`); process.exit(1); }
@@ -27,14 +29,15 @@ if(![2,3,4,5,6].includes(SLOTS)){ console.error(`SIM_SLOTS 必須是 2–6 的�
 function sim(){
   const sum={};
   for(const mode of ['parallel','serial']){
-    for(const company of (typeof COMPANIES==='undefined'?['laravel']:COMPANIES)){
+    const runs=typeof COMPANIES==='undefined'?['laravel']:COMBOS?['laravel',...COMPANIES.flatMap((a,i)=>COMPANIES.slice(i+1).map(b=>a+'+'+b))]:COMPANIES;
+    for(const company of runs){
       for(let g=0;g<N*3;g++){
-        start(); if(typeof firstIssues==='function'){S.company=company;firstIssues();}
+        start(); if(typeof firstIssues==='function'){S.companies=company.split('+');firstIssues();}
         S.mode=mode; if(mode==='parallel')S.slots=SLOTS; S.subs.anthropic='max5'; S.wallet-=3300; S.st.subFee+=3300;
         let guard=0;
         while(S.day<=20&&guard++<2000){
           if(INV&&typeof invest==='function'){
-            const next=[['md',S.company],['tests'],['sdd']].find(([k,st])=>!(k==='md'?S.inv.md[st]:S.inv[k]));
+            const next=[...S.companies.map(k=>['md',k]),['tests'],['sdd']].find(([k,st])=>!(k==='md'?S.inv.md[st]:S.inv[k]));
             if(next) invest(...next);
           }
           let acted=true;
@@ -64,7 +67,7 @@ function sim(){
   console.log('\n=== 平均分（對照同模式的 Laravel）===');
   for(const k in sum){
     const mode=k.split(' ')[0], m=sum[k].tot/sum[k].n, base=sum[mode+' laravel'].tot/sum[mode+' laravel'].n;
-    console.log(k.padEnd(18),'mean',String(Math.round(m)).padStart(6),'vs laravel',((m/base-1)*100).toFixed(1).padStart(6)+'%','grades','SABCD'.split('').map(x=>x+':'+(sum[k].g[x]||0)).join(' '));
+    console.log(k.padEnd(22),'mean',String(Math.round(m)).padStart(6),'vs laravel',((m/base-1)*100).toFixed(1).padStart(6)+'%','grades','SABCD'.split('').map(x=>x+':'+(sum[k].g[x]||0)).join(' '));
   }
 }
 
