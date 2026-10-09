@@ -1,10 +1,4 @@
-# company-tech-stack Specification
-
-## Purpose
-
-Lets the player choose a company with a primary tech stack at the start of a run, which shapes the mix of incoming tickets and how costly unfamiliar tickets are to write by hand. It widens the game beyond a single Laravel backend role.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Company selection at run start
 
@@ -59,17 +53,6 @@ The opening setup modal SHALL present four companies — Laravel 新聞站, Rail
 - **WHEN** the weekly 調整訂閱 modal opens on a Monday
 - **THEN** no company picker is shown
 
-
-<!-- @trace
-source: multi-stack-company
-updated: 2026-10-09
-code:
-  - tools/check.js
-  - tools/sim.js
-  - public/js/game.js
--->
-
----
 ### Requirement: Ticket stack distribution
 
 Every ticket SHALL carry exactly one stack from laravel, rails, rust, app, fe. Non-incident tickets SHALL be assigned a selected stack with probability 0.75 (uniformly among the selected stacks), fe with probability 0.15, and an unselected company stack with probability 0.10 (uniformly among the unselected company stacks). Incident tickets SHALL use a selected stack chosen uniformly. Each ticket's title SHALL come from its stack's title pool at the ticket's complexity level.
@@ -94,17 +77,6 @@ Every ticket SHALL carry exactly one stack from laravel, rails, rust, app, fe. N
 - **WHEN** 1,000 incident tickets are generated for a Laravel 新聞站＋App 團隊 run
 - **THEN** every incident ticket's stack is laravel or app and both appear
 
-
-<!-- @trace
-source: multi-stack-company
-updated: 2026-10-09
-code:
-  - tools/check.js
-  - tools/sim.js
-  - public/js/game.js
--->
-
----
 ### Requirement: Unfamiliar stack hand-writing cost
 
 A ticket SHALL be unfamiliar when its stack is neither a selected stack nor fe. Writing an unfamiliar ticket by hand SHALL take twice the normal manual hours, and the manual button SHALL show the doubled hours. Ticket cards for unfamiliar tickets SHALL show a 不熟 chip.
@@ -125,17 +97,6 @@ A ticket SHALL be unfamiliar when its stack is neither a selected stack nor fe. 
 | laravel, rust | rust | 2 | 0 | 4.4h |
 | laravel, rust | app | 2 | 0 | 8.8h |
 
-
-<!-- @trace
-source: multi-stack-company
-updated: 2026-10-09
-code:
-  - tools/check.js
-  - tools/sim.js
-  - public/js/game.js
--->
-
----
 ### Requirement: Best score per mode and company
 
 The month-end best score SHALL be stored and read per mode and selection under the key tokgame-best-<mode>-<stacks>, where <stacks> is the selected stack keys in the fixed order joined with +; a single selection therefore keeps the key tokgame-best-<mode>-<stack>. When that key has no value and the selection is laravel alone, the legacy key tokgame-best-<mode> SHALL be read as the previous best. Storage failures SHALL NOT interrupt the game.
@@ -154,12 +115,3 @@ The month-end best score SHALL be stored and read per mode and selection under t
 
 - **WHEN** localStorage access throws at month end
 - **THEN** the receipt renders without a previous-best line and no error is thrown
-
-<!-- @trace
-source: multi-stack-company
-updated: 2026-10-09
-code:
-  - tools/check.js
-  - tools/sim.js
-  - public/js/game.js
--->
