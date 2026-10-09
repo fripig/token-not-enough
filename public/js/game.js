@@ -34,7 +34,7 @@ function cnBlock(is,v,M){
   if(b==='all'&&M.cn) return '中國權重禁用';
   return '';
 }
-const SEAT={day:2500,week:10000,name:'公司團隊席位'};
+const SEAT={day:2500,week:10000,name:'公司團隊席位',vendors:['anthropic','openai','google']};
 const BASE=[0,60,180,350,550,850];
 const KPI=[0,3,6,10,16,24];
 /* 技術線：前四個是可選的公司（主技術線），fe 是每家公司都會有的前端工單 */
@@ -125,7 +125,7 @@ function fresh(){
   S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,presets:presetsOf(S?.presets),jobs:[],
     inv:{md:{},tests:false,skills:false,mcp:false,sdd:false},
     subs:objOf(APIV,()=>'none'),
-    used:{sub:objOf(APIV,()=>({d:0,w:0})),seat:{anthropic:{d:0,w:0},google:{d:0,w:0}}},
+    used:{sub:objOf(APIV,()=>({d:0,w:0})),seat:objOf(SEAT.vendors,()=>({d:0,w:0}))},
     capMod:objOf(APIV,()=>1),priceMod:objOf(Object.keys(VENDORS),()=>1),cnBan:false,
     seat:{vendor:null,status:'none',day:0},
     outage:null,corpDay:0,issues:[],log:[],
@@ -633,7 +633,7 @@ function planPicker(adjust){
   }).join('');
   const canSeat=!adjust||S.seat.status==='none'||S.seat.status==='rejected';
   const seat=canSeat?`<div class="pv" style="--vc:var(--accent)"><b>向公司申請團隊席位（5 天後審核，信任需 55 以上）</b><div class="seg">
-    ${[['','不申請'],['anthropic','Anthropic'],['google','Google']].map(([v,n])=>`<button class="sb ${draft.seat===v?'sel':''}" data-seat="${v}">${n}<small>${v?'公司付・每日 2.5M 額度':'自己想辦法'}</small></button>`).join('')}</div></div>`:'';
+    ${[['','不申請'],...SEAT.vendors.map(v=>[v,VENDORS[v].name])].map(([v,n])=>`<button class="sb ${draft.seat===v?'sel':''}" data-seat="${v}">${n}<small>${v?'公司付・每日 2.5M 額度':'自己想辦法'}</small></button>`).join('')}</div></div>`:'';
   const cost=planCost(adjust);
   return `${rows}${seat}<div class="sum"><span>這次要從個人錢包付</span><b class="num">${nt(cost)}</b><span>付完剩 <b class="num">${nt(S.wallet-cost)}</b></span></div>`;
 }

@@ -295,6 +295,12 @@ function tests(){
   ok(els.mo.innerHTML.includes('月底結算・Laravel 新聞站・平行模式（4 個 agent）'),'結算標題顯示 4 個 agent');
   newRun('laravel','serial'); S.day=20; showEnd(); ok(els.mo.innerHTML.includes('月底結算・Laravel 新聞站・單線模式</h2>'),'單線模式標題不變');
 
+  /* 團隊席位：OpenAI 也能申請，核准後 Codex 可用公司席位付款 */
+  newRun('laravel'); showSetup(false); ok(els.mo.innerHTML.includes('data-seat="openai"'),'開局可申請 OpenAI 團隊席位');
+  S.seat={vendor:'openai',status:'approved',day:1};
+  const oaiT=ticket('laravel',2); S.issues=[oaiT]; sel.issue=oaiT.id; sel.v='openai'; sel.m=VENDORS.openai.models[1].id; sel.b='seat'; render();
+  ok(els.app.innerHTML.includes('data-b="seat"')&&quotaLeft('seat','openai')===SEAT.day,'OpenAI 席位核准後出現公司席位選項、額度 2.5M');
+
   /* 團隊席位提示：選到別家廠商時提醒席位要選哪家 */
   newRun('laravel'); S.seat={vendor:'google',status:'approved',day:1};
   const seatT=ticket('laravel',2); S.issues=[seatT]; sel.issue=seatT.id; sel.v='anthropic'; sel.m='sonnet'; sel.b='api'; render();
