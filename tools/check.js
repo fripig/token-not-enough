@@ -5,6 +5,7 @@ import {els,store,resetStore} from './fake-dom.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {start} from '../public/js/main.js';
 import {BASE,CLIENTS,COMPANIES,DEFAULT_PRESETS,KPI,SEAT,STACKS,VENDORS,bestKey,cnBlock,h1,kt,model,presetsOf,rnd} from '../public/js/data.js';
+import * as dataModule from '../public/js/data.js';
 import {S,fresh,makeIssue,nextId,pickStack,sel,unfamiliar} from '../public/js/state.js';
 import {catchRate,est,manualHrs,presetBlock,presetFor,quotaLeft,stackHint} from '../public/js/calc.js';
 import {advance,conflictRate,batch,canEvaluate,charge,dispatch,endDay,evalCost,evaluate,invCount,invest,loadPreset,makeJob,manual,parMul,quick,rescope,reveal,revealRate,savePreset,settle,trueView} from '../public/js/actions.js';
@@ -25,7 +26,7 @@ function tests(){
     for(const lv of [1,2,3,4,5,'inc']) ok(STACKS[k].pool[lv].length>=3,`STACKS.${k}.pool[${lv}] 至少 3 個標題`);
   }
   for(const lv of [1,2,3,4,5]) ok(STACKS.fe.pool[lv].length>=3,`STACKS.fe.pool[${lv}] 至少 3 個標題`);
-  ok(typeof POOL==='undefined','POOL 已移除');
+  ok(!('POOL' in dataModule),'POOL 已移除');
   newRun('nope'); fresh(); ok(S.companies.join()==='laravel','未知公司退回 laravel');
   newRun('rust'); fresh(); ok(S.companies.join()==='rust','fresh() 保留公司');
 

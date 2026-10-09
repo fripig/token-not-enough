@@ -31,14 +31,14 @@ function sim(){
   if(TRAP!==undefined) setTrapRate(TRAP);
   const sum={};
   for(const mode of ['parallel','serial']){
-    const runs=typeof COMPANIES==='undefined'?['laravel']:COMBOS?['laravel',...COMPANIES.flatMap((a,i)=>COMPANIES.slice(i+1).map(b=>a+'+'+b))]:COMPANIES;
+    const runs=COMBOS?['laravel',...COMPANIES.flatMap((a,i)=>COMPANIES.slice(i+1).map(b=>a+'+'+b))]:COMPANIES;
     for(const company of runs){
       for(let g=0;g<N*3;g++){
-        start(); if(typeof firstIssues==='function'){S.companies=company.split('+');firstIssues();}
+        start(); S.companies=company.split('+'); firstIssues();
         S.mode=mode; if(mode==='parallel')S.slots=SLOTS; S.subs.anthropic='max5'; S.wallet-=3300; S.st.subFee+=3300;
         let guard=0;
         while(S.day<=20&&guard++<2000){
-          if(INV&&typeof invest==='function'){
+          if(INV){
             const next=[...S.companies.map(k=>['md',k]),['tests'],['sdd']].find(([k,st])=>!(k==='md'?S.inv.md[st]:S.inv[k]));
             if(next) invest(...next);
           }
