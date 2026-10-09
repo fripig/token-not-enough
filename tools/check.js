@@ -487,6 +487,7 @@ function tests(){
     Math.random=()=>.2; sel.issue=sn.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'api',rv:0});
     auditRoll(sn,'api','anthropic'); Math.random=realRand;
     ok(S.trust===t0,'有 secret scanning：擲到 0.2 不會被稽核（原本 0.35 會）');
+    render(); ok(els.app.innerHTML.includes('有 18% 機率被資安稽核抓到'),'派工台的稽核警告顯示減半後的 18%');
   }
 
   /* 上架自動化（fastlane）效果 */
@@ -505,6 +506,7 @@ function tests(){
     const realRand=Math.random;
     newRun('laravel'); S.day=5; const q=makeIssue(true);
     ok(q.due===5,'沒有監控：第 5 天的事故單當天到期');
+    S.day=20; ok(makeIssue(true).due===20,'沒有監控：第 20 天的事故單第 20 天到期'); S.day=5;
     S.inv.monitor=true; const m5=makeIssue(true); S.day=20; const m20=makeIssue(true);
     ok(q.kpi===Math.round(KPI[4]*1.6*(hardStack('laravel')?1.3:1))&&m5.kpi===Math.round(KPI[4]*1.2),'有監控：之後的事故單 KPI 加成 ×1.6 → ×1.2',`${q.kpi} ${m5.kpi}`);
     ok(m5.due===6&&m20.due===20&&q.due===5,'有監控：第 5 天的事故單第 6 天到期、第 20 天仍是 20，已在佇列的不變',`${m5.due} ${m20.due}`);
@@ -514,6 +516,9 @@ function tests(){
     const lateInc=withMon=>{newRun('laravel'); S.hours=0; S.trust=70; S.inv.monitor=withMon; S.issues=[ticket('laravel',4,{inc:true,due:S.day})];
       Math.random=()=>.99; endDay(); Math.random=realRand; return 70-S.trust;};
     ok(lateInc(false)===8&&lateInc(true)===4,'事故單逾期：沒有監控扣信任 8、有監控扣 4');
+    newRun('laravel'); S.day=5; const pre=makeIssue(true); S.inv.monitor=true; S.hours=0; S.trust=70; S.issues=[pre];
+    Math.random=()=>.99; endDay(); Math.random=realRand;
+    ok(pre.due===5&&S.trust===66&&S.st.late===1,'買監控前進來的事故單：期限仍是當天，逾期只扣信任 4',`${pre.due} ${S.trust}`);
     newRun('laravel'); S.hours=0; S.trust=70; S.inv.monitor=true; S.issues=[ticket('laravel',2,{due:S.day})];
     Math.random=()=>.99; endDay(); Math.random=realRand; ok(S.trust===66,'有監控：一般工單逾期仍扣信任 4',S.trust);
   }
