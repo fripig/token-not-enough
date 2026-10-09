@@ -44,7 +44,8 @@ Changes can be parked（暫存）— temporarily moved out of `docs/spectra/chan
 
 這個專案沒有測試站與正式站之分（push 到 `main` 就上線），所以不用 `測試站待檢驗`、`正式站待檢驗`。
 
-- 開卡：`spectra new change` 之後立刻 `gh issue create --title "[change] <name>" --label spectra --label 討論中 --assignee @me --body ...`（預設指派給使用者）。內文寫 change 名稱、目錄、一句話說明、目前階段、文件完成狀況（proposal／design／specs／tasks）、tasks.md 的勾選進度。
+- 開卡：先開 issue 拿到號碼，再 `spectra new change`。先用 `gh issue create --title "[change] <name>" --label spectra --label 討論中 --assignee @me --body ...` 開卡（預設指派給使用者），再用卡號建 change。內文寫 change 名稱、目錄、一句話說明、目前階段、文件完成狀況（proposal／design／specs／tasks）、tasks.md 的勾選進度。
+- change 命名：`gh-<issue 號碼補成兩位>-<流水號兩位>-<kebab-case 名稱>`，例如 #6 的第一個 change 是 `gh-06-01-multi-team-seats`。同一張 issue 拆成多個 change 時流水號遞增（`-02`、`-03`）。issue 標題裡的 `<name>` 用完整的 change 名稱（含前綴）。這條規則從 `gh-06-01-multi-team-seats` 開始；之前的 change 不改名。
 - 換狀態：`gh issue edit <號碼> --remove-label <舊狀態> --add-label <新狀態>`。同一張卡同時只掛一個狀態 label。
 - 更新內文：每到一個階段都用 `gh issue edit <號碼> --body ...` 更新內文，並用 `gh issue comment` 留一句這次做了什麼。階段包括 proposal／design／specs／tasks 寫完、analyze 與 validate 結果、park、apply 開始、每完成一批任務、verify、commit、push。卡住時也要更新，寫明卡在哪裡。
 - 找卡：`gh issue list --label spectra --state all --search "[change] <name> in:title"`。
