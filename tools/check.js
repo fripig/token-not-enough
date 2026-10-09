@@ -9,7 +9,7 @@ import {BASE,CLIENTS,COMPANIES,DEFAULT_PRESETS,EFFORT,KPI,SEAT,STACKS,VENDORS,be
 import * as dataModule from '../public/js/data.js';
 import {GIG_CLIENT,GIG_PAY,S,addGigs,hardStack,fresh,makeGig,makeIssue,nextId,pickStack,sel,unfamiliar} from '../public/js/state.js';
 import {catchRate,costLine,storeReject,est,manualHrs,presetBlock,presetFor,quotaLeft,stackHint} from '../public/js/calc.js';
-import {EVENTS,advance,auditOdds,auditRoll,conflictRate,prHrs,batch,canEvaluate,charge,dispatch,endDay,evalCost,evaluate,invCount,invest,loadPreset,makeJob,manual,parMul,quick,rescope,reveal,revealRate,savePreset,settle,trueView} from '../public/js/actions.js';
+import {EVENTS,advance,auditOdds,auditRoll,conflictRate,prHrs,batch,canEvaluate,charge,dispatch,endDay,evalCost,evaluate,invCount,invest,loadPreset,makeJob,manual,quick,rescope,reveal,revealRate,savePreset,settle,trueView} from '../public/js/actions.js';
 import {dispatchPanel,render} from '../public/js/view.js';
 import {showEnd,showSetup} from '../public/js/modals.js';
 // 核心規則（gh-09-01-core-rules-specs）用命名空間取用，避免和上面的具名 import 重複
@@ -287,6 +287,8 @@ function tests(){
   start(); clickModal({mode:'parallel'});
   ok(els.mo.innerHTML.includes('data-slots="2"')&&els.mo.innerHTML.includes('data-slots="6"')&&!els.mo.innerHTML.includes('data-slots="7"'),'平行模式顯示 2–6 的選項');
   ok(/class="sb sel" data-slots="3"/.test(els.mo.innerHTML),'預設選 3');
+  ok(/data-slots="4">同時 4 個 agent<small>審 PR 最多 ×1\.75・衝突最多 30%/.test(els.mo.innerHTML),'4 個工作槽按鈕：審 PR 最多 ×1.75、衝突最多 30%');
+  { const pb=els.mo.innerHTML.match(/data-mode="parallel">(.*?)<\/button>/)[1]; ok(pb.includes('審 PR')&&!/token/i.test(pb),'平行模式按鈕講審 PR，不提 token',pb); }
   clickModal({mode:'serial'}); ok(!els.mo.innerHTML.includes('data-slots'),'單線模式不顯示工作槽選項');
   clickModal({mode:'parallel'}); clickModal({slots:'5'}); ok(els.mo.innerHTML.includes('最多 5 個 agent 在背景同時跑'),'模式說明跟著選的數量');
   clickModal({act:'confirm'});
@@ -301,7 +303,7 @@ function tests(){
   ok(S.jobs.length===2,'2 個工作槽時第三張派不出去',S.jobs.length);
   const pend=ticket('fe',1); S.issues.push(pend); sel.issue=pend.id; render();
   ok(/data-act="go" disabled/.test(els.app.innerHTML)&&els.app.innerHTML.includes('工作槽都滿了，先等一個 agent 跑完。'),'工作槽滿了：派工按鈕停用並顯示警告');
-  for(const [n,exp] of [[2,1.15],[4,1.45],[6,1.75]]){newRun('laravel','parallel'); S.slots=n; S.jobs=Array(n-1).fill({left:1}); ok(near(parMul(),exp),`${n} 個工作槽、已有 ${n-1} 個在跑 → token ×${exp}`);}
+  for(const [n,exp] of [[2,1.25],[4,1.75],[6,2.25]]){newRun('laravel','parallel'); S.slots=n; S.jobs=Array(n-1).fill({left:1}); ok(near(A.reviewLoad(),exp),`${n} 個工作槽、其他 ${n-1} 個還在跑 → 審 PR ×${exp}`);}
   newRun('laravel','parallel'); S.slots=4; S.day=20; showEnd();
   ok(els.mo.innerHTML.includes('月底結算・Laravel 新聞站・平行模式（4 個 agent）'),'結算標題顯示 4 個 agent');
   newRun('laravel','serial'); S.day=20; showEnd(); ok(els.mo.innerHTML.includes('月底結算・Laravel 新聞站・單線模式</h2>'),'單線模式標題不變');
@@ -1173,12 +1175,21 @@ function tests(){
   render(); ok(/data-act="waitn" disabled/.test(els.app.innerHTML),'game-modes：沒有 agent 時不能等下一個');
   /* 平行加成 */
   S.jobs=[job(tq,'anthropic','haiku','corp',{left:5,hrs:5}),job(tq,'anthropic','haiku','corp',{left:5,hrs:5})];
-  ok(near(parMul(),1.3)&&near(est(tq,'anthropic','sonnet',0).tk,BASE[3]*.85*1.3),'game-modes：兩個在跑時 token ×1.30');
-  sel.issue=tq.id; render(); ok(els.app.innerHTML.includes('預估 tokens ×1.30')&&els.app.innerHTML.includes('平行加成：已有 2 個 agent 在跑'),'game-modes：派工台顯示平行加成');
+  ok(near(est(tq,'anthropic','sonnet',0).tk,BASE[3]*.85),'dispatch-outcome：兩個在跑時 token 不變');
+  { const t180=ticket('fe',2); t180.base=180; const two=est(t180,'anthropic','sonnet',0).tk; const jb=S.jobs; S.jobs=[]; const zero=est(t180,'anthropic','sonnet',0).tk; S.jobs=jb; ok(near(two,153)&&near(zero,153),'dispatch-outcome：Sonnet 複雜度 2 base 180k，0 個或 2 個在跑都是 153k',[zero,two]); }
+  sel.issue=tq.id; render(); ok(els.app.innerHTML.includes('<label>預估 tokens</label>')&&els.app.innerHTML.includes('平行切換成本：已有 2 個 agent 在跑')&&els.app.innerHTML.includes('×1.50'),'game-modes：派工台標籤沒有倍率，提示審 PR ×1.50');
   /* 審 PR */
   newRun('laravel','parallel'); S.hours=8; const tr=ticket('fe',4); S.issues=[tr]; S.jobs=[job(tr,'anthropic','opus','corp',{rv:1,left:.1,hrs:.1})];
   advance(.1); ok(near(S.hours,7.5)&&S.log.some(l=>l.msg.includes('審 PR 花了 0.4h')),'game-modes：自審複雜度 4 成功後審 PR 0.4h');
   const tr2=ticket('fe',4); S.issues=[tr2]; S.jobs=[job(tr2,'anthropic','opus','corp',{rv:0,left:.1,hrs:.1})]; advance(.1); ok(near(S.hours,7.5-.1-.8),'game-modes：不審核時審 PR 0.8h');
+  /* 審 PR 切換成本：其他還在跑的 agent 越多越久 */
+  for(const [others,rv,hook,cx,exp] of [[0,0,false,3,.6],[1,0,false,3,.75],[2,0,false,2,.6],[5,0,false,4,1.8],[2,1,true,4,.3]]){
+    newRun('laravel','parallel'); S.inv.hook=hook; S.jobs=Array(others).fill({left:9}); ok(near(prHrs(cx,rv),exp),`game-modes：其他 ${others} 個在跑、${rv?'自審':'不審核'}${hook?'＋hook':''}、複雜度 ${cx} → 審 PR ${exp}h`,prHrs(cx,rv));
+  }
+  { newRun('laravel','parallel'); S.hours=8; const a=ticket('fe',2), b=ticket('fe',2), c=ticket('fe',2); S.issues=[a,b,c];
+    S.jobs=[job(a,'anthropic','opus','corp',{left:.1,hrs:.1}),job(b,'anthropic','opus','corp',{left:.1,hrs:.1}),job(c,'anthropic','opus','corp',{left:5,hrs:5})];
+    advance(.1); const n=S.log.filter(l=>l.msg.includes('審 PR 花了 0.5h')).length; ok(n===2&&near(S.hours,8-.1-1),'game-modes：兩個同時做完、一個還在跑 → 各審 PR 0.5h（×1.25）',[n,S.hours]); }
+  newRun('laravel','parallel'); S.hours=8;
   const tr3=ticket('fe',4); S.issues=[tr3]; const h3=S.hours; S.jobs=[job(tr3,'anthropic','opus','corp',{ok:false,left:.1,hrs:.1})]; advance(.1); ok(near(S.hours,h3-.1),'game-modes：失敗不用審 PR');
   /* 過夜與中止 */
   newRun('laravel','parallel'); S.day=3; S.hours=0; const to=ticket('fe',3,{due:6}); S.issues=[to]; S.jobs=[job(to,'anthropic','opus','corp',{left:3.5,hrs:5})]; to.running=true;

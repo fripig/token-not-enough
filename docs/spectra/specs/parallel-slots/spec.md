@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Lets the player choose how many background agents run at once in parallel mode, turning the token-cost and merge-conflict trade-off of running agents concurrently into a decision made at the start of each run.
+Lets the player choose how many background agents run at once in parallel mode, turning the PR review load and merge-conflict trade-off of running agents concurrently into a decision made at the start of each run.
 
 ## Requirements
 
 ### Requirement: Slot count selection
 
-When parallel mode is selected in the opening setup modal, the modal SHALL offer slot counts 2, 3, 4, 5 and 6 with 3 selected by default, and confirming SHALL set the run's slot count. The picker SHALL NOT appear for serial mode or in the weekly subscription adjustment modal. The slot count SHALL persist to the next run started with 再玩一個月, and an invalid stored value SHALL fall back to 3.
+When parallel mode is selected in the opening setup modal, the modal SHALL offer slot counts 2, 3, 4, 5 and 6 with 3 selected by default, and confirming SHALL set the run's slot count. Each slot button SHALL show the maximum PR review load 審 PR 最多 ×<1 + 0.25 × (n − 1), two decimals> and the maximum conflict chance 衝突最多 <10 × (n − 1)>%. The picker SHALL NOT appear for serial mode or in the weekly subscription adjustment modal. The slot count SHALL persist to the next run started with 再玩一個月, and an invalid stored value SHALL fall back to 3.
 
 #### Scenario: Pick five slots
 
@@ -25,23 +25,54 @@ When parallel mode is selected in the opening setup modal, the modal SHALL offer
 - **WHEN** a parallel run with 6 slots ends and the player clicks 再玩一個月
 - **THEN** the opening modal preselects 6 slots
 
+#### Scenario: Slot button labels
+
+- **WHEN** the opening modal shows the 4-slot button
+- **THEN** it shows 審 PR 最多 ×1.75 and 衝突最多 30%
+
+
+<!-- @trace
+source: gh-12-01-parallel-review-load
+updated: 2026-10-09
+code:
+  - docs/DESIGN.md
+  - public/js/calc.js
+  - public/js/view.js
+  - public/js/actions.js
+  - public/js/modals.js
+  - tools/check.js
+-->
+
 ---
 ### Requirement: Slot limit on dispatch
 
-In parallel mode the player SHALL NOT be able to have more background agents running than the chosen slot count; the dispatch button SHALL be disabled and the warning 工作槽都滿了，先等一個 agent 跑完。 SHALL be shown when all slots are busy. Token multiplier and merge-conflict chance SHALL keep their existing per-running-agent formulas.
+In parallel mode the player SHALL NOT be able to have more background agents running than the chosen slot count; the dispatch button SHALL be disabled and the warning 工作槽都滿了，先等一個 agent 跑完。 SHALL be shown when all slots are busy. PR review load and merge-conflict chance SHALL keep their per-running-agent formulas. A dispatch's tokens SHALL NOT depend on the number of running agents.
 
 #### Scenario: Two slots fill up
 
 - **WHEN** the run has 2 slots and 2 agents are running
 - **THEN** a third dispatch is refused and the dispatch button is disabled
 
-##### Example: maximum token multiplier by slot count
+##### Example: maximum PR review load by slot count
 
-| Slots | Agents already running | Token multiplier for the next dispatch |
-| ----- | ---------------------- | -------------------------------------- |
-| 2 | 1 | 1.15 |
-| 4 | 3 | 1.45 |
-| 6 | 5 | 1.75 |
+| Slots | Other agents still running at most | PR review load |
+| ----- | ---------------------------------- | -------------- |
+| 2 | 1 | 1.25 |
+| 4 | 3 | 1.75 |
+| 6 | 5 | 2.25 |
+
+
+<!-- @trace
+source: gh-12-01-parallel-review-load
+updated: 2026-10-09
+code:
+  - docs/DESIGN.md
+  - public/js/calc.js
+  - public/js/view.js
+  - public/js/actions.js
+  - public/js/modals.js
+  - tools/check.js
+-->
 
 ---
 ### Requirement: Slot count on the receipt

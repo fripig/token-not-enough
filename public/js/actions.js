@@ -9,8 +9,6 @@ export const PAR=()=>S.mode==='parallel';
 export const queueOrder=(a,b)=>a.due-b.due||b.kpi-a.kpi;
 export const SLOT_CHOICES=[2,3,4,5,6];
 export const clock=el=>{const m=Math.round((9+el)*60);return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;};
-/* 平行加成：同時在跑的 agent 越多，重複載入 context 與協調的 token 越多 */
-export const parMul=()=>PAR()?1+.15*S.jobs.length:1;
 /* 還沒曝光的陷阱題照真實複雜度跑；模型能力不夠就做到一半停下來 */
 export const TRAP_STOP=.4;
 export const hiddenTrap=is=>is.trap&&!is.revealed;
@@ -20,7 +18,7 @@ export function makeJob(is){
   const hidden=hiddenTrap(is), e=est(trueView(is),sel.v,sel.m);
   const stop=hidden&&e.M.cap<is.trueCx, f=stop?(S.inv.sdd?SDD_TRAP_STOP:TRAP_STOP):1;
   const ok=!stop&&Math.random()<e.p;
-  return {issue:is,v:sel.v,b:sel.b,M:e.M,mul:parMul(),rv:sel.rv,tk:e.tk*f*R(.7,1.3),hrs:e.hrs*f*R(.8,1.2),ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd:S.inv.sdd};
+  return {issue:is,v:sel.v,b:sel.b,M:e.M,rv:sel.rv,tk:e.tk*f*R(.7,1.3),hrs:e.hrs*f*R(.8,1.2),ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd:S.inv.sdd};
 }
 export function dispatch(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is||gigBlocked(is,sel.b)) return;
@@ -54,8 +52,10 @@ export function savePreset(i){
 /* 平行模式：推進時鐘，背景 agent 跑完就結算，成功的要花時間審 PR */
 /* 合併衝突機率：每個還在跑的 agent +10%，CI 流水線減半 */
 export const conflictRate=()=>.1*S.jobs.length*(S.inv.ci?.5:1);
-/* 審 PR 時數：有自我審核減半，有 pre-commit hook 再減半 */
-export const prHrs=(cx,rv)=>cx*.2*(rv?.5:1)*(S.inv.hook?HOOK_PR:1);
+/* 審 PR 時數：有自我審核減半，有 pre-commit hook 再減半；其他還在跑的 agent 越多，切換成本越高 */
+export const REVIEW_LOAD=.25;
+export const reviewLoad=()=>1+REVIEW_LOAD*S.jobs.length;
+export const prHrs=(cx,rv)=>cx*.2*(rv?.5:1)*(S.inv.hook?HOOK_PR:1)*reviewLoad();
 export function advance(dt){
   while(dt>1e-9&&S.hours>1e-9){
     const next=S.jobs.length?Math.min(...S.jobs.map(j=>j.left)):Infinity;

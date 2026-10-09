@@ -1,7 +1,7 @@
 import {BILL_LABEL,EFFORT,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
 import {REVIEW,bills,catchRate,costLine,est,localBusy,manualHrs,presetFor,quotaLeft,stackHint} from './calc.js';
-import {INV_STACKS,PAR,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,invCount,invHint,investBlock,parMul,queueOrder} from './actions.js';
+import {INV_STACKS,PAR,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,invCount,invHint,investBlock,queueOrder,reviewLoad} from './actions.js';
 
 /* ===== 畫面 ===== */
 export const app=document.getElementById('app'), ov=document.getElementById('ov'), mo=document.getElementById('mo');
@@ -125,14 +125,14 @@ export function dispatchPanel(){
   <div class="sec"><label>派工方案</label><div class="seg">${S.presets.map((p,i)=>`<button class="sb" data-load="${i}">載入方案 ${PN[i]}<small>${model(p.v,p.m).name}${S.advanced&&p.ef!==1?`・${EFFORT[p.ef].name}強度`:''}・${BILL_LABEL[p.b]}・${REVIEW[p.rv].name}</small></button>`).join('')}</div>
     <div class="seg">${PN.map((n,i)=>`<button class="sb" data-save="${i}">存成方案 ${n}<small>用上面的選擇</small></button>`).join('')}</div></div>
   <div class="est">
-    <div><label>預估 tokens${parMul()>1?` ×${parMul().toFixed(2)}`:''}</label><b>${kt(e.lo)}–${kt(e.hi)}</b></div>
+    <div><label>預估 tokens</label><b>${kt(e.lo)}–${kt(e.hi)}</b></div>
     <div><label>${cl.t}</label><b>${cl.unit==='q'?`${kt(cl.lo)}–${kt(cl.hi)}`:cl.hi?`${nt(cl.lo)}–${nt(cl.hi)}`:'NT$0'}</b></div>
     <div><label>成功率${sel.rv||is.store?`（原 ${Math.round(e.p*100)}%）`:''}</label><b class="${pc}">${Math.round(e.pe*100)}%</b></div>
     <div><label>${PAR()?'執行時間':'工時'}</label><b>${h1(e.hrs)}h</b></div>
   </div>
   ${stackHint(is)?`<p class="hint">${stackHint(is)}</p>`:''}
   ${invHint(is)?`<p class="hint">${invHint(is)}</p>`:''}
-  ${PAR()&&S.jobs.length?`<p class="hint">平行加成：已有 ${S.jobs.length} 個 agent 在跑，這張的 token 用量 ×${parMul().toFixed(2)}；完成時每多一個同時在跑的 agent，合併衝突機率 +10%；衝突時會留下一張「解決衝突」工單，KPI 等它完成才拿。</p>`:''}
+  ${PAR()&&S.jobs.length?`<p class="hint">平行切換成本：已有 ${S.jobs.length} 個 agent 在跑，每個 agent 做完時，其他還在跑的越多，審 PR 越久（照現在是 ×${reviewLoad().toFixed(2)}），合併衝突機率也每個 +10%；衝突時會留下一張「解決衝突」工單，KPI 等它完成才拿。</p>`:''}
   <div class="warnline">${warn}</div>
   <div class="actions">
     <button class="btn primary" data-act="go" ${blocked||S.hours<.2||(PAR()&&S.jobs.length>=S.slots)?'disabled':''}>${PAR()?'派到背景':'派給'} ${VENDORS[sel.v].agent}</button>

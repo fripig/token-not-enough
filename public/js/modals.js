@@ -1,7 +1,7 @@
 import {COMPANIES,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
 import {S,addGigs,clearSave,loadGame,saveGame,track} from './state.js';
 import {log} from './calc.js';
-import {PAR,SLOT_CHOICES,invCount} from './actions.js';
+import {PAR,REVIEW_LOAD,SLOT_CHOICES,invCount} from './actions.js';
 import {app,mo,ov,render} from './view.js';
 import {firstIssues,start} from './main.js';
 
@@ -59,10 +59,10 @@ export function showSetup(adjust){
       <button class="sb ${draft.advanced?'sel':''}" data-adv="1"><b>進階</b><small>派工時多選推理強度：高強度能力 +1，但 token ×1.5、時間 ×1.4；低強度能力 −1，token ×0.7、時間 ×0.8。</small></button>
     </div></div>
     <div class="sec"><label>遊戲模式</label><div class="modes">
-      <button class="sb ${draft.mode==='parallel'?'sel':''}" data-mode="parallel"><b>平行模式</b><small>最多 ${draft.slots} 個 agent 在背景同時跑，你的時間花在派工和審 PR。同時跑越多，token 用量加成越高，也越容易合併衝突。跑不完的會過夜。</small></button>
+      <button class="sb ${draft.mode==='parallel'?'sel':''}" data-mode="parallel"><b>平行模式</b><small>最多 ${draft.slots} 個 agent 在背景同時跑，你的時間花在派工和審 PR。同時跑越多，每次審 PR 越要切換腦袋、花越久，也越容易合併衝突。跑不完的會過夜。</small></button>
       <button class="sb ${draft.mode==='serial'?'sel':''}" data-mode="serial"><b>單線模式</b><small>一次只處理一張，agent 跑多久你就等多久。比較單純，適合先熟悉付費方式的取捨。</small></button>
     </div></div>
-    ${draft.mode==='parallel'?`<div class="sec"><label>同時跑幾個 agent</label><div class="seg">${SLOT_CHOICES.map(n=>`<button class="sb ${draft.slots===n?'sel':''}" data-slots="${n}">同時 ${n} 個 agent<small>token 最多 ×${(1+.15*(n-1)).toFixed(2)}・衝突最多 ${Math.round(10*(n-1))}%</small></button>`).join('')}</div></div>`:''}`}
+    ${draft.mode==='parallel'?`<div class="sec"><label>同時跑幾個 agent</label><div class="seg">${SLOT_CHOICES.map(n=>`<button class="sb ${draft.slots===n?'sel':''}" data-slots="${n}">同時 ${n} 個 agent<small>審 PR 最多 ×${(1+REVIEW_LOAD*(n-1)).toFixed(2)}・衝突最多 ${Math.round(10*(n-1))}%</small></button>`).join('')}</div></div>`:''}`}
     <div class="plans">${planPicker(adjust)}</div>
     <div class="actions"><button class="btn primary" data-act="confirm">${adjust?'確定調整':'開始第 1 天'}</button>${adjust?'<button class="btn ghost" data-act="close">不改了</button>':''}</div>`;
   };

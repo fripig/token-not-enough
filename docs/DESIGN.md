@@ -25,7 +25,8 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 2. 「工作應該可以平行處理一次只能選一個不大合理」「不過可以作為遊戲模式的選項」
    → 加入「平行模式」（預設）與「單線模式」，開局選擇。
 3. 「消耗的Token可能加成」
-   → 解讀為：平行時同時跑的 agent 越多，token 用量越高（重複載入 context、協調成本）。使用者沒有再修正這個解讀。
+   → 原本解讀為：平行時同時跑的 agent 越多，token 用量越高（重複載入 context、協調成本）。
+   2026-10-09 使用者修正：「平行模式 不同工作間會加成其實不大合理」（每個 agent 各自有 context）。拿掉 token 加成，改成同時跑越多、審 PR 越久（切換成本）。設計紀錄在 Spectra change `gh-12-01-parallel-review-load`（#12）。
 4. 「加上中國模型 但是可能會因為案主不能用中國模型不能使用」
    → 加入 DeepSeek、智譜 GLM、Kimi，以及本地 Qwen 權重；每張工單有案主，案主決定能否用中國模型。
 5. 「另外加上工單自審核功能 可加成Token消耗但是避免錯誤整單重做」
@@ -51,12 +52,16 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
    → 補測試拆成單元測試與 CI 流水線，新增 pre-commit／lint hook、secret scanning／脫敏、上架自動化（fastlane）、監控告警；事故扣信任減半做成監控告警的效果。設計紀錄在 Spectra change `gh-08-01-more-investments`。
 16. 「開卡做存檔功能」
    → 每天開工時自動存一格，開頁問要不要繼續。使用者選了開工時存（允許重骰當天）、只存一格、結構版本不同就丟、讀檔的局照常記最高分。設計紀錄在 Spectra change `gh-11-01-save-game`。
+17. 「平行模式 不同工作間會加成其實不大合理」
+   → 見第 3 條：拿掉平行 token 加成，改成審 PR 的切換成本。使用者在「改成審 PR 切換成本／同廠商共用速率限制／直接拿掉」裡選了第一個。
 
 介面文字一律繁體中文（台灣用語）。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
 ## 遊戲規則與數值
 
 所有價格、額度、能力值都是遊戲平衡用的虛構數字，不是各家真實方案；頁面底部有聲明，保留它。
+
+2026-10-09 拿掉平行 token 加成之前量的平衡表（技術線、陷阱、雙選、外包、推理強度、工程投資、席位、合併衝突）都是在有 token 加成時量的；拿掉後平行模式平均分差在 ±2% 內，舊表照留、沒有重測。
 
 v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spectra change `gh-09-01-core-rules-specs`）：`work-calendar`（時間與資源、週一調整訂閱）、`agent-catalog`（廠商與模型、派工台選模型）、`billing-methods`（付費方式、透支、資安稽核）、`client-restrictions`（案主與中國模型限制）、`ticket-lifecycle`（工單產生、完成、失敗、手寫、逾期）、`dispatch-outcome`（成功率、token、時間、結算）、`self-review`（自我審核）、`game-modes`（單線／平行模式）、`random-events`（隨機事件）、`month-end-scoring`（結算與評等）。後來加入的功能各有自己的 spec，核心公式裡跟它們有關的係數只寫「見某某 spec」，同一條規則只在一份 spec 定義。這份文件保留數字與設計脈絡，spec 定義行為；改核心規則時用 Spectra change 的 delta spec 一起改，並更新 `tools/check.js` 裡對應的斷言。
 
@@ -182,22 +187,23 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
 
 ### 平行模式（`S.mode==='parallel'`）
 - 工作槽數開局選 2–6 個（`SLOT_CHOICES`，預設 3，存在 `S.slots`，跨 `fresh()` 保留，不合法退回 3；週一不能改）。派工花 0.2h，agent 在背景跑；「等 1 小時」「等到下一個完成」推進時鐘（`advance`）。
-- Token 加成 `parMul() = 1 + 0.15 × 正在跑的數量`。
+- 每個 agent 各自有 context，同時跑幾個都不影響單張的 token 用量（2026-10-09 前有 `parMul() = 1 + 0.15 × 正在跑的數量` 的 token 加成，`gh-12-01-parallel-review-load` 拿掉）。
 - 完成時合併衝突機率 = 0.1 × 其他還在跑的數量（CI 流水線減半）。衝突不算失敗：原單原地變成「解決衝突：<原標題>」工單（`merge:true`），複雜度 max(1, 原複雜度 − 1)、基準 token 照新複雜度重抽，技術線、案主、機敏、事故、到期日、KPI、上架審核照舊；那次派工的 token 照扣，不花審 PR 時間。玩家可以重新選怎麼解（任何派工方式或自己手寫），KPI 等它完成才拿，到期沒解完照一般逾期扣分。解決衝突工單不會再衝突、不是陷阱、不能評估架構或找主管重新評估，卡片顯示「合併衝突」。設計紀錄在 Spectra change `merge-conflict-resolve`。
   實測（2026-10-09，`SIM_N=100`，每格 300 局，兩次平均；改動前是「衝突算失敗、重做 token ×0.4」）：Laravel 8,176 → 8,465（+3.5%）、Rails 8,167 → 8,449（+3.5%）、Rust 7,903 → 8,425（+6.6%）、App 8,438 → 8,962（+6.2%）。門檻是 ±15%，沒有調數值；工作槽數表沒有重測。
-- 成功後要審 PR：`cx × 0.2` 小時（有審核時減半，有 pre-commit hook 再減半；`prHrs`）。
+- 成功後要審 PR：`cx × 0.2` 小時（有審核時減半，有 pre-commit hook 再減半），再乘上切換成本 `reviewLoad() = 1 + REVIEW_LOAD × 其他還在跑的數量`（`REVIEW_LOAD = 0.25`；同一步一起做完的不算還在跑；`prHrs`）。派工台提示照當下在跑的數量預告倍率，開局工作槽按鈕顯示「審 PR 最多 ×」。
+  實測（2026-10-09，`SIM_N=100`，每格 300 局，跑兩次）：平行 Laravel 8,404／8,382 → 8,403／8,397、Rails 8,372／8,453 → 8,300／8,330、Rust 8,292／8,311 → 8,270／8,414、App 8,958／8,967 → 8,906／8,787，都在 ±2% 內（目標 ±10%），0.25 沒有調。單線模式不受影響。自動玩家能用就派 DeepSeek Chat、不能用才派 Sonnet，token 加成對它的分數本來就影響不大，所以這組數字不代表重度使用 Opus 的玩家。
 - 下班時跑到 17:00，剩下的過夜（剩餘時間 −3h）；到期沒跑完或廠商當機會被中止，已用 token 照算。
 - 每天新工單 3–6 張（單線 2–4），評等門檻 ×1.6。結算標題顯示「平行模式（N 個 agent）」。最高分不分工作槽數。
-- 工作槽數沒有額外代價，取捨只靠既有的 token 加成與合併衝突。實測（`SIM_SLOTS=N SIM_N=100`，每格 300 局，平行模式平均分）：
+- 工作槽數沒有額外代價，取捨只靠審 PR 切換成本與合併衝突。實測（2026-10-09 審 PR 切換成本上線後，`SIM_SLOTS=N SIM_N=100`，每格 300 局，平行模式平均分）：
 
 | 公司 | 2 | 3 | 4 | 5 | 6 |
 |---|---|---|---|---|---|
-| Laravel | 6,446 | 8,048 | 8,669 | 8,680 | 8,850 |
-| Rails | 6,436 | 8,121 | 8,588 | 8,762 | 8,829 |
-| Rust | 5,591 | 8,103 | 8,739 | 9,025 | 8,905 |
-| App | 6,162 | 8,548 | 9,429 | 9,521 | 9,596 |
+| Laravel | 6,435 | 8,373 | 8,914 | 9,157 | 9,310 |
+| Rails | 6,493 | 8,332 | 8,992 | 9,141 | 9,121 |
+| Rust | 5,882 | 8,407 | 9,366 | 9,594 | 9,739 |
+| App | 6,340 | 8,931 | 9,744 | 10,018 | 10,246 |
 
-  越多越好，但 4 個以後增幅只剩約 0–3%（Rust 在 5 個最高）。6 個是微幅最佳解，評等門檻沒有跟著調。如果要讓多開有明顯代價，可以考慮多開時審 PR 時間加成或評等門檻隨工作槽調整（使用者當初選擇先量測）。
+  越多越好，4 個以後增幅只剩約 0–3%，6 個是微幅最佳解，評等門檻沒有跟著調；和 token 加成時期的量測（同一天同程式碼基準：Laravel 6,602／8,431／9,030／9,260／9,248）差在雜訊內，切換成本沒有讓多開變成明顯虧本。如果要讓多開有明顯代價，可以再調高 `REVIEW_LOAD` 或讓評等門檻隨工作槽調整。
 
 ### 派工方案（`S.presets`、`presetBlock`、`presetFor`、`quick`）
 - 三組方案 A／B／C，各存廠商、模型、付費方式、審核等級、推理強度（`ef`，0／1／2）。預設三組都是中強度；舊方案沒有 `ef` 時補成中，`ef` 不是 0–2 就三組退回預設。一般模式下方案存的強度不生效；進階模式下強度不是中的方案，載入按鈕標籤會顯示「高強度／低強度」。預設 A：DeepSeek Chat＋個人 API＋自審；B：Sonnet＋公司 API＋自審；C：Opus＋公司 API＋嚴格審核。跨 `fresh()` 保留，有任何一組不合法就三組都退回預設（`presetsOf`）。不存 localStorage。
@@ -330,7 +336,7 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 | `data.js` | 資料與工具函式，沒有狀態：`GAME_VERSION`、`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP`、`INV_KEYS`、`HOOK_PR`、`SCAN_AUDIT`、`FASTLANE_REJECT`、`MONITOR_LATE`、`MONITOR_KPI` |
 | `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件、存檔：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`SAVE_KEY`、`SAVE_VER`、`saveGame`、`clearSave`、`readSave`、`loadGame`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`hardStack`、`unfamiliar`、`makeIssue`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs` |
 | `calc.js` | 計算（`est(is, v, mid, rv, ef)` 會套推理強度）：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log` |
-| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`parMul`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`endDay` |
+| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`endDay` |
 | `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`quickBtn`、`invPanel`、`qbox`、`dispatchPanel` |
 | `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showResume`、`showBadSave`、`showEnd` |
 
@@ -350,7 +356,6 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 
 - 平行模式下「嚴格審核＋便宜的中國模型」明顯偏強。可以考慮讓嚴格審核佔用工作槽，或加重時間成本。
 - `tools/sim.js` 的自動玩家很粗糙，不理會稽核和信任，所以模擬結果裡信任常常歸零。它只適合拿來確認不會壞、看大致趨勢；需要時可以改寫成更聰明的策略。
-- 「消耗的 Token 可能加成」目前實作為平行用量加成。如果使用者原意是其他意思（例如某方案有 token 倍數優惠），需要再確認。
 - 全部工程投資都買時（`SIM_INVEST=2`），平行模式 Rust、App 約 +21%～+27%，超過 +3%～+15%，使用者接受。拿 S 的比例約 98%，如果之後覺得平行模式評等失去意義，可以考慮評等門檻隨投資數調整。
 - 多團隊席位只量了上限（見「時間與資源」的席位實測）：平行模式 −4.3%～+6.0%，在目標內；單線模式 +14.6%～+50.0%。第 2、3 個席位對這個自動玩家幾乎沒有額外效果，重度使用 Opus 的玩家還沒量。照真實規則（要顧信任）的增幅也沒量，因為自動玩家不顧信任。
 - 單線模式下 Rust、App 公司明顯較難（見上方平衡實測），目前用難度星等交代；如果要拉近，可以考慮單線模式下這兩家每天少一張工單。

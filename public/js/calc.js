@@ -1,6 +1,6 @@
 import {FASTLANE_REJECT,MD_P,MD_TK,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,effModel,efOf,kt,model,planOf} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
-import {PAR,parMul} from './actions.js';
+import {PAR} from './actions.js';
 
 /* ===== 計算 ===== */
 export function quotaLeft(kind,v){
@@ -36,7 +36,7 @@ export const manualHrs=is=>is.cx*2.2*(is.tries?.8:1)*(unfamiliar(is)?2:1);
 export function est(is,v,mid,rv=sel.rv,ef=sel.ef){
   const M0=model(v,mid), M=effModel(M0,efOf(ef)), raw=M.cap-is.cx, diff=raw+stackGap(is,M);
   const md=!!S.inv.md[is.stack], sdd=S.inv.sdd;
-  const tk=is.base*M.verb*(is.big&&M.ctx?.7:1)*(M0.cap-is.cx>=1?.85:1)*parMul()*REVIEW[rv].tk*(md?MD_TK:1)*(sdd?SDD_TK:1);
+  const tk=is.base*M.verb*(is.big&&M.ctx?.7:1)*(M0.cap-is.cx>=1?.85:1)*REVIEW[rv].tk*(md?MD_TK:1)*(sdd?SDD_TK:1);
   let p=diff>=1?.95:diff===0?.8:diff===-1?.5:diff===-2?.25:.1;
   if(is.big&&M.ctx)p+=.08; if(is.big&&!M.ctx&&M.cap<4)p-=.08;
   if(md)p+=MD_P; if(sdd&&is.cx>=3)p+=SDD_P;
