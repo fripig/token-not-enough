@@ -1,6 +1,7 @@
 // 規則檢查（非遊戲本體）
 // 用法：node tools/check.js
 // 用假的 DOM 載入遊戲模組，把 spec 裡的範例數字逐條斷言；任何一條不符就以非 0 結束。
+import {readFileSync} from 'node:fs';
 import {els,store,resetStore} from './fake-dom.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {start} from '../public/js/main.js';
@@ -1262,6 +1263,45 @@ function tests(){
   S.mode='serial'; S.day=20; showEnd(); clickMo({act:'again'}); ok(S.day===1&&S.mode==='serial'&&els.mo.innerHTML.includes('月初：決定這個月怎麼付 token')&&/class="sb sel" data-mode="serial"/.test(els.mo.innerHTML),'month-end-scoring：再玩一個月開新局、沿用選擇');
   resetStore();
   }
+  }
+  {
+  /* ===== GA 遊戲事件（gh-10-01-play-analytics） ===== */
+  const clickMo=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+  const ev=[]; globalThis.gtag=(kind,name,p)=>ev.push({kind,name,p});
+  const names=()=>ev.map(e=>e.name).join();
+  /* 開局參數：單線 Rails（存著 5 個工作槽也送 1） */
+  newRun('rails','parallel'); S.slots=5; S.advanced=false; S.outsource=false; showSetup(false); clickMo({mode:'serial'}); ev.length=0; clickMo({act:'confirm'});
+  ok(names()==='game_start,day_reached'&&ev.every(e=>e.kind==='event'&&e.p.day===1),'play-analytics：開局確認送 game_start 再送第 1 天 day_reached',names());
+  const p0=ev[0].p;
+  ok(p0.game_version==='dev'&&p0.game_mode==='serial'&&p0.companies==='rails'&&p0.slots===1&&p0.advanced===false&&p0.outsource===false,'play-analytics：單線 Rails 的共同參數',JSON.stringify(p0));
+  /* 開局參數：平行 Laravel＋Rust、4 個工作槽、進階、接外包 */
+  newRun('laravel','parallel'); S.slots=3; S.advanced=false; S.outsource=false; showSetup(false);
+  clickMo({company:'rust'}); clickMo({slots:'4'}); clickMo({out:'1'}); clickMo({adv:'1'}); ev.length=0; clickMo({act:'confirm'});
+  const p1=ev[0]?.p||{};
+  ok(ev[0]?.name==='game_start'&&p1.game_mode==='parallel'&&p1.companies==='laravel+rust'&&p1.slots===4&&p1.advanced===true&&p1.outsource===true,'play-analytics：平行雙選的共同參數',JSON.stringify(p1));
+  /* 整個月：第 1–20 天各一次 day_reached，第 20 天結束送 game_end，不送第 21 天 */
+  for(let i=0;i<20;i++)endDay();
+  const days=ev.filter(e=>e.name==='day_reached').map(e=>e.p.day).join();
+  ok(days===Array.from({length:20},(_,i)=>i+1).join(),'play-analytics：第 1–20 天各送一次 day_reached',days);
+  ok(ev.filter(e=>e.name==='game_end').length===1&&ev.at(-1).name==='game_end'&&ev.at(-1).p.day===20,'play-analytics：月底送一次 game_end');
+  /* 週一調整訂閱不送事件 */
+  newRun('laravel'); S.day=6; showSetup(true); ev.length=0; clickMo({act:'confirm'}); showSetup(true); clickMo({act:'close'});
+  ok(ev.length===0,'play-analytics：週一調整訂閱不送事件',names());
+  /* game_end 帶 score 與 grade */
+  newRun('laravel','serial'); S.kpi=300; S.trust=70; S.day=20; ev.length=0; showEnd();
+  ok(ev.length===1&&ev[0].name==='game_end'&&ev[0].p.score===4280&&ev[0].p.grade==='A'&&ev[0].p.day===20,'play-analytics：game_end 帶 score 4280、grade A',JSON.stringify(ev[0]?.p));
+  /* gtag 會丟例外：遊戲照常開局 */
+  globalThis.gtag=()=>{throw new Error('blocked');};
+  let threw=false; try{newRun('laravel'); showSetup(false); clickMo({act:'confirm'});}catch(e){threw=true;}
+  ok(!threw&&S.day===1,'play-analytics：gtag 丟例外時照常開局');
+  /* 沒有 gtag：整個月跑完不出錯、結算照開 */
+  delete globalThis.gtag; threw=false;
+  try{newRun('laravel'); showSetup(false); clickMo({act:'confirm'}); for(let i=0;i<20;i++)endDay();}catch(e){threw=true;}
+  ok(!threw&&els.mo.innerHTML.includes('月底結算'),'play-analytics：沒有 gtag 時整個月照常跑完');
+  /* 版本：repo 裡是 dev，部署 workflow 換成短 commit hash，沒換到就失敗 */
+  const wf=readFileSync(new URL('../.github/workflows/pages.yml',import.meta.url),'utf8');
+  ok(dataModule.GAME_VERSION==='dev','play-analytics：repo 裡的 GAME_VERSION 是 dev');
+  ok(wf.includes(`sed -i "s/export const GAME_VERSION='dev';/export const GAME_VERSION='\${GITHUB_SHA::7}';/" public/js/data.js`)&&wf.includes(`grep -q "GAME_VERSION='\${GITHUB_SHA::7}'" public/js/data.js`)&&wf.indexOf('Stamp game version')<wf.indexOf('upload-pages-artifact'),'play-analytics：部署前把版本換成短 commit hash 並檢查');
   }
   console.log(`\n${pass} passed, ${fail} failed`);
   if(fail) process.exitCode=1;
