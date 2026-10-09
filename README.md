@@ -56,6 +56,6 @@ tools/sim.js     # 平衡模擬器
 tools/check.js   # 規則檢查
 tools/fake-dom.js # 工具共用的假 DOM
 tools/seed.js    # SIM_SEED 固定亂數
-docs/CLAUDE.md   # 開發交接文件（需求來源、規則數值、程式碼地圖）
+docs/DESIGN.md   # 設計與交接文件（需求來源、規則數值、平衡紀錄、程式碼地圖）
 .github/workflows/pages.yml
 ```

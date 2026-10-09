@@ -54,4 +54,4 @@ Changes can be parked（暫存）— temporarily moved out of `docs/spectra/chan
 
 遊戲規則、數值、程式碼地圖與需求來源見下列文件：
 
-@docs/CLAUDE.md
+@docs/DESIGN.md
