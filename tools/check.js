@@ -16,7 +16,7 @@ function near(a,b,eps=1e-9){return Math.abs(a-b)<=eps;}
 function tests(){
   // 開一局但不經過彈窗：直接設定公司與模式
   const newRun=(company,mode='serial')=>{start();S.companies=[].concat(company);S.mode=mode;S.issues=[];S.jobs=[];sel.rv=0;};
-  const ticket=(stack,cx,extra={})=>({id:++uid,title:'t',cx,base:BASE[cx],inc:false,sens:false,big:false,client:CLIENTS[0],due:20,kpi:KPI[cx],tries:0,stack,store:false,...extra});
+  const ticket=(stack,cx,extra={})=>({id:nextId(),title:'t',cx,base:BASE[cx],inc:false,sens:false,big:false,client:CLIENTS[0],due:20,kpi:KPI[cx],tries:0,stack,store:false,...extra});
 
   /* 1.1 技術線資料 */
   for(const k of COMPANIES){

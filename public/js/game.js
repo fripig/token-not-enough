@@ -120,6 +120,9 @@ const MD_TK=.85, MD_P=.06, TEST_CATCH=.1, MCP_REVEAL=.2, SDD_TK=1.1, SDD_P=.08, 
 
 /* ===== 狀態 ===== */
 let S, sel, uid=0;
+/* 工單編號：其他模組只能透過這兩個函式改 */
+const nextId=()=>++uid;
+const resetIds=()=>{uid=0;};
 function fresh(){
   uid=0;
   S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,presets:presetsOf(S?.presets),jobs:[],
@@ -141,7 +144,9 @@ function pickStack(){
   return pick(COMPANIES.filter(k=>!S.companies.includes(k)));
 }
 /* 陷阱題：看起來是小單（複雜度 1–2），其實牽扯架構（真實複雜度 4–5） */
-const TRAP_RATE=.1;
+let TRAP_RATE=.1;
+/* 模擬器用來調整陷阱比例 */
+const setTrapRate=r=>{TRAP_RATE=r;};
 /* Rust、App 比較慢：期限多一天、KPI ×1.3 作為補償 */
 const hardStack=st=>st==='rust'||st==='app';
 const unfamiliar=is=>!S.companies.includes(is.stack)&&is.stack!=='fe';
@@ -153,7 +158,7 @@ function makeIssue(inc){
   const stack=inc?pick(S.companies):pickStack();
   const trap=!inc&&cx<=2&&Math.random()<TRAP_RATE, trueCx=Math.random()<.6?4:5;
   const title=trap&&Math.random()<.5?pick(STACKS[stack].pool.trap):pick(STACKS[stack].pool[inc?'inc':cx]);
-  return {id:++uid,title,cx,base,inc:!!inc,stack,
+  return {id:nextId(),title,cx,base,inc:!!inc,stack,
     trap,trueCx:trap?trueCx:cx,trueBase:trap?BASE[trueCx]*R(.85,1.15):base,revealed:false,evaluated:false,rescoped:false,merge:false,
     store:stack==='app'&&cx>=2&&Math.random()<.4,
     sens:Math.random()<(inc?.55:.25),big:cx>=3&&Math.random()<.45,
@@ -787,7 +792,7 @@ app.addEventListener('click',e=>{
 
 /* 第 1 天的工單依公司產生；開局換公司時重抽 */
 function firstIssues(){
-  uid=0; S.issues=[]; S.log=[];
+  resetIds(); S.issues=[]; S.log=[];
   for(let i=0;i<4;i++)S.issues.push(makeIssue(false));
   log('dim','— 第 1 天開工，新進 4 張工單 —');
 }

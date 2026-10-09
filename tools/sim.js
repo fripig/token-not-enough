@@ -5,6 +5,7 @@
 // SIM_TRAP=<比例> 可覆寫陷阱題比例（例如 SIM_TRAP=0 關掉陷阱）；SIM_SLOTS=2..6 指定平行模式工作槽數。
 // SIM_INVEST=1 讓自動玩家做工程投資：每天開工時依序買 CLAUDE.md（每條主技術線）、補測試、導入 SDD 裡下一項付得起的。
 // SIM_COMBOS=1 改跑六種雙選組合（另跑單選 Laravel 當對照）。
+// SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
 const el=()=>({innerHTML:'',hidden:true,addEventListener(){},querySelector(){return null},onclick:null});
 const els={app:el(),ov:el(),mo:el()};
 global.document={getElementById:id=>els[id]};
@@ -13,11 +14,14 @@ const file=process.argv[2]||require('path').join(__dirname,'..','public','js','g
 const raw=require('fs').readFileSync(file,'utf8');
 let src=file.endsWith('.html')?raw.match(/<script>([\s\S]*)<\/script>/)[1]:raw;
 // SIM_TRAP=0 關掉陷阱題，用來和有陷阱時比較
-if(process.env.SIM_TRAP!==undefined){
-  const rate=Number(process.env.SIM_TRAP), next=src.replace(/const TRAP_RATE=[\d.]+;/,`const TRAP_RATE=${rate};`);
-  if(process.env.SIM_TRAP.trim()===''||!Number.isFinite(rate)){ console.error(`SIM_TRAP 必須是數字，收到「${process.env.SIM_TRAP}」`); process.exit(1); }
-  if(next===src){ console.error('SIM_TRAP：找不到 const TRAP_RATE=…; 這行，沒辦法覆寫陷阱比例'); process.exit(1); }
-  src=next;
+const TRAP=process.env.SIM_TRAP===undefined?undefined:Number(process.env.SIM_TRAP);
+if(TRAP!==undefined&&(process.env.SIM_TRAP.trim()===''||!Number.isFinite(TRAP))){ console.error(`SIM_TRAP 必須是數字，收到「${process.env.SIM_TRAP}」`); process.exit(1); }
+if(process.env.SIM_SEED!==undefined){
+  const seed=Number(process.env.SIM_SEED);
+  if(process.env.SIM_SEED.trim()===''||!Number.isInteger(seed)){ console.error(`SIM_SEED 必須是整數，收到「${process.env.SIM_SEED}」`); process.exit(1); }
+  // mulberry32
+  let t=seed>>>0;
+  Math.random=()=>{t=(t+0x6D2B79F5)>>>0;let r=Math.imul(t^(t>>>15),1|t);r=(r+Math.imul(r^(r>>>7),61|r))^r;return((r^(r>>>14))>>>0)/4294967296;};
 }
 const N=+process.env.SIM_N||100;
 const INV=process.env.SIM_INVEST==='1';
@@ -27,6 +31,7 @@ const SLOTS=process.env.SIM_SLOTS===undefined?3:Number(process.env.SIM_SLOTS);
 if(![2,3,4,5,6].includes(SLOTS)){ console.error(`SIM_SLOTS 必須是 2–6 的整數，收到「${process.env.SIM_SLOTS}」`); process.exit(1); }
 
 function sim(){
+  if(TRAP!==undefined) setTrapRate(TRAP);
   const sum={};
   for(const mode of ['parallel','serial']){
     const runs=typeof COMPANIES==='undefined'?['laravel']:COMBOS?['laravel',...COMPANIES.flatMap((a,i)=>COMPANIES.slice(i+1).map(b=>a+'+'+b))]:COMPANIES;

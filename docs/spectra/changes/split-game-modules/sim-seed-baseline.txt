@@ -1,0 +1,206 @@
+## node tools/check.js
+278 passed, 0 failed
+
+## SIM_SEED=1 SIM_N=10  node tools/sim.js
+parallel laravel rv 0 caught 0 cnBan true ds 13555 ant 39754 kpi 1021 done 95 late 8 trust 0 self 3707 corp 5416 conf 11 grade S
+parallel laravel rv 1 caught 13 cnBan true ds 48627 ant 32814 kpi 1041 done 89 late 5 trust 0 self 4759 corp 4550 conf 14 grade S
+parallel laravel rv 2 caught 17 cnBan true ds 27124 ant 46288 kpi 770 done 85 late 18 trust 0 self 4671 corp 7503 conf 10 grade S
+parallel rails rv 0 caught 0 cnBan true ds 20255 ant 38773 kpi 866 done 77 late 9 trust 0 self 3908 corp 5829 conf 12 grade S
+parallel rails rv 1 caught 16 cnBan true ds 18865 ant 47280 kpi 947 done 89 late 6 trust 0 self 4229 corp 7684 conf 17 grade S
+parallel rails rv 2 caught 15 cnBan true ds 47809 ant 31858 kpi 881 done 79 late 9 trust 0 self 4734 corp 6530 conf 11 grade S
+parallel rust rv 0 caught 0 cnBan true ds 15503 ant 32148 kpi 933 done 77 late 13 trust 0 self 3765 corp 4041 conf 10 grade S
+parallel rust rv 1 caught 12 cnBan true ds 15066 ant 55473 kpi 1063 done 90 late 13 trust 0 self 6681 corp 7183 conf 14 grade S
+parallel rust rv 2 caught 24 cnBan false ds 64300 ant 31219 kpi 1102 done 86 late 8 trust 0 self 5229 corp 4512 conf 7 grade S
+parallel app rv 0 caught 0 cnBan false ds 43640 ant 19594 kpi 645 done 70 late 20 trust 0 self 4849 corp 367 conf 11 grade C
+parallel app rv 1 caught 24 cnBan false ds 60298 ant 15142 kpi 1158 done 83 late 9 trust 0 self 5109 corp 0 conf 17 grade S
+parallel app rv 2 caught 19 cnBan true ds 49212 ant 35597 kpi 988 done 80 late 8 trust 0 self 4776 corp 3355 conf 13 grade S
+serial laravel rv 0 caught 0 cnBan true ds 13460 ant 4832 kpi -20 done 31 late 37 trust 0 self 3704 corp 0 conf 0 grade D
+serial laravel rv 1 caught 7 cnBan false ds 21777 ant 10306 kpi 304 done 46 late 24 trust 0 self 3953 corp 50 conf 0 grade C
+serial laravel rv 2 caught 5 cnBan false ds 19092 ant 12267 kpi 291 done 47 late 21 trust 0 self 3903 corp 0 conf 0 grade C
+serial rails rv 0 caught 0 cnBan true ds 9563 ant 15213 kpi 268 done 45 late 20 trust 0 self 3587 corp 0 conf 0 grade C
+serial rails rv 1 caught 5 cnBan true ds 11748 ant 16240 kpi 395 done 48 late 19 trust 0 self 3652 corp 0 conf 0 grade B
+serial rails rv 2 caught 7 cnBan true ds 12691 ant 19512 kpi 236 done 38 late 23 trust 0 self 3681 corp 285 conf 0 grade C
+serial rust rv 0 caught 0 cnBan true ds 6230 ant 13890 kpi 234 done 36 late 25 trust 0 self 3448 corp 0 conf 0 grade D
+serial rust rv 1 caught 7 cnBan true ds 11583 ant 13743 kpi 181 done 41 late 27 trust 0 self 3648 corp 0 conf 0 grade D
+serial rust rv 2 caught 13 cnBan true ds 5526 ant 19596 kpi 166 done 40 late 24 trust 0 self 3466 corp 0 conf 0 grade D
+serial app rv 0 caught 0 cnBan true ds 11426 ant 10506 kpi 138 done 31 late 26 trust 0 self 3643 corp 0 conf 0 grade D
+serial app rv 1 caught 7 cnBan true ds 6756 ant 16649 kpi 313 done 41 late 22 trust 0 self 3503 corp 0 conf 0 grade B
+serial app rv 2 caught 9 cnBan true ds 8684 ant 18893 kpi 256 done 38 late 24 trust 0 self 3561 corp 194 conf 0 grade C
+
+=== 平均分（對照同模式的 Laravel）===
+parallel laravel       mean   8255 vs laravel    0.0% grades S:22 A:7 B:1 C:0 D:0
+parallel rails         mean   8672 vs laravel    5.1% grades S:25 A:4 B:1 C:0 D:0
+parallel rust          mean   8844 vs laravel    7.1% grades S:22 A:3 B:1 C:4 D:0
+parallel app           mean   8608 vs laravel    4.3% grades S:23 A:3 B:3 C:1 D:0
+serial laravel         mean   2709 vs laravel    0.0% grades S:0 A:4 B:8 C:10 D:8
+serial rails           mean   2724 vs laravel    0.6% grades S:0 A:3 B:11 C:8 D:8
+serial rust            mean   1628 vs laravel  -39.9% grades S:0 A:0 B:2 C:9 D:19
+serial app             mean   2058 vs laravel  -24.0% grades S:0 A:1 B:4 C:8 D:17
+
+## SIM_SEED=1 SIM_N=10 SIM_TRAP=0 node tools/sim.js
+parallel laravel rv 0 caught 0 cnBan true ds 12465 ant 36594 kpi 876 done 90 late 11 trust 0 self 3674 corp 5167 conf 12 grade S
+parallel laravel rv 1 caught 9 cnBan true ds 37165 ant 28764 kpi 1035 done 87 late 2 trust 8 self 4415 corp 4988 conf 17 grade S
+parallel laravel rv 2 caught 17 cnBan true ds 44870 ant 34470 kpi 1075 done 87 late 5 trust 0 self 4646 corp 6161 conf 10 grade S
+parallel rails rv 0 caught 0 cnBan false ds 43413 ant 19905 kpi 609 done 74 late 15 trust 0 self 4602 corp 1141 conf 18 grade B
+parallel rails rv 1 caught 17 cnBan true ds 13196 ant 27697 kpi 938 done 82 late 3 trust 0 self 3696 corp 2178 conf 10 grade S
+parallel rails rv 2 caught 13 cnBan true ds 19013 ant 48204 kpi 866 done 85 late 8 trust 0 self 4199 corp 10455 conf 5 grade S
+parallel rust rv 0 caught 0 cnBan false ds 44909 ant 18903 kpi 290 done 62 late 38 trust 0 self 4647 corp 550 conf 13 grade D
+parallel rust rv 1 caught 15 cnBan true ds 31446 ant 32180 kpi 1016 done 75 late 6 trust 0 self 4243 corp 3619 conf 17 grade S
+parallel rust rv 2 caught 39 cnBan false ds 57314 ant 32622 kpi 1179 done 94 late 8 trust 0 self 5019 corp 3677 conf 17 grade S
+parallel app rv 0 caught 0 cnBan true ds 24645 ant 28077 kpi 712 done 69 late 16 trust 0 self 3819 corp 3193 conf 12 grade A
+parallel app rv 1 caught 11 cnBan true ds 39437 ant 27005 kpi 953 done 76 late 14 trust 0 self 4483 corp 1436 conf 10 grade S
+parallel app rv 2 caught 17 cnBan false ds 48280 ant 22323 kpi 1080 done 83 late 6 trust 0 self 4748 corp 1666 conf 6 grade S
+serial laravel rv 0 caught 0 cnBan true ds 12799 ant 11233 kpi 521 done 48 late 16 trust 0 self 3684 corp 0 conf 0 grade A
+serial laravel rv 1 caught 3 cnBan true ds 7832 ant 19000 kpi 372 done 45 late 15 trust 0 self 3535 corp 0 conf 0 grade B
+serial laravel rv 2 caught 9 cnBan false ds 24075 ant 7989 kpi 204 done 44 late 26 trust 0 self 4022 corp 0 conf 0 grade D
+serial rails rv 0 caught 0 cnBan true ds 12935 ant 8766 kpi 146 done 34 late 29 trust 0 self 3688 corp 0 conf 0 grade D
+serial rails rv 1 caught 7 cnBan false ds 16999 ant 9621 kpi 428 done 50 late 9 trust 0 self 3810 corp 0 conf 0 grade A
+serial rails rv 2 caught 6 cnBan true ds 23576 ant 9783 kpi 344 done 46 late 19 trust 0 self 4007 corp 0 conf 0 grade B
+serial rust rv 0 caught 0 cnBan true ds 8471 ant 10781 kpi 136 done 37 late 29 trust 0 self 3554 corp 0 conf 0 grade D
+serial rust rv 1 caught 6 cnBan true ds 12809 ant 10956 kpi 321 done 46 late 20 trust 0 self 3684 corp 0 conf 0 grade B
+serial rust rv 2 caught 10 cnBan true ds 13075 ant 12703 kpi 220 done 39 late 18 trust 0 self 3692 corp 0 conf 0 grade D
+serial app rv 0 caught 0 cnBan true ds 10950 ant 8216 kpi 155 done 38 late 28 trust 0 self 3628 corp 0 conf 0 grade D
+serial app rv 1 caught 9 cnBan true ds 10743 ant 14082 kpi 334 done 43 late 20 trust 0 self 3622 corp 34 conf 0 grade C
+serial app rv 2 caught 9 cnBan true ds 16035 ant 12666 kpi 316 done 38 late 19 trust 0 self 3781 corp 0 conf 0 grade B
+
+=== 平均分（對照同模式的 Laravel）===
+parallel laravel       mean   8837 vs laravel    0.0% grades S:22 A:6 B:2 C:0 D:0
+parallel rails         mean   8385 vs laravel   -5.1% grades S:21 A:7 B:2 C:0 D:0
+parallel rust          mean   8641 vs laravel   -2.2% grades S:23 A:1 B:0 C:3 D:3
+parallel app           mean   9183 vs laravel    3.9% grades S:26 A:2 B:2 C:0 D:0
+serial laravel         mean   3156 vs laravel    0.0% grades S:1 A:6 B:12 C:5 D:6
+serial rails           mean   3287 vs laravel    4.1% grades S:1 A:6 B:14 C:5 D:4
+serial rust            mean   2169 vs laravel  -31.3% grades S:0 A:2 B:6 C:6 D:16
+serial app             mean   2352 vs laravel  -25.5% grades S:1 A:0 B:7 C:8 D:14
+
+## SIM_SEED=1 SIM_N=10 SIM_SLOTS=5 node tools/sim.js
+parallel laravel rv 0 caught 0 cnBan false ds 66808 ant 20943 kpi 746 done 79 late 10 trust 0 self 6348 corp 161 conf 20 grade A
+parallel laravel rv 1 caught 16 cnBan true ds 31477 ant 52644 kpi 1112 done 93 late 7 trust 0 self 6146 corp 7095 conf 23 grade S
+parallel laravel rv 2 caught 17 cnBan true ds 21012 ant 80192 kpi 959 done 89 late 11 trust 0 self 15593 corp 13199 conf 18 grade S
+parallel rails rv 0 caught 0 cnBan false ds 66025 ant 14931 kpi 870 done 73 late 8 trust 0 self 5281 corp 191 conf 21 grade A
+parallel rails rv 1 caught 13 cnBan true ds 41696 ant 45934 kpi 1058 done 90 late 5 trust 0 self 10704 corp 5710 conf 27 grade S
+parallel rails rv 2 caught 19 cnBan true ds 32890 ant 61924 kpi 1044 done 86 late 6 trust 0 self 8640 corp 12158 conf 21 grade S
+parallel rust rv 0 caught 0 cnBan true ds 30194 ant 43029 kpi 1065 done 85 late 8 trust 0 self 4561 corp 6916 conf 20 grade S
+parallel rust rv 1 caught 34 cnBan false ds 77590 ant 20240 kpi 1156 done 82 late 10 trust 0 self 5628 corp 968 conf 16 grade S
+parallel rust rv 2 caught 29 cnBan true ds 69344 ant 36734 kpi 1326 done 93 late 4 trust 0 self 5926 corp 6537 conf 17 grade S
+parallel app rv 0 caught 0 cnBan true ds 23818 ant 48339 kpi 1124 done 85 late 11 trust 0 self 4103 corp 9754 conf 27 grade S
+parallel app rv 1 caught 21 cnBan true ds 37424 ant 51811 kpi 1376 done 95 late 3 trust 0 self 5003 corp 5730 conf 23 grade S
+parallel app rv 2 caught 28 cnBan false ds 72268 ant 18618 kpi 1147 done 88 late 3 trust 0 self 5468 corp 1338 conf 17 grade S
+serial laravel rv 0 caught 0 cnBan true ds 16109 ant 9643 kpi 292 done 44 late 18 trust 0 self 3783 corp 0 conf 0 grade C
+serial laravel rv 1 caught 6 cnBan false ds 19612 ant 11427 kpi 374 done 49 late 16 trust 0 self 3888 corp 0 conf 0 grade B
+serial laravel rv 2 caught 9 cnBan true ds 11101 ant 19345 kpi 230 done 43 late 21 trust 0 self 3541 corp 0 conf 0 grade C
+serial rails rv 0 caught 0 cnBan true ds 5087 ant 18111 kpi 235 done 42 late 30 trust 0 self 3453 corp 0 conf 0 grade C
+serial rails rv 1 caught 7 cnBan true ds 14499 ant 12353 kpi 434 done 49 late 14 trust 0 self 3676 corp 0 conf 0 grade A
+serial rails rv 2 caught 7 cnBan true ds 12394 ant 19225 kpi 264 done 42 late 23 trust 0 self 3672 corp 0 conf 0 grade C
+serial rust rv 0 caught 0 cnBan false ds 14025 ant 4955 kpi -122 done 22 late 42 trust 0 self 3717 corp 0 conf 0 grade D
+serial rust rv 1 caught 10 cnBan false ds 15383 ant 7758 kpi 372 done 42 late 17 trust 0 self 3717 corp 0 conf 0 grade A
+serial rust rv 2 caught 5 cnBan true ds 7967 ant 15666 kpi 203 done 41 late 23 trust 0 self 3539 corp 0 conf 0 grade D
+serial app rv 0 caught 0 cnBan false ds 12442 ant 10168 kpi 155 done 39 late 33 trust 0 self 3673 corp 0 conf 0 grade D
+serial app rv 1 caught 5 cnBan false ds 20125 ant 7695 kpi 255 done 44 late 25 trust 0 self 3904 corp 0 conf 0 grade C
+serial app rv 2 caught 5 cnBan true ds 9299 ant 15598 kpi 184 done 38 late 20 trust 0 self 3579 corp 0 conf 0 grade D
+
+=== 平均分（對照同模式的 Laravel）===
+parallel laravel       mean   9459 vs laravel    0.0% grades S:29 A:1 B:0 C:0 D:0
+parallel rails         mean   8926 vs laravel   -5.6% grades S:28 A:2 B:0 C:0 D:0
+parallel rust          mean   9704 vs laravel    2.6% grades S:25 A:2 B:1 C:0 D:2
+parallel app           mean  10106 vs laravel    6.8% grades S:30 A:0 B:0 C:0 D:0
+serial laravel         mean   2931 vs laravel    0.0% grades S:1 A:4 B:11 C:9 D:5
+serial rails           mean   2871 vs laravel   -2.0% grades S:1 A:2 B:11 C:8 D:8
+serial rust            mean   1556 vs laravel  -46.9% grades S:0 A:2 B:2 C:5 D:21
+serial app             mean   1985 vs laravel  -32.3% grades S:0 A:1 B:3 C:7 D:19
+
+## SIM_SEED=1 SIM_N=10 SIM_INVEST=1 node tools/sim.js
+parallel laravel rv 0 caught 0 cnBan false ds 50568 ant 10235 kpi 927 done 86 late 12 trust 0 self 4479 corp 1400 conf 9 grade S
+parallel laravel rv 1 caught 11 cnBan true ds 48980 ant 22170 kpi 1125 done 92 late 6 trust 0 self 4769 corp 2154 conf 5 grade S
+parallel laravel rv 2 caught 7 cnBan true ds 16026 ant 56348 kpi 876 done 83 late 14 trust 0 self 6580 corp 11697 conf 8 grade S
+parallel rails rv 0 caught 0 cnBan true ds 4664 ant 31208 kpi 790 done 77 late 7 trust 0 self 3440 corp 4343 conf 6 grade S
+parallel rails rv 1 caught 9 cnBan false ds 46053 ant 17834 kpi 1143 done 92 late 5 trust 0 self 4682 corp 2529 conf 5 grade S
+parallel rails rv 2 caught 12 cnBan true ds 22735 ant 47571 kpi 907 done 85 late 10 trust 0 self 4381 corp 7621 conf 8 grade S
+parallel rust rv 0 caught 0 cnBan true ds 18428 ant 26662 kpi 1008 done 79 late 5 trust 0 self 3853 corp 2842 conf 6 grade S
+parallel rust rv 1 caught 18 cnBan true ds 18378 ant 36579 kpi 1000 done 85 late 6 trust 0 self 3851 corp 6389 conf 11 grade S
+parallel rust rv 2 caught 17 cnBan true ds 29508 ant 43204 kpi 989 done 79 late 11 trust 0 self 4232 corp 9250 conf 6 grade S
+parallel app rv 0 caught 0 cnBan false ds 31180 ant 16480 kpi 902 done 76 late 11 trust 0 self 4017 corp 2496 conf 3 grade S
+parallel app rv 1 caught 7 cnBan true ds 8996 ant 46989 kpi 950 done 78 late 14 trust 0 self 3570 corp 6888 conf 9 grade S
+parallel app rv 2 caught 26 cnBan false ds 59133 ant 31879 kpi 1228 done 84 late 8 trust 0 self 5140 corp 5754 conf 7 grade S
+serial laravel rv 0 caught 0 cnBan false ds 17563 ant 5746 kpi 264 done 43 late 19 trust 0 self 3827 corp 1400 conf 0 grade C
+serial laravel rv 1 caught 7 cnBan true ds 14813 ant 12055 kpi 228 done 45 late 29 trust 0 self 3744 corp 1400 conf 0 grade D
+serial laravel rv 2 caught 3 cnBan true ds 8484 ant 17598 kpi 171 done 36 late 30 trust 0 self 3496 corp 1400 conf 0 grade D
+serial rails rv 0 caught 0 cnBan true ds 9696 ant 14437 kpi 468 done 49 late 12 trust 0 self 3591 corp 1421 conf 0 grade B
+serial rails rv 1 caught 3 cnBan true ds 5338 ant 18659 kpi 247 done 39 late 23 trust 0 self 3460 corp 1400 conf 0 grade C
+serial rails rv 2 caught 5 cnBan true ds 7307 ant 19644 kpi 120 done 36 late 28 trust 0 self 3573 corp 2539 conf 0 grade D
+serial rust rv 0 caught 0 cnBan false ds 14383 ant 7177 kpi 73 done 34 late 30 trust 0 self 3636 corp 1400 conf 0 grade D
+serial rust rv 1 caught 9 cnBan true ds 9973 ant 9764 kpi 310 done 42 late 16 trust 0 self 3599 corp 1400 conf 0 grade B
+serial rust rv 2 caught 9 cnBan false ds 16694 ant 9113 kpi 120 done 28 late 35 trust 0 self 3801 corp 1400 conf 0 grade D
+serial app rv 0 caught 0 cnBan true ds 14095 ant 6952 kpi 207 done 38 late 32 trust 0 self 3723 corp 1400 conf 0 grade D
+serial app rv 1 caught 4 cnBan false ds 11685 ant 9889 kpi 111 done 33 late 30 trust 0 self 3651 corp 1400 conf 0 grade D
+serial app rv 2 caught 2 cnBan false ds 11119 ant 11647 kpi 60 done 32 late 37 trust 0 self 3634 corp 1400 conf 0 grade D
+
+=== 平均分（對照同模式的 Laravel）===
+parallel laravel       mean   8983 vs laravel    0.0% grades S:30 A:0 B:0 C:0 D:0
+parallel rails         mean   8652 vs laravel   -3.7% grades S:25 A:5 B:0 C:0 D:0
+parallel rust          mean   9818 vs laravel    9.3% grades S:27 A:3 B:0 C:0 D:0
+parallel app           mean   9771 vs laravel    8.8% grades S:28 A:2 B:0 C:0 D:0
+serial laravel         mean   2528 vs laravel    0.0% grades S:2 A:0 B:6 C:10 D:12
+serial rails           mean   2490 vs laravel   -1.5% grades S:0 A:1 B:9 C:7 D:13
+serial rust            mean   1627 vs laravel  -35.7% grades S:0 A:0 B:4 C:5 D:21
+serial app             mean   1676 vs laravel  -33.7% grades S:1 A:0 B:2 C:6 D:21
+
+## SIM_SEED=1 SIM_N=10 SIM_COMBOS=1 node tools/sim.js
+parallel laravel rv 0 caught 0 cnBan true ds 13555 ant 39754 kpi 1021 done 95 late 8 trust 0 self 3707 corp 5416 conf 11 grade S
+parallel laravel rv 1 caught 13 cnBan true ds 48627 ant 32814 kpi 1041 done 89 late 5 trust 0 self 4759 corp 4550 conf 14 grade S
+parallel laravel rv 2 caught 17 cnBan true ds 27124 ant 46288 kpi 770 done 85 late 18 trust 0 self 4671 corp 7503 conf 10 grade S
+parallel laravel+rails rv 0 caught 0 cnBan false ds 46774 ant 28173 kpi 818 done 81 late 13 trust 0 self 5249 corp 1875 conf 11 grade A
+parallel laravel+rails rv 1 caught 8 cnBan true ds 17549 ant 40436 kpi 897 done 82 late 10 trust 0 self 3826 corp 5949 conf 12 grade S
+parallel laravel+rails rv 2 caught 13 cnBan true ds 17374 ant 58252 kpi 749 done 79 late 9 trust 0 self 4539 corp 12431 conf 7 grade A
+parallel laravel+rust rv 0 caught 0 cnBan false ds 54461 ant 18051 kpi 803 done 82 late 26 trust 0 self 4934 corp 985 conf 11 grade A
+parallel laravel+rust rv 1 caught 22 cnBan true ds 37432 ant 43840 kpi 1228 done 89 late 11 trust 0 self 4423 corp 8085 conf 13 grade S
+parallel laravel+rust rv 2 caught 24 cnBan false ds 66604 ant 30308 kpi 1071 done 92 late 8 trust 0 self 5298 corp 2530 conf 13 grade S
+parallel laravel+app rv 0 caught 0 cnBan true ds 22131 ant 37890 kpi 519 done 68 late 27 trust 0 self 4233 corp 5201 conf 13 grade C
+parallel laravel+app rv 1 caught 15 cnBan true ds 40884 ant 18573 kpi 813 done 75 late 5 trust 0 self 4138 corp 1115 conf 7 grade A
+parallel laravel+app rv 2 caught 18 cnBan true ds 56864 ant 32892 kpi 1077 done 89 late 7 trust 0 self 5006 corp 3676 conf 18 grade S
+parallel rails+rust rv 0 caught 0 cnBan false ds 54443 ant 21991 kpi 701 done 78 late 18 trust 0 self 4933 corp 1133 conf 14 grade B
+parallel rails+rust rv 1 caught 27 cnBan false ds 50186 ant 27605 kpi 1069 done 83 late 6 trust 0 self 5306 corp 559 conf 16 grade S
+parallel rails+rust rv 2 caught 18 cnBan true ds 23548 ant 59289 kpi 907 done 81 late 10 trust 0 self 6485 corp 11932 conf 9 grade S
+parallel rails+app rv 0 caught 0 cnBan false ds 51691 ant 13718 kpi 682 done 78 late 21 trust 0 self 4851 corp 320 conf 11 grade B
+parallel rails+app rv 1 caught 13 cnBan true ds 19637 ant 44202 kpi 1090 done 93 late 6 trust 0 self 3889 corp 7625 conf 11 grade S
+parallel rails+app rv 2 caught 18 cnBan true ds 31356 ant 42715 kpi 865 done 86 late 11 trust 0 self 3987 corp 9501 conf 10 grade S
+parallel rust+app rv 0 caught 0 cnBan false ds 51315 ant 17342 kpi 339 done 58 late 31 trust 0 self 4839 corp 509 conf 7 grade D
+parallel rust+app rv 1 caught 11 cnBan true ds 21077 ant 39922 kpi 1004 done 78 late 9 trust 0 self 4194 corp 6116 conf 12 grade S
+parallel rust+app rv 2 caught 26 cnBan true ds 33164 ant 39672 kpi 1062 done 78 late 6 trust 0 self 5954 corp 5979 conf 10 grade S
+serial laravel rv 0 caught 0 cnBan true ds 14976 ant 11384 kpi 306 done 45 late 18 trust 0 self 3749 corp 0 conf 0 grade C
+serial laravel rv 1 caught 10 cnBan false ds 20866 ant 10610 kpi 451 done 51 late 14 trust 0 self 3926 corp 0 conf 0 grade A
+serial laravel rv 2 caught 6 cnBan true ds 9487 ant 20583 kpi 284 done 44 late 18 trust 0 self 3585 corp 0 conf 0 grade C
+serial laravel+rails rv 0 caught 0 cnBan true ds 6993 ant 12825 kpi 318 done 47 late 19 trust 0 self 3510 corp 0 conf 0 grade C
+serial laravel+rails rv 1 caught 6 cnBan true ds 11724 ant 13801 kpi 428 done 53 late 9 trust 0 self 3652 corp 0 conf 0 grade A
+serial laravel+rails rv 2 caught 13 cnBan false ds 26835 ant 8067 kpi 260 done 44 late 23 trust 0 self 4230 corp 0 conf 0 grade C
+serial laravel+rust rv 0 caught 0 cnBan true ds 13574 ant 11221 kpi 210 done 38 late 32 trust 0 self 3707 corp 0 conf 0 grade D
+serial laravel+rust rv 1 caught 9 cnBan false ds 13223 ant 13136 kpi 212 done 36 late 29 trust 0 self 3697 corp 0 conf 0 grade D
+serial laravel+rust rv 2 caught 7 cnBan true ds 13852 ant 13932 kpi 207 done 42 late 26 trust 0 self 3716 corp 0 conf 0 grade C
+serial laravel+app rv 0 caught 0 cnBan true ds 7901 ant 16328 kpi 546 done 50 late 9 trust 0 self 3490 corp 0 conf 0 grade S
+serial laravel+app rv 1 caught 14 cnBan false ds 20638 ant 6590 kpi 388 done 49 late 19 trust 0 self 3850 corp 0 conf 0 grade B
+serial laravel+app rv 2 caught 7 cnBan true ds 11619 ant 18420 kpi 208 done 36 late 29 trust 0 self 3649 corp 0 conf 0 grade C
+serial rails+rust rv 0 caught 0 cnBan false ds 13319 ant 11123 kpi 349 done 41 late 14 trust 0 self 3700 corp 0 conf 0 grade B
+serial rails+rust rv 1 caught 6 cnBan true ds 8167 ant 18016 kpi 406 done 43 late 19 trust 0 self 3545 corp 0 conf 0 grade A
+serial rails+rust rv 2 caught 9 cnBan false ds 16114 ant 14065 kpi 326 done 39 late 18 trust 0 self 3783 corp 0 conf 0 grade B
+serial rails+app rv 0 caught 0 cnBan true ds 14017 ant 8089 kpi 93 done 36 late 26 trust 0 self 3781 corp 0 conf 0 grade D
+serial rails+app rv 1 caught 4 cnBan true ds 11026 ant 13411 kpi 197 done 33 late 31 trust 0 self 3631 corp 0 conf 0 grade D
+serial rails+app rv 2 caught 6 cnBan false ds 23196 ant 6957 kpi 223 done 38 late 25 trust 0 self 4087 corp 0 conf 0 grade D
+serial rust+app rv 0 caught 0 cnBan false ds 18232 ant 6436 kpi 64 done 30 late 34 trust 0 self 3950 corp 0 conf 0 grade D
+serial rust+app rv 1 caught 3 cnBan true ds 7277 ant 13345 kpi 227 done 39 late 19 trust 0 self 3518 corp 0 conf 0 grade C
+serial rust+app rv 2 caught 4 cnBan true ds 3765 ant 20441 kpi 146 done 35 late 34 trust 0 self 3413 corp 0 conf 0 grade D
+
+=== 平均分（對照同模式的 Laravel）===
+parallel laravel       mean   8255 vs laravel    0.0% grades S:22 A:7 B:1 C:0 D:0
+parallel laravel+rails mean   8459 vs laravel    2.5% grades S:20 A:8 B:2 C:0 D:0
+parallel laravel+rust  mean   8499 vs laravel    3.0% grades S:21 A:4 B:4 C:0 D:1
+parallel laravel+app   mean   8708 vs laravel    5.5% grades S:26 A:3 B:0 C:1 D:0
+parallel rails+rust    mean   8138 vs laravel   -1.4% grades S:19 A:4 B:4 C:1 D:2
+parallel rails+app     mean   8567 vs laravel    3.8% grades S:23 A:3 B:2 C:2 D:0
+parallel rust+app      mean   8498 vs laravel    3.0% grades S:22 A:3 B:4 C:0 D:1
+serial laravel         mean   2881 vs laravel    0.0% grades S:0 A:3 B:8 C:16 D:3
+serial laravel+rails   mean   2684 vs laravel   -6.8% grades S:0 A:5 B:9 C:6 D:10
+serial laravel+rust    mean   2142 vs laravel  -25.6% grades S:0 A:2 B:5 C:7 D:16
+serial laravel+app     mean   2615 vs laravel   -9.2% grades S:1 A:3 B:7 C:7 D:12
+serial rails+rust      mean   2583 vs laravel  -10.3% grades S:1 A:3 B:8 C:9 D:9
+serial rails+app       mean   2351 vs laravel  -18.4% grades S:1 A:2 B:5 C:9 D:13
+serial rust+app        mean   1999 vs laravel  -30.6% grades S:0 A:1 B:2 C:13 D:14
