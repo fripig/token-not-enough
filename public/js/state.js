@@ -8,14 +8,14 @@ export const nextId=()=>++uid;
 export const resetIds=()=>{uid=0;};
 export function fresh(){
   uid=0;
-  S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,presets:presetsOf(S?.presets),jobs:[],
+  S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,outsource:S?.outsource===true,presets:presetsOf(S?.presets),jobs:[],
     inv:{md:{},tests:false,skills:false,mcp:false,sdd:false},
     subs:objOf(APIV,()=>'none'),
     used:{sub:objOf(APIV,()=>({d:0,w:0})),seat:objOf(SEAT.vendors,()=>({d:0,w:0}))},
     capMod:objOf(APIV,()=>1),priceMod:objOf(Object.keys(VENDORS),()=>1),cnBan:false,
     seat:{vendor:null,status:'none',day:0},
     outage:null,corpDay:0,issues:[],log:[],
-    st:{subFee:0,api:0,corp:0,done:0,late:0,audits:0,manual:0,conflicts:0,caught:0,tk:objOf(Object.keys(VENDORS),()=>0),byBill:{sub:0,seat:0,api:0,corp:0,local:0},kpiLost:0,trapHit:0,trapFound:0}};
+    st:{subFee:0,api:0,corp:0,done:0,late:0,audits:0,manual:0,conflicts:0,caught:0,tk:objOf(Object.keys(VENDORS),()=>0),byBill:{sub:0,seat:0,api:0,corp:0,local:0},kpiLost:0,trapHit:0,trapFound:0,outIncome:0,outPenalty:0,outDone:0,outLate:0}};
   sel={issue:null,v:'anthropic',m:'sonnet',b:'api',rv:sel?.rv??1};
 }
 
@@ -33,12 +33,12 @@ export const setTrapRate=r=>{TRAP_RATE=r;};
 /* Rust、App 比較慢：期限多一天、KPI ×1.3 作為補償 */
 export const hardStack=st=>st==='rust'||st==='app';
 export const unfamiliar=is=>!S.companies.includes(is.stack)&&is.stack!=='fe';
-export function makeIssue(inc){
+export function makeIssue(inc,st){
   let cx;
   if(inc) cx=4; else { const r=Math.random()+S.day/20*.38; cx=r<.28?1:r<.6?2:r<.9?3:r<1.12?4:5; }
   const base=BASE[cx]*R(.85,1.15);
   let due=inc?S.day:S.day+(cx<=2?1+rnd(3):2+rnd(4));
-  const stack=inc?pick(S.companies):pickStack();
+  const stack=st||(inc?pick(S.companies):pickStack());
   const trap=!inc&&cx<=2&&Math.random()<TRAP_RATE, trueCx=Math.random()<.6?4:5;
   const title=trap&&Math.random()<.5?pick(STACKS[stack].pool.trap):pick(STACKS[stack].pool[inc?'inc':cx]);
   return {id:nextId(),title,cx,base,inc:!!inc,stack,
@@ -49,3 +49,17 @@ export function makeIssue(inc){
     due:Math.min(20,due+(!inc&&hardStack(stack)?1:0)),kpi:Math.round(KPI[cx]*(inc?1.6:1)*(hardStack(stack)?1.3:1)),tries:0};
 }
 
+
+/* 外包單：五條技術線平均抽，只能自己付 token，做完拿現金（KPI × GIG_PAY）不拿 KPI */
+export const GIG_PAY=80, GIG_LATE=.3, GIG_STACKS=[...COMPANIES,'fe'];
+export const GIG_CLIENT={name:'外包案主',ban:null};
+export function makeGig(){
+  const is=makeIssue(false,pick(GIG_STACKS));
+  return Object.assign(is,{out:true,sens:false,client:GIG_CLIENT,pay:is.kpi*GIG_PAY});
+}
+/* 開了外包時每天多 0–2 張，回傳張數 */
+export function addGigs(){
+  const n=S.outsource?rnd(3):0;
+  for(let i=0;i<n;i++)S.issues.push(makeGig());
+  return n;
+}

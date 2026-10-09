@@ -1,4 +1,4 @@
-import {S,fresh,makeIssue,resetIds,sel} from './state.js';
+import {S,addGigs,fresh,makeIssue,resetIds,sel} from './state.js';
 import {log} from './calc.js';
 import {batch,dispatch,endDay,evaluate,invest,loadPreset,manual,quick,rescope,savePreset,wait} from './actions.js';
 import {app,render} from './view.js';
@@ -30,7 +30,8 @@ app.addEventListener('click',e=>{
 export function firstIssues(){
   resetIds(); S.issues=[]; S.log=[];
   for(let i=0;i<4;i++)S.issues.push(makeIssue(false));
-  log('dim','— 第 1 天開工，新進 4 張工單 —');
+  const g=addGigs();
+  log('dim',`— 第 1 天開工，新進 4 張工單${g?`，外包 ${g} 張`:''} —`);
 }
 export function start(){
   fresh(); firstIssues();

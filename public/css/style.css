@@ -91,6 +91,7 @@ button:disabled{cursor:not-allowed;opacity:.42}
 .chip.stack{background:var(--sunk);color:var(--ink);font-weight:700}
 .chip.unfam{border-style:dashed;border-color:var(--warn);color:var(--warn)}
 .chip.store{border-color:var(--accent);color:var(--accent)}
+.chip.out{border-color:var(--ok);color:var(--ok)}
 .chip.trap{border-color:var(--bad);color:var(--bad);font-weight:700}
 .empty{padding:28px 12px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:6px}
 

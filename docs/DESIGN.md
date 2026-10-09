@@ -11,8 +11,8 @@
 - `public/index.html`：頁面骨架。`<head>` 有 canonical、Open Graph／Twitter Card、JSON-LD（`VideoGame`）；`#app` 裡放一段靜態遊戲介紹給爬蟲與未啟用 JS 的訪客，`start()` 第一次 `render()` 會整個換掉。分享圖是 `public/img/og.png`（1200×630），改遊戲名稱或介紹時一起更新這些地方。
 - `public/css/style.css`：樣式。開頭補了 `body{margin:0}`、`[hidden]{display:none!important}`，原本由 Artifact 外殼提供；少了後者 `.ov` 的 `display:flex` 會蓋過 `hidden`，彈窗關不掉。
 - `public/js/*.js`：遊戲本體，拆成七個原生 ES modules（見「程式碼地圖」），由 `public/index.html` 以 `<script type="module" src="js/main.js">` 載入；無建置步驟、遊戲邏輯沒有外部 JS 相依。瀏覽器不允許從 `file://` 載入模組，一定要用本機伺服器開。頁面另外從 Google Fonts 載字型，並在 `public/index.html` 載入 Google Analytics（gtag.js）做流量統計。本機用 `python3 -m http.server -d public 8000` 開。
-- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 四家公司 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資，`SIM_COMBOS=1` 改跑六種雙選組合，`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 公司」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
-- `tools/check.js`：規則檢查。`node tools/check.js` 把 spec 裡的範例數字逐條斷言（技術線分布、成功率、時間倍率、手寫時數、上架審核、KPI 補償、最高分 key、難度標示），任何一條不符就以非 0 結束。改規則時同步更新。
+- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 四家公司 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資，`SIM_COMBOS=1` 改跑六種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 公司」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
+- `tools/check.js`：規則檢查。`node tools/check.js` 把 spec 裡的範例數字逐條斷言（技術線分布、成功率、時間倍率、手寫時數、上架審核、KPI 補償、最高分 key、難度標示、接外包），任何一條不符就以非 0 結束。改規則時同步更新。
 
 部署：push 到 `main` 後 `.github/workflows/pages.yml` 把 `public/` 發佈到 https://token-not-enough.youareright.app/ 。只有 `public/` 會公開。自訂網域設在 repo 的 Pages 設定（用 Actions 部署時 `CNAME` 檔不會生效），DNS 是 Cloudflare 上 `youareright.app` 的 CNAME `token-not-enough` → `fripig.github.io`（DNS only），舊網址 `fripig.github.io/token-not-enough/` 會轉址過來。
 
@@ -40,6 +40,7 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
    → 開局選 2–6 個工作槽，不加新代價，用模擬器量測。設計紀錄在 Spectra change `parallel-slots`。
 12. 「工作類別可以改成多選嗎」→ 開局公司（主技術線）可選 1–2 條，選到的平分 75% 工單。設計紀錄在 Spectra change `multi-stack-company`。
    同時提出「可以加上外包類別 token只能自己出」：決定另開 change，做成開局可勾選的類別、只能用個人付費、做完給錢不給 KPI、逾期扣錢不扣信任；是否佔用 1–2 條名額待提案時確認。
+   → 做成獨立的「接外包」開關，不佔名額。設計紀錄在 Spectra change `outsource-gigs`。
 11. 「目前玩得有點痛苦 能有何機制能增加趣味但是又符合遊戲精神呢」（痛點：每張單都要重選一輪、整局只有越來越緊）、「投入ＳＤＤ也放上去」
    → 派工方案（一鍵派工）＋工程投資（CLAUDE.md、補測試、skills、MCP 文件、SDD）。設計紀錄在 Spectra change `dispatch-presets-and-investments`。
 
@@ -145,9 +146,10 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 - 公司 API：扣公司預算；單日超過 NT$1,500 信任 −6；透支信任 −8。
 - 本地：免費但很慢。平行模式下本地 GPU 一次只能跑一個 agent（`localBusy`），跑的期間（含過夜）不能再派本地、不能用本地評估架構，也不能自己手寫（電腦被吃滿）。單線模式不受影響。
 - 機敏工單走個人訂閱或個人 API：35% 被稽核（信任 −12），中國廠商 60%。
+- 外包單不能用公司 API 和公司席位（見「接外包」）。
 
 ### 案主與中國模型限制（`CLIENTS`、`banOf`、`cnBlock`）
-- 內部專案、新創客戶：無限制。
+- 內部專案、新創客戶：無限制。外包單的「外包案主」也無限制，而且不受全公司禁令影響。
 - 金融客戶（`ban:'api'`）：禁止中國雲端，本地 Qwen 可用。
 - 政府標案（`ban:'all'`）：連中國開源權重也禁。
 - 事件「全公司暫停中國雲端」（第 8 天後才會觸發）設 `S.cnBan`，之後所有工單至少等同 `'api'`。
@@ -202,6 +204,29 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 
 每格是兩次獨立實測，同一組數值兩次之間會差到約 4 個百分點。目標是平行模式 +3%～+15%。調整過程：初版 CLAUDE.md +0.08、補測試 +0.15、SDD +0.10 時 Rust +17.9%；降 SDD、降 CLAUDE.md 後 Rust 仍在 14–15.5% 徘徊。逐項單獨量測才發現 Rust 的增幅主要來自補測試（只買 CLAUDE.md +6.7%、只買補測試 +13.2%、只買 SDD +7.1%）：Rust 單常失敗，抓錯率加成救回最多。最後把補測試的抓錯率加成降到 +0.10。平行模式拿 S 的比例從約 72% 升到約 88%，沒有超過兩倍，評等門檻不調。單線模式完全受工時限制，自動玩家投資大多反而虧，沒有設目標，照實記錄。
 
+### 接外包（`S.outsource`、`makeGig`、`addGigs`、`GIG_PAY`、`GIG_LATE`、`gigBlocked`、`reward`）
+- 開局彈窗有「不接外包／接外包」（`data-out`），不佔主技術線名額，預設不接，跨 `fresh()` 保留，不是布林值就退回不接；週一調整不顯示。開局只切這個開關時不重抽公司工單，只加上或拿掉第 1 天的外包單。
+- 開了之後第 1 天和之後每天額外 0–2 張外包單（`addGigs`）。外包單（`out:true`）的技術線從 laravel、rails、rust、app、fe 平均抽，沒選的非前端技術線一樣算不熟；不會是事故、不機敏，可能是陷阱；案主是「外包案主」（沒有禁令），全公司禁中國雲端也不管它，卡片不顯示「禁中國雲端」。複雜度、期限、Rust／App 補償、上架審核照一般規則。
+- 只能自己付：公司 API 和公司席位（任何一家）停用並顯示「外包不能用公司資源」（`GIG_NOTE`），一鍵派工、批次派工會略過刷公司錢的方案；`dispatch()`、`evaluate()` 遇到這種付費方式直接不動作。
+- 報酬 = KPI × `GIG_PAY`（80）。完成（agent 或自己手寫，都走 `reward`）時錢進個人錢包、記入 `S.st.outIncome`，不加 KPI、不動信任。逾期賠報酬的 `GIG_LATE`（30%，四捨五入），不扣 KPI 與信任，不算進一般逾期張數。
+- 合併衝突留下的「解決衝突」單仍是外包單，報酬不變。工程投資照常生效。不能找主管重新評估。
+- 卡片顯示「外包」標籤，KPI 位置改顯示報酬。結算的個人花費 = 訂閱費 + 個人 API + 外包違約金 − 外包收入；開外包時多四行：外包收入、外包違約金、外包完成、外包逾期。
+
+平衡實測（2026-10-09，`SIM_N=100`，每格 300 局，跑兩次；開外包平均分 ÷ 不開，減 1）：
+
+| 模式 × 公司 | `GIG_PAY=100` | `GIG_PAY=80`（採用） |
+|---|---|---|
+| 平行 Laravel | +14.8% / +18.4% | +11.3% / +11.3% |
+| 平行 Rails | +16.3% / +14.0% | +10.5% / +9.1% |
+| 平行 Rust | +10.6% / +10.3% | +6.4% / +4.9% |
+| 平行 App | +10.9% / +7.4% | +5.5% / +2.5% |
+| 單線 Laravel | −19.9% / −22.1% | −30.3% / −28.3% |
+| 單線 Rails | −25.1% / −24.3% | −29.8% / −29.6% |
+| 單線 Rust | −37.2% / −41.9% | −44.6% / −51.7% |
+| 單線 App | −37.0% / −35.9% | −40.9% / −44.5% |
+
+目標是平行模式 −5%～+15%。報酬 100 時平行有兩格超過 +15%，使用者選了 80，每日張數沒調。總分公式對「8000 − 個人花費」只設下限、沒有上限，外包收入會直接加分，所以靠 `GIG_PAY` 控制。單線模式的自動玩家照佇列順序硬接外包單，排擠公司工單，所以全部變差；單線不設目標，照實記錄。
+
 ### 自我審核（`REVIEW`、`catchRate`）
 | 等級 | token | 時間 | 抓錯率 |
 |---|---|---|---|
@@ -218,7 +243,7 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度縮水 20%、流量暴增（兩張事故單）、主管稱讚或質疑、外包尾款 +NT$1,500、全公司禁中國雲端。
 
 ### 結算（`showEnd`）
-總分 = KPI × 10 + 信任 × 4 + (8000 − 個人花費) ÷ 8（下限 −4000 ÷ 8）− 稽核次數 × 80。
+總分 = KPI × 10 + 信任 × 4 + (8000 − 個人花費) ÷ 8（下限 −4000 ÷ 8）− 稽核次數 × 80。個人花費 = 訂閱費 + 個人 API + 外包違約金 − 外包收入。
 評等 S/A/B/C/D 門檻 4600/3800/3000/2200（平行模式 ×1.6）。最高分依「模式 × 選到的技術線」存在 `localStorage` 的 `tokgame-best-<mode>-<a>+<b>`（`bestKey()`；單選就是原本的 `tokgame-best-<mode>-<company>`）；只選 Laravel 且沒有新 key 時沿用改版前的 `tokgame-best-<mode>`。稱號依花費結構判定（資安常客、自費勇者、公司帳單頭號人物、對岸模型省錢達人、地端信仰者、手工藝工程師、Token 精算師）。
 
 ## 程式碼地圖（`public/js/`）
@@ -227,9 +252,9 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 |---|---|
 | `main.js` | 入口：`app` 上的事件委派（用 `data-*` 屬性分派）、開局，載入時呼叫一次 `start()`：`firstIssues`、`start` |
 | `data.js` | 資料與工具函式，沒有狀態：`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP` |
-| `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`hardStack`、`unfamiliar`、`makeIssue` |
-| `calc.js` | 計算：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`manualHrs`、`est`、`bills`、`costLine`、`presetBlock`、`presetFor`、`log` |
-| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`parMul`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`endDay` |
+| `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`hardStack`、`unfamiliar`、`makeIssue`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs` |
+| `calc.js` | 計算：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log` |
+| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`parMul`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`endDay` |
 | `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`quickBtn`、`invPanel`、`qbox`、`dispatchPanel` |
 | `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showEnd` |
 

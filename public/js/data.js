@@ -29,7 +29,8 @@ export const objOf=(keys,f)=>Object.fromEntries(keys.map(k=>[k,f(k)]));
 /* 案主：ban='api' 禁止資料送往中國雲端；ban='all' 連中國開源權重也不能用 */
 export const CLIENTS=[{name:'內部專案',ban:null,w:.42},{name:'新創客戶',ban:null,w:.18},{name:'金融客戶',ban:'api',w:.18},{name:'政府標案',ban:'all',w:.22}];
 export function pickClient(){let r=Math.random();for(const c of CLIENTS){if((r-=c.w)<0)return c;}return CLIENTS[0];}
-export function banOf(is){const b=is.client.ban; return b==='all'?'all':(b||S.cnBan)?'api':null;}
+/* 全公司禁中國雲端只管公司的程式碼，外包單只看案主 */
+export function banOf(is){const b=is.client.ban; return b==='all'?'all':(b||(S.cnBan&&!is.out))?'api':null;}
 export function cnBlock(is,v,M){
   const b=banOf(is); if(!b) return '';
   if(VENDORS[v].cn) return is.client.ban?`${is.client.name}禁用`:'公司政策禁用';

@@ -1,5 +1,5 @@
 import {COMPANIES,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
-import {S} from './state.js';
+import {S,addGigs} from './state.js';
 import {log} from './calc.js';
 import {PAR,SLOT_CHOICES,invCount} from './actions.js';
 import {app,mo,ov,render} from './view.js';
@@ -32,7 +32,7 @@ export function toggleCompany(cs,k){
   return cs.length<2?COMPANIES.filter(x=>x===k||cs.includes(x)):cs;
 }
 export function showSetup(adjust){
-  draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],slots:S.slots};
+  draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],slots:S.slots,outsource:S.outsource};
   const draw=()=>{
     mo.innerHTML=`<h2>${adjust?'週一：調整訂閱':'月初：決定這個月怎麼付 token'}</h2>
     ${adjust?`<p class="lead">升級只補剩下週數的差價，降級不退費。</p>`:`<p class="lead">你是全端工程師，任職於「${companyName(draft.companies)}」。接下來 20 個工作天，每天都會有新工單進來。你有 ${nt(S.wallet)} 的個人 AI 預算，部門另外有 ${nt(S.corp)} 的公司 API 預算。</p>
@@ -50,6 +50,10 @@ export function showSetup(adjust){
     <div class="sec"><label>公司（可選 1–2 條主技術線）</label><div class="modes">
       ${COMPANIES.map(k=>{const on=draft.companies.includes(k);return `<button class="sb ${on?'sel':''}" data-company="${k}" ${!on&&draft.companies.length>=2?'disabled':''}><b>${STACKS[k].company}</b><small>難度 ${'★'.repeat(STACKS[k].level)}・${STACKS[k].desc}</small></button>`;}).join('')}
     </div></div>
+    <div class="sec"><label>外包（不佔主技術線名額）</label><div class="modes">
+      <button class="sb ${draft.outsource?'':'sel'}" data-out="0"><b>不接外包</b><small>專心做公司的工單。</small></button>
+      <button class="sb ${draft.outsource?'sel':''}" data-out="1"><b>接外包</b><small>每天多 0–2 張外包單，只能自己付 token；做完拿現金不拿 KPI，逾期賠違約金。</small></button>
+    </div></div>
     <div class="sec"><label>遊戲模式</label><div class="modes">
       <button class="sb ${draft.mode==='parallel'?'sel':''}" data-mode="parallel"><b>平行模式</b><small>最多 ${draft.slots} 個 agent 在背景同時跑，你的時間花在派工和審 PR。同時跑越多，token 用量加成越高，也越容易合併衝突。跑不完的會過夜。</small></button>
       <button class="sb ${draft.mode==='serial'?'sel':''}" data-mode="serial"><b>單線模式</b><small>一次只處理一張，agent 跑多久你就等多久。比較單純，適合先熟悉付費方式的取捨。</small></button>
@@ -66,11 +70,14 @@ export function showSetup(adjust){
     else if(t.dataset.mode){draft.mode=t.dataset.mode;draw();}
     else if(t.dataset.company){draft.companies=toggleCompany(draft.companies,t.dataset.company);draw();}
     else if(t.dataset.slots){draft.slots=+t.dataset.slots;draw();}
+    else if(t.dataset.out){draft.outsource=t.dataset.out==='1';draw();}
     else if(t.dataset.act==='close'){ov.hidden=true;}
     else if(t.dataset.act==='confirm'){
       const c=planCost(adjust); S.wallet-=c; S.st.subFee+=c;
       if(!adjust){
+        const outChanged=draft.outsource!==S.outsource; S.outsource=draft.outsource;
         if(draft.companies.join()!==S.companies.join()){S.companies=draft.companies;firstIssues();}
+        else if(outChanged){S.issues=S.issues.filter(i=>!i.out);const g=addGigs();if(g)log('dim',`· 接外包：第 1 天多 ${g} 張外包單`);}
         S.mode=draft.mode; S.slots=draft.slots; log('dim',`· ${companyName()}・遊戲模式：${PAR()?`平行（同時 ${S.slots} 個 agent）`:'單線'}`);
       }
       for(const v in draft.subs) if(draft.subs[v]!==S.subs[v]){ S.subs[v]=draft.subs[v]; }
@@ -92,7 +99,7 @@ export function showDay(rep,ev,monday){
   mo.onclick=e=>{const t=e.target.closest('button');if(!t)return;if(t.dataset.act==='close')ov.hidden=true;if(t.dataset.act==='adj')showSetup(true);};
 }
 export function showEnd(){
-  const self=S.st.subFee+S.st.api;
+  const self=S.st.subFee+S.st.api+S.st.outPenalty-S.st.outIncome;
   const score=Math.round(S.kpi*10+S.trust*4+Math.max(-4000,8000-self)/8-S.st.audits*80);
   const gm=PAR()?1.6:1; const g=score>=4600*gm?'S':score>=3800*gm?'A':score>=3000*gm?'B':score>=2200*gm?'C':'D';
   const tot=Object.values(S.st.tk).reduce((a,b)=>a+b,0)||1;
@@ -114,11 +121,13 @@ export function showEnd(){
   <div class="rc">
     <div><span>個人訂閱月費</span><span>${nt(S.st.subFee)}</span></div>
     <div><span>個人 API 帳單</span><span>${nt(S.st.api)}</span></div>
+    ${S.outsource?`<div><span>外包收入</span><span>${nt(S.st.outIncome)}</span></div><div><span>外包違約金</span><span>${nt(S.st.outPenalty)}</span></div>`:''}
     <div class="tot"><span>你自己掏的錢</span><span>${nt(self)}</span></div>
     <div><span>公司 API 帳單</span><span>${nt(S.st.corp)}</span></div>
     <hr>${vendorLines}<hr>
     <div><span>完成工單</span><span>${S.st.done} 張</span></div>
     <div><span>逾期工單</span><span>${S.st.late} 張（KPI -${S.st.kpiLost}）</span></div>
+    ${S.outsource?`<div><span>外包完成</span><span>${S.st.outDone} 張</span></div><div><span>外包逾期</span><span>${S.st.outLate} 張</span></div>`:''}
     <div><span>自己手寫</span><span>${S.st.manual} 次</span></div>
     <div><span>審核救回</span><span>${S.st.caught} 張</span></div>
     <div><span>踩到陷阱</span><span>${S.st.trapHit} 次</span></div>
