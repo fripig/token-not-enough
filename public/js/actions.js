@@ -1,5 +1,5 @@
-import {APIV,BASE,BILL_LABEL,COMPANIES,FASTLANE_REJECT,HOOK_PR,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,pick,rnd} from './data.js';
-import {GIG_LATE,S,addGigs,hardStack,makeIssue,saveGame,sel,track} from './state.js';
+import {APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,pick,rnd} from './data.js';
+import {GIG_LATE,S,addGigs,hardStack,makeIssue,saveGame,sel,track,unfamiliar} from './state.js';
 import {REVIEW,est,gigBlocked,localBusy,log,manualHrs,presetFor,quotaLeft,storeReject,useQuota} from './calc.js';
 import {render} from './view.js';
 import {showDay,showEnd} from './modals.js';
@@ -18,13 +18,18 @@ export function makeJob(is){
   const hidden=hiddenTrap(is), e=est(trueView(is),sel.v,sel.m);
   const stop=hidden&&e.M.cap<is.trueCx, f=stop?(S.inv.sdd?SDD_TRAP_STOP:TRAP_STOP):1;
   const ok=!stop&&Math.random()<e.p;
-  return {issue:is,v:sel.v,b:sel.b,M:e.M,rv:sel.rv,tk:e.tk*f*R(.7,1.3),hrs:e.hrs*f*R(.8,1.2),ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd:S.inv.sdd};
+  return {issue:is,v:sel.v,m:sel.m,ef:efOf(sel.ef),b:sel.b,M:e.M,rv:sel.rv,tk:e.tk*f*R(.7,1.3),hrs:e.hrs*f*R(.8,1.2),ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd:S.inv.sdd};
 }
-export function dispatch(){
+/* GA：派工與結果共用的選擇參數；舊存檔的 job 沒有 m、ef */
+export const RV_ID=['none','self','strict'];
+export const jobChoice=j=>({vendor:j.v,model:j.m??'unknown',bill:j.b,review:RV_ID[j.rv],effort:EFFORT[j.ef??1].id});
+/* via：panel（派工按鈕）、quick（一鍵派工）、batch（批次派工）；preset 是方案字母 */
+export function dispatch(via='panel',preset='none'){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is||gigBlocked(is,sel.b)) return;
   const j=makeJob(is);
+  if(PAR()&&(S.jobs.length>=S.slots||(j.b==='local'&&localBusy()))) return;
+  track('dispatch',{...jobChoice(j),via,preset,cx:is.cx,stack:is.stack,incident:!!is.inc,sensitive:!!is.sens,gig:!!is.out,merge:!!is.merge});
   if(PAR()){
-    if(S.jobs.length>=S.slots||(j.b==='local'&&localBusy())) return;
     j.left=j.hrs; is.running=true; S.jobs.push(j); sel.issue=null;
     log('dim',`→ 派出 ${is.title}｜${VENDORS[j.v].agent} / ${j.M.name}｜預計 ${h1(j.hrs)}h`);
     advance(.2); render(); return;
@@ -37,12 +42,12 @@ export function dispatch(){
 }
 /* 一鍵派工：用第一個能用的派工方案，照派工台的流程派出去 */
 export const canQuick=()=>S.hours>=.2&&(!PAR()||S.jobs.length<S.slots);
-export function quick(id){
+export function quick(id,via='quick'){
   const is=S.issues.find(i=>i.id===id); if(!is||is.running||!canQuick()) return false;
   const {i,skip}=presetFor(is); if(i<0) return false;
   Object.assign(sel,S.presets[i],{issue:id});
   if(skip.length) log('dim',`· 一鍵派工用方案 ${PN[i]}（略過 ${skip.map(s=>`${PN[s.i]}：${s.r}`).join('、')}）`);
-  dispatch(); return true;
+  dispatch(via,PN[i]); return true;
 }
 export const loadPreset=i=>Object.assign(sel,S.presets[i]);
 export function savePreset(i){
@@ -82,8 +87,8 @@ export function charge(b,v,M,tk){
     if(need>left){ useQuota(b,v,left); return {spend:`額度 ${kt(left)}`,short:true,frac:need>0?left/need:0}; }
     useQuota(b,v,need); return {spend:`額度 ${kt(need)}`,short:false,frac:1};
   }
-  if(b==='api'){ const c=tk*M.price*S.priceMod[v]; S.wallet-=c; S.st.api+=c; return {spend:nt(c),short:false,frac:1}; }
-  if(b==='corp'){ const c=tk*M.price*S.priceMod[v]; S.corp-=c; S.corpDay+=c; S.st.corp+=c; return {spend:'公司 '+nt(c),short:false,frac:1}; }
+  if(b==='api'){ const c=tk*M.price*S.priceMod[v]; S.wallet-=c; S.st.api+=c; return {spend:nt(c),short:false,frac:1,cost:c}; }
+  if(b==='corp'){ const c=tk*M.price*S.priceMod[v]; S.corp-=c; S.corpDay+=c; S.st.corp+=c; return {spend:'公司 '+nt(c),short:false,frac:1,cost:c}; }
   return {spend:'電費',short:false,frac:1};
 }
 /* 機敏程式碼送進個人帳號的稽核風險；派工與評估共用 */
@@ -115,6 +120,8 @@ export function settle(j,o={}){
   /* App 上架審核在 agent 做完之後才發生，自我審核救不回來 */
   if(ok&&is.store&&Math.random()<storeReject()){ok=false;rejected=true;note='卡在 App Store 審核被退件';}
   S.st.tk[v]+=tk; S.st.byBill[b]+=tk;
+  const outcome=o.fail?'aborted':ch.short?'quota':conflict?'conflict':rejected?'rejected':ok?(fixed?'caught':'success'):j.stop?'trap_stop':'fail';
+  track('job_result',{...jobChoice(j),cx:is.cx,stack:is.stack,gig:!!is.out,outcome,tokens:Math.round(tk),cost:Math.round(ch.cost||0),hours:Math.round(hrs*10)/10});
   const who=`${VENDORS[v].agent} / ${M.name}`;
   if(ok){
     S.issues=S.issues.filter(i=>i!==is); const rw=reward(is);
@@ -144,13 +151,15 @@ export function wait(next){
 }
 export function manual(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is) return;
-  const hrs=manualHrs(is);
+  const hrs=manualHrs(is), cx=is.cx;
   if(hrs>S.hours||localBusy()) return;
+  const fix=outcome=>track('manual_fix',{cx,stack:is.stack,unfamiliar:unfamiliar(is),gig:!!is.out,outcome,hours:Math.round(hrs*10)/10});
   if(PAR()){ is.running=true; advance(hrs); is.running=false; if(!S.issues.includes(is)){render();return;} }
   else S.hours-=hrs;
   S.st.manual++;
-  if(hiddenTrap(is)){ reveal(is); S.st.trapHit++; log('bad',`✗ ${is.title}｜手寫到一半發現要動架構｜${h1(hrs)}h｜原估複雜度 ${is.shownCx}，實際 ${is.cx}`); render(); return; }
+  if(hiddenTrap(is)){ reveal(is); S.st.trapHit++; fix('trap'); log('bad',`✗ ${is.title}｜手寫到一半發現要動架構｜${h1(hrs)}h｜原估複雜度 ${is.shownCx}，實際 ${is.cx}`); render(); return; }
   const ok=is.cx<=3||Math.random()<.7;
+  fix(ok?'success':'fail');
   if(ok){S.issues=S.issues.filter(i=>i!==is);const rw=reward(is);sel.issue=null;log('ok',`✓ ${is.title}｜自己手寫｜0 tokens｜${h1(hrs)}h｜${rw}`);}
   else{is.tries++;is.base*=.7;log('bad',`✗ ${is.title}｜自己手寫卡關｜${h1(hrs)}h`);}
   render();
@@ -169,10 +178,11 @@ export function evaluate(){
   else S.hours-=hrs;
   const ch=charge(sel.b,sel.v,M,tk), used=tk*ch.frac;
   S.st.tk[sel.v]+=used; S.st.byBill[sel.b]+=used;
-  if(ch.short){ log('bad',`✗ ${is.title}｜評估｜額度不夠，評估沒做完｜${ch.spend}`); render(); return; }
+  const evt=outcome=>track('evaluate',{vendor:sel.v,model:sel.m,bill:sel.b,cx:is.cx,stack:is.stack,gig:!!is.out,outcome});
+  if(ch.short){ evt('quota'); log('bad',`✗ ${is.title}｜評估｜額度不夠，評估沒做完｜${ch.spend}`); render(); return; }
   is.evaluated=true;
-  if(is.trap&&Math.random()<revealRate(M)){ reveal(is); S.st.trapFound++; log('ok',`★ ${is.title}｜評估發現牽扯架構：原估複雜度 ${is.shownCx}，實際 ${is.cx}｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
-  else log('dim',`· ${is.title}｜評估完成，看起來沒問題｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`);
+  if(is.trap&&Math.random()<revealRate(M)){ reveal(is); evt('found'); S.st.trapFound++; log('ok',`★ ${is.title}｜評估發現牽扯架構：原估複雜度 ${is.shownCx}，實際 ${is.cx}｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
+  else{ evt('clear'); log('dim',`· ${is.title}｜評估完成，看起來沒問題｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
   auditRoll(is,sel.b,sel.v); checkOverdraft();
   render();
 }
@@ -181,6 +191,7 @@ export const RESCOPE_TRUST=50;
 export function rescope(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is||is.out||!is.revealed||is.rescoped) return;
   is.rescoped=true;
+  track('rescope',{cx:is.cx,stack:is.stack,outcome:S.trust>=RESCOPE_TRUST?'approved':'refused'});
   if(S.trust>=RESCOPE_TRUST){
     S.trust-=5; is.kpi=Math.round(KPI[is.cx]*(hardStack(is.stack)?1.3:1)); is.due=Math.min(20,is.due+2);
     log('ok',`★ ${is.title}｜主管同意重新評估：KPI 改成 +${is.kpi}，期限延到第 ${is.due} 天｜信任 -5`);
@@ -202,6 +213,7 @@ export function invest(k,st){
   const I=INVEST[k];
   S.corp-=I.cost; S.corpDay+=I.cost; S.st.corp+=I.cost;
   if(k==='md') S.inv.md[st]=true; else S.inv[k]=true;
+  track('invest',{investment:k,stack:k==='md'?st:'none'});
   if(PAR()) advance(I.hrs); else S.hours-=I.hrs;
   log('ok',`★ 工程投資：${I.name}${k==='md'?`（${STACKS[st].name}）`:''}｜${h1(I.hrs)}h｜公司 ${nt(I.cost)}`);
   return true;
@@ -215,7 +227,7 @@ export function batch(){
     const {i}=presetFor(is);
     if(i<0){skip++;continue;}
     if(!PAR()){const p=S.presets[i]; if(est(is,p.v,p.m,p.rv).hrs>S.hours) break;}
-    if(quick(is.id)) n++; else skip++;
+    if(quick(is.id,'batch')) n++; else skip++;
   }
   log('dim',`· 批次派工：派出 ${n} 張，略過 ${skip} 張`);
 }

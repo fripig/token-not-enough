@@ -84,9 +84,16 @@ export function showSetup(adjust){
         if(draft.companies.join()!==S.companies.join()){S.companies=draft.companies;firstIssues();}
         else if(outChanged){S.issues=S.issues.filter(i=>!i.out);const g=addGigs();if(g)log('dim',`· 接外包：第 1 天多 ${g} 張外包單`);}
         S.mode=draft.mode; S.slots=draft.slots; S.advanced=draft.advanced; log('dim',`· ${companyName()}・遊戲模式：${PAR()?`平行（同時 ${S.slots} 個 agent）`:'單線'}${S.advanced?'・進階':''}`);
-        track('game_start'); track('day_reached');
       }
-      for(const v in draft.subs) if(draft.subs[v]!==S.subs[v]){ S.subs[v]=draft.subs[v]; }
+      const changed=SUBV.filter(v=>draft.subs[v]!==S.subs[v]);
+      for(const v of changed) S.subs[v]=draft.subs[v];
+      /* GA：開局送每家有訂閱的方案（都沒有就送一筆 none），週一只送有改的 */
+      if(!adjust){
+        track('game_start');
+        const on=SUBV.filter(v=>S.subs[v]!=='none');
+        if(on.length) on.forEach(v=>track('subscription',{vendor:v,plan:S.subs[v]})); else track('subscription',{vendor:'none',plan:'none'});
+        track('day_reached');
+      } else changed.forEach(v=>track('subscription',{vendor:v,plan:S.subs[v]}));
       if(draft.seat){S.seatReq={vendor:draft.seat,day:S.day};log('dim',`· 提出 ${VENDORS[draft.seat].name} 團隊席位採購申請`);}
       const names=SUBV.filter(v=>S.subs[v]!=='none').map(v=>`${VENDORS[v].name} ${planOf(v).name}`);
       log('dim',`· 訂閱：${names.join('、')||'無'}${c?`（付 ${nt(c)}）`:''}`);
