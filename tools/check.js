@@ -11,7 +11,7 @@ import {GIG_CLIENT,GIG_PAY,S,addGigs,hardStack,fresh,makeGig,makeIssue,nextId,pi
 import {catchRate,costLine,storeReject,est,manualHrs,presetBlock,presetFor,quotaLeft,stackHint} from '../public/js/calc.js';
 import {EVENTS,advance,intakeIssue,auditOdds,auditRoll,conflictRate,prHrs,batch,canEvaluate,charge,dispatch,endDay,evalCost,evaluate,invCount,invest,loadPreset,makeJob,manual,quick,rescope,reveal,revealRate,savePreset,settle,trueView} from '../public/js/actions.js';
 import {dispatchPanel,render} from '../public/js/view.js';
-import {showEnd,showSetup} from '../public/js/modals.js';
+import {SPEND_FLOOR,monthScore,showEnd,showSetup} from '../public/js/modals.js';
 // 核心規則（gh-09-01-core-rules-specs）用命名空間取用，避免和上面的具名 import 重複
 import * as A from '../public/js/actions.js';
 import * as C from '../public/js/calc.js';
@@ -941,6 +941,8 @@ function tests(){
   ok(adjCost(16,'openai','none','plus')===162.5,'work-calendar：第 16 天不訂閱→Plus 補 NT$162.5');
   ok(adjCost(11,'anthropic','max5','pro')===0,'work-calendar：降級不用付錢');
   const w0=S.wallet; clickMo({act:'confirm'}); ok(S.subs.anthropic==='pro'&&S.wallet===w0,'work-calendar：降級立即生效、不退費');
+  ok(adjCost(11,'openai','pro','pro500')===4875,'agent-catalog：第 11 天 Pro 200→Pro 500 補 NT$4,875');
+  clickMo({act:'confirm'}); ok(S.subs.openai==='pro500'&&dataModule.planOf('openai').day===12500&&dataModule.planOf('openai').week===50000,'agent-catalog：升級 Pro 500 後額度 12,500k／50,000k');
   newRun('laravel'); S.day=6; S.subs.anthropic='pro'; showSetup(true); clickMo({pv:'anthropic',pp:'max20'}); clickMo({act:'close'});
   ok(els.ov.hidden&&S.subs.anthropic==='pro','work-calendar：不改了就關掉、方案不變');
   showSetup(true); ok(els.mo.innerHTML.includes('這次要從個人錢包付'),'work-calendar：調整彈窗顯示要付多少');
@@ -967,9 +969,20 @@ function tests(){
   ok(VENDORS.local.models.map(x=>x.name).join()==='Qwen3.6 35B-A3B,Gemma 4 26B A4B,Gemma 4 E4B,Qwen3-Coder-Next,Gemma 4 31B,GLM-5.3'&&VENDORS.local.models.map(x=>x.hw||'').join()===',,,spark,spark,mac','agent-catalog：本地模型依序是三個基本款再三個電腦解鎖的');
   ok(Object.keys(VENDORS).filter(v=>VENDORS[v].corp).join()==='anthropic,google','agent-catalog：只有 Anthropic、Google 可走公司 API');
   /* 訂閱方案表 */
-  const PLANS={anthropic:[['pro',650,450,1800],['max5',3300,2200,9000],['max20',6500,9000,36000]],openai:[['plus',650,500,2000],['pro',6500,8000,30000]],google:[['aipro',650,700,2800],['ultra',8000,10000,40000]],zhipu:[['lite',100,1500,6000],['pro',500,6000,24000]],moonshot:[['member',300,1500,6000]]};
+  const PLANS={anthropic:[['pro',650,450,1800],['max5',3300,2200,9000],['max20',6500,9000,36000]],openai:[['plus',650,500,2000],['pro',6500,8000,30000],['pro500',16250,12500,50000]],google:[['aipro',650,700,2800],['ultra',8000,10000,40000]],zhipu:[['lite',100,1500,6000],['pro',500,6000,24000]],moonshot:[['member',300,1500,6000]]};
   for(const v in PLANS) ok(JSON.stringify(VENDORS[v].plans.filter(p=>p.id!=='none').map(p=>[p.id,p.price,p.day,p.week]))===JSON.stringify(PLANS[v])&&VENDORS[v].plans[0].id==='none',`agent-catalog：${v} 訂閱方案符合表格`);
   ok(VENDORS.deepseek.plans.length===1&&VENDORS.local.plans.length===0,'agent-catalog：DeepSeek 與自架開源沒有訂閱');
+  ok(VENDORS.openai.plans.map(p=>p.name).join()==='不訂閱,Plus,Pro 200,Pro 500','agent-catalog：OpenAI 方案名稱依序是不訂閱、Plus、Pro 200、Pro 500');
+  /* 10M 以上的 token 數留一位小數，結尾 .0 拿掉 */
+  const KT=[[10000,'10M'],[10004,'10M'],[9960,'10M'],[12500,'12.5M'],[10234,'10.2M'],[50000,'50M'],[9940,'9.9M'],[8000,'8.0M'],[450,'450k']];
+  ok(KT.every(([k,s])=>kt(k)===s),'agent-catalog：四捨五入後 10M 以上留一位小數、拿掉 .0，以下照舊',KT.map(([k])=>kt(k)).join());
+  /* 開局彈窗的 OpenAI 那一列 */
+  start(); const oaiBtns=[...els.mo.innerHTML.matchAll(/data-pv="openai" data-pp="[^"]+">([^<]+)<small>([^<]*)<\/small>/g)].map(m=>[m[1],m[2]]);
+  ok(oaiBtns.map(b=>b[0]).join()==='不訂閱,Plus,Pro 200,Pro 500'&&!oaiBtns.some(b=>b[0]==='Pro'),'agent-catalog：開局 OpenAI 按鈕依序是不訂閱、Plus、Pro 200、Pro 500',oaiBtns.map(b=>b[0]).join());
+  ok(oaiBtns[3]?.[1]==='NT$16,250/月・每日 12.5M','agent-catalog：Pro 500 顯示 NT$16,250/月・每日 12.5M',oaiBtns[3]?.[1]);
+  clickMo({pv:'openai',pp:'pro500'});
+  ok(els.mo.innerHTML.includes('這次要從個人錢包付</span><b class="num">NT$16,250</b>')&&els.mo.innerHTML.includes('付完剩 <b class="num">-NT$8,250</b>'),'agent-catalog：月初只訂 Pro 500 要付 NT$16,250、付完剩 -NT$8,250');
+  clickMo({act:'confirm'}); ok(S.wallet===-8250&&S.st.subFee===16250&&S.subs.openai==='pro500','agent-catalog：確認後錢包 -8,250、訂閱費 16,250、OpenAI 是 pro500',[S.wallet,S.st.subFee,S.subs.openai].join());
   start();
   ok(['anthropic','openai','google','zhipu','moonshot'].every(v=>els.mo.innerHTML.includes(`data-pv="${v}" data-pp="none"`))&&!els.mo.innerHTML.includes('data-pv="deepseek"')&&!els.mo.innerHTML.includes('data-pv="local"'),'agent-catalog：開局只列五家訂閱，每家從不訂閱開始');
   /* 派工台選模型 */
@@ -1303,7 +1316,9 @@ function tests(){
   const base=()=>{S.kpi=300; S.trust=50; S.st.subFee=2000; S.st.audits=1;};
   let r=endRun('serial',base); ok(r.score===3870&&r.grade==='A','month-end-scoring：3,870 分在單線是 A',r.score+r.grade);
   r=endRun('parallel',base); ok(r.score===3870&&r.grade==='C','month-end-scoring：3,870 分在平行是 C',r.score+r.grade);
-  r=endRun('serial',()=>{base(); S.st.subFee=0; S.st.api=50000;}); ok(r.score===3000+200-500-80,'month-end-scoring：個人花費項下限 −500',r.score);
+  r=endRun('serial',()=>{base(); S.st.subFee=0; S.st.api=50000;}); ok(r.score===3000+200-1500-80,'month-end-scoring：個人花費項下限 −1,500（花費 NT$20,000）',r.score);
+  r=endRun('serial',()=>{base(); S.st.subFee=16250;}); ok(r.score===2089,'month-end-scoring：只訂 Pro 500 花 NT$16,250 照算，總分 2,089',r.score);
+  ok(SPEND_FLOOR===20000&&monthScore().score===r.score&&monthScore().grade===r.grade&&monthScore(12000).score===2620,'month-end-scoring：結算單用 monthScore()，sim 傳舊下限 12000 會重算成 2,620',[monthScore().score,monthScore(12000).score].join());
   r=endRun('serial',()=>{S.kpi=0; S.trust=0; S.st.outIncome=3000; S.st.outPenalty=1000; S.st.api=500;}); ok(r.score===Math.round((8000-(500+1000-3000))/8),'month-end-scoring：個人花費 = 訂閱 + API + 外包違約金 − 外包收入',r.score);
   ok(r.h.includes('總分 = KPI × 10 + 信任 × 4 + 省下的個人預算 ÷ 8 − 稽核次數 × 80'),'month-end-scoring：結算單寫出公式');
   /* 評等門檻 */

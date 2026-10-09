@@ -130,10 +130,16 @@ export function showBadSave(){
   ov.hidden=false;
   mo.onclick=e=>{const t=e.target.closest('button');if(!t)return;if(t.dataset.act==='new')start();};
 }
-export function showEnd(){
+/* 月底總分與評等；個人花費超過 floor 就不再多扣（tools/sim.js 的 SIM_FLOOR 傳別的 floor 重算） */
+export const SPEND_FLOOR=20000;
+export function monthScore(floor=SPEND_FLOOR){
   const self=S.st.subFee+S.st.api+S.st.outPenalty-S.st.outIncome;
-  const score=Math.round(S.kpi*10+S.trust*4+Math.max(-4000,8000-self)/8-S.st.audits*80);
-  const gm=PAR()?1.6:1; const g=score>=4600*gm?'S':score>=3800*gm?'A':score>=3000*gm?'B':score>=2200*gm?'C':'D';
+  const score=Math.round(S.kpi*10+S.trust*4+Math.max(8000-floor,8000-self)/8-S.st.audits*80);
+  const gm=PAR()?1.6:1; const grade=score>=4600*gm?'S':score>=3800*gm?'A':score>=3000*gm?'B':score>=2200*gm?'C':'D';
+  return {self,score,grade};
+}
+export function showEnd(){
+  const {self,score,grade:g}=monthScore();
   const tot=Object.values(S.st.tk).reduce((a,b)=>a+b,0)||1;
   let title,desc;
   if(S.st.audits>=2){title='資安部門的常客';desc='機敏程式碼進了個人帳號太多次。'}
