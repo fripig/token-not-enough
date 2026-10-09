@@ -244,9 +244,9 @@ The game SHALL send one event per other ticket-solving action, after the action'
 - `manual_fix` when manual work finishes on a ticket still in the queue, with the ticket's `cx` shown before the work, `stack`, `unfamiliar`, `gig`, `hours` (one decimal) and `outcome` (`success`, `fail`, or `trap` when a hidden trap was revealed).
 - `evaluate` when an architecture evaluation is charged, with `vendor`, `model`, `bill`, the ticket's `cx` shown before the evaluation, `stack`, `gig` and `outcome` (`found` when a trap was revealed, `clear` otherwise, `quota` when the quota ran out).
 - `rescope` when the player asks the manager to re-estimate, with the ticket's `cx`, `stack` and `outcome` (`approved` or `refused`).
-- `invest` when an investment is bought, with `investment` (the investment key) and `stack` (the stack for CLAUDE.md, `none` otherwise).
+- `invest` when an investment is bought or a machine purchase request is accepted, with `investment` (the investment key, or `pc`, `spark` or `mac` for a machine request) and `stack` (the stack for CLAUDE.md, `none` otherwise). Machine arrival or rejection SHALL NOT send an event.
 
-An action that is refused (not enough hours, local GPU busy, investment already bought or unaffordable) SHALL NOT send its event.
+An action that is refused (not enough hours, local GPU busy, investment already bought or unaffordable, machine request refused) SHALL NOT send its event.
 
 #### Scenario: Manual fix
 
@@ -268,12 +268,24 @@ An action that is refused (not enough hours, local GPU busy, investment already 
 - **WHEN** the player buys CLAUDE.md for Rust, then tries to buy it again
 - **THEN** one `invest` event is sent with `investment` `md` and `stack` `rust`, and the second attempt sends nothing
 
+#### Scenario: Machine request
+
+- **WHEN** the player requests the DGX Spark, then tries to request the Mac while the Spark is pending
+- **THEN** one `invest` event is sent with `investment` `spark` and `stack` `none`, and the second attempt sends nothing
+
 <!-- @trace
-source: gh-15-01-evaluate-shown-cx
-updated: 2026-10-09
+source: gh-17-01-local-hardware
+updated: 2026-10-10
 code:
-  - public/apple-touch-icon.png
-  - public/favicon.ico
-  - public/img/icon-192.png
-  - public/img/icon-512.png
+  - public/sitemap.xml
+  - docs/DESIGN.md
+  - public/js/actions.js
+  - tools/sim.js
+  - public/js/view.js
+  - public/index.html
+  - tools/check.js
+  - public/js/calc.js
+  - public/js/data.js
+  - public/js/main.js
+  - public/js/state.js
 -->

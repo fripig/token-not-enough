@@ -94,7 +94,7 @@ code:
 ---
 ### Requirement: Preset usability per ticket
 
-A preset SHALL be unusable for a ticket, with a reason, in this priority order: the vendor has an outage today (今日當機); the model is banned for the ticket's client (the existing ban reason text); the billing method is not available or not usable for that vendor (the billing note, or 沒有公司席位 for seat without an approved seat of that vendor); billing is local while the local GPU is busy in parallel mode (本地 GPU 忙); billing is sub or seat and the high end of the quota estimate exceeds the remaining quota (額度不夠); billing is api and the high end of the cost estimate exceeds the personal wallet (錢包不夠). Free work slots and remaining hours SHALL NOT be preset reasons.
+A preset SHALL be unusable for a ticket, with a reason, in this priority order: the vendor has an outage today (今日當機); the model is banned for the ticket's client (the existing ban reason text); the model needs a machine that is not installed (需要 <machine name>, see `local-hardware`); the billing method is not available or not usable for that vendor (the billing note, or 沒有公司席位 for seat without an approved seat of that vendor); billing is local while the local GPU is busy in parallel mode (本地 GPU 忙); billing is sub or seat and the high end of the quota estimate exceeds the remaining quota (額度不夠); billing is api and the high end of the cost estimate exceeds the personal wallet (錢包不夠). Free work slots and remaining hours SHALL NOT be preset reasons.
 
 #### Scenario: Reasons
 
@@ -107,6 +107,8 @@ A preset SHALL be unusable for a ticket, with a reason, in this priority order: 
 | ------ | -------------- | ------ |
 | deepseek/chat/api | finance client (ban api) | the cnBlock reason text |
 | anthropic/sonnet/corp | anthropic outage today | 今日當機 |
+| local/gemma4/local | no DGX Spark installed | 需要 NVIDIA DGX Spark |
+| local/glm53/local | government client, Mac installed | 中國權重禁用 |
 | google/flash/sub | no Google subscription | 沒有訂閱 |
 | anthropic/sonnet/seat | seat approved for google | 沒有公司席位 |
 | local/qwen/local | parallel mode, a local job running | 本地 GPU 忙 |
@@ -116,13 +118,20 @@ A preset SHALL be unusable for a ticket, with a reason, in this priority order: 
 
 
 <!-- @trace
-source: dispatch-presets-and-investments
-updated: 2026-10-09
+source: gh-17-01-local-hardware
+updated: 2026-10-10
 code:
-  - public/css/style.css
-  - public/js/game.js
-  - tools/check.js
+  - public/sitemap.xml
+  - docs/DESIGN.md
+  - public/js/actions.js
   - tools/sim.js
+  - public/js/view.js
+  - public/index.html
+  - tools/check.js
+  - public/js/calc.js
+  - public/js/data.js
+  - public/js/main.js
+  - public/js/state.js
 -->
 
 ---

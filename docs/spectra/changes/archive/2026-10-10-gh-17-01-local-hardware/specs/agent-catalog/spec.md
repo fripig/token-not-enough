@@ -1,10 +1,4 @@
-# agent-catalog Specification
-
-## Purpose
-
-Lists the code agents and models the player can dispatch to and the fictional numbers that drive their cost, speed and quality, and defines how the dispatch panel lets the player pick one.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Vendor and model catalog
 
@@ -55,59 +49,6 @@ The game SHALL offer exactly these vendors and models. Each model SHALL have cap
 - **WHEN** the dispatch panel lists the 自架開源 models
 - **THEN** the buttons read Qwen3.6 35B-A3B, Gemma 4 26B A4B, Gemma 4 E4B, Qwen3-Coder-Next, Gemma 4 31B and GLM-5.3 in that order, and none reads Qwen Coder 32B, Gemma 27B or gpt-oss
 
-
-<!-- @trace
-source: gh-17-01-local-hardware
-updated: 2026-10-10
-code:
-  - public/sitemap.xml
-  - docs/DESIGN.md
-  - public/js/actions.js
-  - tools/sim.js
-  - public/js/view.js
-  - public/index.html
-  - tools/check.js
-  - public/js/calc.js
-  - public/js/data.js
-  - public/js/main.js
-  - public/js/state.js
--->
-
----
-### Requirement: Subscription plans
-
-Subscription plans SHALL be as follows, with daily and weekly quotas in k tokens. DeepSeek and 自架開源 SHALL have no subscription.
-
-##### Example: plans
-
-| Vendor | Plan | Monthly NT$ | Daily | Weekly |
-| --- | --- | --- | --- | --- |
-| Anthropic | Pro | 650 | 450 | 1,800 |
-| Anthropic | Max 5× | 3,300 | 2,200 | 9,000 |
-| Anthropic | Max 20× | 6,500 | 9,000 | 36,000 |
-| OpenAI | Plus | 650 | 500 | 2,000 |
-| OpenAI | Pro | 6,500 | 8,000 | 30,000 |
-| Google | AI Pro | 650 | 700 | 2,800 |
-| Google | Ultra | 8,000 | 10,000 | 40,000 |
-| 智譜 GLM | Lite | 100 | 1,500 | 6,000 |
-| 智譜 GLM | Pro | 500 | 6,000 | 24,000 |
-| Kimi | 會員 | 300 | 1,500 | 6,000 |
-
-#### Scenario: Plan picker rows
-
-- **WHEN** the opening modal opens
-- **THEN** it shows plan rows for Anthropic, OpenAI, Google, 智譜 GLM and Kimi only, each starting with 不訂閱
-
-
-<!-- @trace
-source: gh-09-01-core-rules-specs
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - tools/check.js
-  - tools/fake-dom.js
--->
-
 ---
 ### Requirement: Agent and model selection
 
@@ -137,20 +78,3 @@ With a ticket selected, the dispatch panel SHALL show one row per vendor with a 
 
 - **WHEN** Gemma 4 31B is selected from an earlier run's selection and no DGX Spark is installed
 - **THEN** the selection moves to the first available model in catalog order
-
-<!-- @trace
-source: gh-17-01-local-hardware
-updated: 2026-10-10
-code:
-  - public/sitemap.xml
-  - docs/DESIGN.md
-  - public/js/actions.js
-  - tools/sim.js
-  - public/js/view.js
-  - public/index.html
-  - tools/check.js
-  - public/js/calc.js
-  - public/js/data.js
-  - public/js/main.js
-  - public/js/state.js
--->
