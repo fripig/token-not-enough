@@ -154,7 +154,7 @@ function makeIssue(inc){
   const trap=!inc&&cx<=2&&Math.random()<TRAP_RATE, trueCx=Math.random()<.6?4:5;
   const title=trap&&Math.random()<.5?pick(STACKS[stack].pool.trap):pick(STACKS[stack].pool[inc?'inc':cx]);
   return {id:++uid,title,cx,base,inc:!!inc,stack,
-    trap,trueCx:trap?trueCx:cx,trueBase:trap?BASE[trueCx]*R(.85,1.15):base,revealed:false,evaluated:false,rescoped:false,
+    trap,trueCx:trap?trueCx:cx,trueBase:trap?BASE[trueCx]*R(.85,1.15):base,revealed:false,evaluated:false,rescoped:false,merge:false,
     store:stack==='app'&&cx>=2&&Math.random()<.4,
     sens:Math.random()<(inc?.55:.25),big:cx>=3&&Math.random()<.45,
     client:inc?CLIENTS[0]:pickClient(),
@@ -335,7 +335,8 @@ function settle(j,o={}){
   if(j.stop&&!o.fail) note=j.sdd?'寫規格時就發現牽扯整個架構，先停下來':'做到一半發現牽扯整個架構，先停下來';
   const ch=charge(b,v,M,tk); spend=ch.spend;
   if(ch.short){ tk*=ch.frac; hrs=Math.max(.3,hrs*Math.max(.3,ch.frac)); ok=false; note='撞到用量上限，agent 停在一半'; }
-  if(ok&&o.conflict&&Math.random()<o.conflict){ok=false;conflict=true;note='和其他 agent 的改動合併衝突';}
+  /* 解決衝突工單本身不會再衝突 */
+  if(ok&&!is.merge&&o.conflict&&Math.random()<o.conflict){ok=false;conflict=true;}
   /* App 上架審核在 agent 做完之後才發生，自我審核救不回來 */
   if(ok&&is.store&&Math.random()<STORE_REJECT){ok=false;rejected=true;note='卡在 App Store 審核被退件';}
   S.st.tk[v]+=tk; S.st.byBill[b]+=tk;
@@ -348,8 +349,14 @@ function settle(j,o={}){
     if(fixed)log('ok',`  ↳ ${REVIEW[j.rv].name}抓到錯誤並當場修正，省掉整單重做`);
     if(j.hidden)log('warn',`  ↳ 原來牽扯到架構，硬做完了（原估複雜度 ${is.shownCx}，實際 ${is.cx}）`);
     if(sel.issue===is.id) sel.issue=null;
+  } else if(conflict){
+    /* 合併衝突：原單原地變成「解決衝突」工單，KPI 等它完成才拿 */
+    S.st.conflicts++; if(fixed)S.st.caught++;
+    const title=is.title, cx=Math.max(1,is.cx-1);
+    Object.assign(is,{merge:true,title:`解決衝突：${title}`,cx,base:BASE[cx]*R(.85,1.15),trap:false,revealed:false,evaluated:false,big:is.big&&cx>=3,tries:0});
+    log('warn',`⚡ ${title}｜${who}｜和其他 agent 的改動合併衝突，留下「解決衝突」工單（複雜度 ${cx}）｜燒掉 ${kt(tk)}｜${spend}｜${h1(hrs)}h`);
   } else {
-    is.tries++; is.base*=conflict?.4:j.stop?1:.7; if(conflict)S.st.conflicts++;
+    is.tries++; is.base*=j.stop?1:.7;
     log('bad',`✗ ${is.title}｜${who}｜${note||'測試沒過，改壞了'}｜燒掉 ${kt(tk)}｜${spend}｜${h1(hrs)}h`);
   }
   auditRoll(is,b,v); checkOverdraft();
@@ -376,7 +383,7 @@ function manual(){
 
 /* 評估架構：先花少量 token 讓 agent 讀架構，模型越強越容易識破陷阱 */
 const EVAL_TK=40;
-const canEvaluate=is=>!is.inc&&!is.evaluated&&!is.revealed;
+const canEvaluate=is=>!is.inc&&!is.merge&&!is.evaluated&&!is.revealed;
 const evalCost=M=>({tk:EVAL_TK*M.verb,hrs:.5*M.speed*(S.inv.mcp?.5:1)});
 const revealRate=M=>Math.min(.95,.35+.15*M.cap+(S.inv.mcp?MCP_REVEAL:0));
 function evaluate(){
@@ -527,7 +534,7 @@ function render(){
       <span class="t">${i.title}</span><span class="k">+${i.kpi}</span>
       <span class="meta"><span class="pips" title="複雜度 ${i.cx}">${[1,2,3,4,5].map(n=>`<i class="${n<=i.cx?'on':''}"></i>`).join('')}</span>
       <span class="num">~${kt(i.base)} tokens</span>
-      <span class="chip stack">${STACKS[i.stack].name}</span>${unfamiliar(i)?'<span class="chip unfam">不熟</span>':''}${i.store?'<span class="chip store">需上架審核</span>':''}${i.revealed?`<span class="chip trap">牽一髮動全身・原估 ${i.shownCx}</span>`:i.evaluated?'<span class="chip">已評估</span>':''}
+      <span class="chip stack">${STACKS[i.stack].name}</span>${unfamiliar(i)?'<span class="chip unfam">不熟</span>':''}${i.merge?'<span class="chip trap">合併衝突</span>':''}${i.store?'<span class="chip store">需上架審核</span>':''}${i.revealed?`<span class="chip trap">牽一髮動全身・原估 ${i.shownCx}</span>`:i.evaluated?'<span class="chip">已評估</span>':''}
       ${i.inc?'<span class="chip inc">事故</span>':''}${i.sens?'<span class="chip sens">機敏</span>':''}${i.big?'<span class="chip big">大型 codebase</span>':''}${i.client.ban?`<span class="chip ban">${i.client.name}・${i.client.ban==='all'?'禁中國模型':'禁中國雲端'}</span>`:S.cnBan?'<span class="chip ban">禁中國雲端</span>':`<span class="chip">${i.client.name}</span>`}
       <span class="chip ${left<=0?'due':''}">${left<=0?'今天到期':`剩 ${left} 天`}</span>${i.tries?`<span class="chip">已失敗 ${i.tries} 次</span>`:''}</span>
     </button>${quickBtn(i)}</div>`;}).join('') || `<div class="empty">工單清空了。可以提早下班，把工時留給明天。</div>`;
@@ -614,7 +621,7 @@ function dispatchPanel(){
   </div>
   ${stackHint(is)?`<p class="hint">${stackHint(is)}</p>`:''}
   ${invHint(is)?`<p class="hint">${invHint(is)}</p>`:''}
-  ${PAR()&&S.jobs.length?`<p class="hint">平行加成：已有 ${S.jobs.length} 個 agent 在跑，這張的 token 用量 ×${parMul().toFixed(2)}；完成時每多一個同時在跑的 agent，合併衝突機率 +10%。</p>`:''}
+  ${PAR()&&S.jobs.length?`<p class="hint">平行加成：已有 ${S.jobs.length} 個 agent 在跑，這張的 token 用量 ×${parMul().toFixed(2)}；完成時每多一個同時在跑的 agent，合併衝突機率 +10%；衝突時會留下一張「解決衝突」工單，KPI 等它完成才拿。</p>`:''}
   <div class="warnline">${warn}</div>
   <div class="actions">
     <button class="btn primary" data-act="go" ${blocked||S.hours<.2||(PAR()&&S.jobs.length>=S.slots)?'disabled':''}>${PAR()?'派到背景':'派給'} ${VENDORS[sel.v].agent}</button>
