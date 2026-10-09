@@ -6,7 +6,7 @@ export const GAME_VERSION='dev';
 export const VENDORS={
   anthropic:{name:'Anthropic',agent:'Claude Code',vc:'--anth',corp:true,
     plans:[{id:'none',name:'不訂閱',price:0},{id:'pro',name:'Pro',price:650,day:450,week:1800},{id:'max5',name:'Max 5×',price:3300,day:2200,week:9000},{id:'max20',name:'Max 20×',price:6500,day:9000,week:36000}],
-    models:[{id:'haiku',name:'Haiku',cap:2,price:.12,w:.3,speed:.5,verb:.9},{id:'sonnet',name:'Sonnet',cap:4,price:.45,w:1,speed:.8,verb:1},{id:'opus',name:'Opus',cap:5,price:1.5,w:3,speed:1,verb:.85}]},
+    models:[{id:'haiku',name:'Haiku',cap:3,price:.15,w:.3,speed:.7,verb:.9},{id:'sonnet',name:'Sonnet',cap:4,price:.45,w:1,speed:.8,verb:1},{id:'opus',name:'Opus',cap:5,price:.9,w:2,speed:1,verb:.85},{id:'fable',name:'Fable',cap:6,price:1.8,w:4,speed:1.2,verb:.85}]},
   openai:{name:'OpenAI',agent:'Codex CLI',vc:'--oai',corp:false,
     plans:[{id:'none',name:'不訂閱',price:0},{id:'plus',name:'Plus',price:650,day:500,week:2000},{id:'pro',name:'Pro',price:6500,day:8000,week:30000}],
     models:[{id:'mini',name:'Luna',cap:3,price:.15,w:.3,speed:.7,verb:1},{id:'std',name:'Sol',cap:4,price:.4,w:1,speed:.8,verb:1.05},{id:'high',name:'Astra',cap:5,price:1.6,w:3,speed:1,verb:.95}]},

@@ -58,8 +58,9 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
    → 事故單機率第 1 週逐日遞增，流量暴增事件第 6 天起才生效，少掉的不在後面補回（三項都是使用者從選項裡選的）。設計紀錄在 Spectra change `gh-13-01-incident-ramp-up`（#13）。
 19. 「遊戲執行的時候也把訂閱哪些模型送到ga」、「我的目的是要知道訂閱的分布 跟中間解決issue時的選擇 可能要分多個事件來記錄」
    → 每家訂閱一個 `subscription` 事件（開局、週一有改才送），派工、派工結果、手寫、評估架構、找主管、工程投資各一種事件（都是使用者從選項裡選的）。設計紀錄在 Spectra change `gh-14-01-choice-analytics`（#14）。
-20. 「openai的model沒有細分到model 名稱是為何」、「換成家族名，開卡處理 主要目標是 gpt6」、「能力也要對應」
+20. 「openai的model沒有細分到model 名稱是為何」、「換成家族名，開卡處理 主要目標是 gpt6」、「能力也要對應」、「cluade model也有新版」、「Haiku 5.5 才是對比luna吧」
    → OpenAI 三個模型改名為 GPT-6 家族名 Luna／Sol／Astra（不帶版號，id 不動），數值照實際定位調整（使用者選「照比例但壓縮」，第一次量測後再選「能力 3，調慢加價再量」）。設計紀錄在 Spectra change `gh-16-01-gpt6-model-names`（#16）。
+   → Claude 照 Claude 5 家族調整：Haiku 跟 Luna 同一套（能力 3、0.15、速度 0.7），Opus 降到 Sonnet 的 2 倍價，新增能力 6 的 Fable（都是使用者從選項裡選的）。設計紀錄在 Spectra change `gh-16-02-claude-5-models`（#16）。
 
 介面文字一律繁體中文（台灣用語）。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
@@ -81,7 +82,7 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
 
 | 廠商 key | 名稱 / agent | 公司可走 API | 中國 | 模型 |
 |---|---|---|---|---|
-| anthropic | Claude Code | 是 | | Haiku 2、Sonnet 4、Opus 5 |
+| anthropic | Claude Code | 是 | | Haiku 3、Sonnet 4、Opus 5、Fable 6 |
 | openai | Codex CLI | 否 | | Luna 3、Sol 4、Astra 5 |
 | google | Gemini CLI | 是 | | Flash 2、Pro 4（皆 ctx） |
 | deepseek | Claude Code 接 DeepSeek API | 否 | 是 | Chat 3、Reasoner 4，無訂閱 |
@@ -105,6 +106,16 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
   | 單線 App | +7.9% / +20.7% | +55.3% / +62.0% | −9.0% / −13.9% |
 
   初版讓「被禁就改派 Luna」變成明顯最佳解（又快又便宜），使用者選擇保留能力 3、調慢加價。採用版比派 Sonnet 差一些，是可選但不壓倒的替代；Rust 因為 borrow checker 對能力 <4 扣分而差最多。
+- Anthropic 的模型照 Claude 5 家族：Claude API 的官方價（每百萬輸入 token）Haiku 5.5 $0.10、Sonnet 5.5 $2、Opus 5.5 $4、Fable 5.1 $10，跟 GPT-6 的 Luna、Sol、Astra 同價位。遊戲裡 Haiku 跟 Luna 同一套（能力 3、0.15、速度 0.7，`w` 0.3、token 倍率 0.9 照舊）；Opus 0.9、`w` 2（Sonnet 的 2 倍）；Fable（id `fable`）能力 6、1.8、`w` 4、速度 1.2、token 倍率 0.85，是唯一能力 6 的模型（高強度到 7），複雜度 5 的工單成功率 95%（Opus 80%）。能力條畫實心點到能力值、空心點補到 5 格，所以 Fable 顯示 6 顆實心點。spec 例子原本拿 Haiku 當能力 2 的模型，改用 Gemini Flash。
+
+  Haiku 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；`SIM_HAIKU=1`＝DeepSeek 被禁、又沒用席位時改派 Haiku 不派 Sonnet，付費方式照 Sonnet 的規則，相對同一份程式碼的預設自動玩家）：
+
+  | 模式 | Laravel | Rails | Rust | App |
+  |---|---|---|---|---|
+  | 平行 | +2.4% / +2.9% | +5.0% / +4.1% | −5.3% / −4.6% | +4.4% / +1.7% |
+  | 單線 | +0.3% / −0.8% | −3.8% / +0.6% | −30.7% / −28.0% | −3.0% / +2.6% |
+
+  跟派 Sonnet 大致打平，Rust 因為 borrow checker 對能力 <4 扣分而明顯較差；平行模式沒有一格兩次都超過 +5%，沒有調。Haiku 權重只有 0.3，多半在 Anthropic 訂閱額度內用完。Opus 降價、Fable 都沒有自動玩家會派，沒有量。
 - 訂閱方案在各廠商的 `plans`，有 `day`/`week` 額度（單位 k token × 模型 `w`）。
 - 團隊席位 `SEAT`：最多三個，Anthropic、OpenAI、Google（`SEAT.vendors`）每家最多一個。月初或週一申請，5 天後審核，同時只能有一個申請在審（`S.seatReq`）。核准的廠商依序存在 `S.seats`。第 1／2／3 個席位的信任門檻是 55／65／75（`SEAT.trust`），看審核當天已經核准幾個席位、當天的信任。退件不扣分，之後的週一可以再申請，被退的廠商也能再選。審核在週一調整訂閱之前跑，所以審核當天的週一就能送下一個申請，最快第 6、11、16 天各拿到一個。申請選單只列還沒有席位的廠商，標題寫「第 N 個團隊席位，信任需 X 以上」。每個席位各自有每日 2.5M／每週 10M 的額度，額度區每個席位一個方塊。
 

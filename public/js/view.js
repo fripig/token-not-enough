@@ -99,7 +99,7 @@ export function dispatchPanel(){
   const rows=Object.keys(VENDORS).map(v=>{
     const V=VENDORS[v], down=S.outage===v;
     return `<div class="vrow" style="--vc:${vc(v)}"><div class="vn"><b>${V.name}</b><span>${down?'今日當機':V.agent}</span>${V.cn?'<span class="cn">中國廠商</span>':''}</div>
-      <div class="mods">${V.models.map(M=>{const why=cnBlock(is,v,M);return `<button class="mb ${sel.v===v&&sel.m===M.id?'sel':''}" data-v="${v}" data-m="${M.id}" ${down||why?'disabled':''}><b>${M.name}</b><span>能力 ${'●'.repeat(M.cap)}${'○'.repeat(5-M.cap)}</span><span class="${why?'why':''}">${why||(M.price?`$${M.price}/k`:'免費')}${!why&&M.cn?'・中國權重':''}</span></button>`;}).join('')}</div></div>`;
+      <div class="mods">${V.models.map(M=>{const why=cnBlock(is,v,M);return `<button class="mb ${sel.v===v&&sel.m===M.id?'sel':''}" data-v="${v}" data-m="${M.id}" ${down||why?'disabled':''}><b>${M.name}</b><span>能力 ${'●'.repeat(M.cap)}${'○'.repeat(Math.max(0,5-M.cap))}</span><span class="${why?'why':''}">${why||(M.price?`$${M.price}/k`:'免費')}${!why&&M.cn?'・中國權重':''}</span></button>`;}).join('')}</div></div>`;
   }).join('');
   const e=est(is,sel.v,sel.m), M=e.M, cl=costLine(sel.b,M,sel.v,e);
   const segs=bl.map(b=>`<button class="sb ${sel.b===b.id?'sel':''}" data-b="${b.id}" ${b.ok?'':'disabled'}>${b.label}<small>${b.note}</small></button>`).join('');

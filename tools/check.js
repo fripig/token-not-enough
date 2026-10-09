@@ -57,13 +57,13 @@ function tests(){
   /* 2.1 慣例加成與 Rust 效果（spec 範例） */
   newRun('laravel');
   const pOf=(v,m,is)=>est(is,v,m,0);
-  ok(near(pOf('anthropic','haiku',ticket('rails',3)).p,.8),'Haiku × 複雜度 3 rails → 80%',pOf('anthropic','haiku',ticket('rails',3)).p);
-  ok(near(pOf('anthropic','haiku',ticket('laravel',4)).p,pOf('anthropic','haiku',ticket('fe',4)).p),'複雜度 4 laravel 沒有慣例加成');
+  ok(near(pOf('google','flash',ticket('rails',3)).p,.8),'Gemini Flash × 複雜度 3 rails → 80%',pOf('google','flash',ticket('rails',3)).p);
+  ok(near(pOf('google','flash',ticket('laravel',4)).p,pOf('google','flash',ticket('fe',4)).p),'複雜度 4 laravel 沒有慣例加成');
   const air=pOf('zhipu','air',ticket('rust',2)), airFe=pOf('zhipu','air',ticket('fe',2));
   ok(near(air.p,.8),'GLM Air × 複雜度 2 rust → 80%',air.p);
   ok(near(air.hrs,airFe.hrs*1.2),'rust 執行時間 ×1.2');
   ok(near(air.tk,airFe.tk),'技術線不影響 token 預估');
-  const capModel={2:['anthropic','haiku'],3:['zhipu','air'],4:['anthropic','sonnet'],5:['anthropic','opus']};
+  const capModel={2:['google','flash'],3:['zhipu','air'],4:['anthropic','sonnet'],5:['anthropic','opus']};
   for(const [cap,cx,exp] of [[2,2,.5],[3,2,.8],[4,3,.95],[5,5,.8]]){
     const [v,m]=capModel[cap]; ok(near(pOf(v,m,ticket('rust',cx)).p,exp),`Rust 表：能力 ${cap} × 複雜度 ${cx} → ${exp*100}%`);
   }
@@ -220,7 +220,7 @@ function tests(){
   newRun('laravel'); let ev=ticket('laravel',2); let w1=S.wallet, h1v=S.hours;
   evalWith(ev,'anthropic','sonnet','api',.5);
   ok(near(w1-S.wallet,40*.45)&&near(h1v-S.hours,.4)&&ev.evaluated&&!ev.revealed,'Sonnet 個人 API 評估：扣 40k token（NT$18）、花 0.4h、標記已評估');
-  const capM={2:['anthropic','haiku'],3:['deepseek','chat'],4:['anthropic','sonnet'],5:['anthropic','opus']};
+  const capM={2:['google','flash'],3:['deepseek','chat'],4:['anthropic','sonnet'],5:['anthropic','opus']};
   for(const [cap,rate] of [[2,.65],[3,.8],[4,.95],[5,.95]]){
     const [v,m]=capM[cap]; ok(near(revealRate(model(v,m)),rate),`能力 ${cap} 識破率 ${rate}`);
     newRun('laravel'); let a=trapT(); evalWith(a,v,m,'api',rate-.01); ok(a.revealed&&S.st.trapFound===1,`能力 ${cap}：亂數 ${(rate-.01).toFixed(2)} 時識破`);
@@ -587,10 +587,10 @@ function tests(){
   }
 
   /* 接 MCP 文件效果 */
-  newRun('laravel'); const son=model('anthropic','sonnet'), hai=model('anthropic','haiku');
+  newRun('laravel'); const son=model('anthropic','sonnet'), hai=model('google','flash');
   const ev0=evalCost(son), hr0=revealRate(hai); S.inv.mcp=true;
   ok(near(revealRate(son),.95)&&near(evalCost(son).hrs,.2)&&near(evalCost(son).tk,ev0.tk),'MCP：Sonnet 識破率 0.95、評估 0.2h、token 不變');
-  ok(near(hr0,.65)&&near(revealRate(hai),.85),'MCP：Haiku 識破率 0.65 → 0.85');
+  ok(near(hr0,.65)&&near(revealRate(hai),.85),'MCP：Gemini Flash 識破率 0.65 → 0.85');
 
   /* 導入 SDD 效果 */
   newRun('laravel'); const c2=ticket('fe',2), c4=ticket('fe',4);
@@ -815,9 +815,9 @@ function tests(){
   }
   {
   /* reasoning-effort：推理強度對模型的影響 */
-  const son=model('anthropic','sonnet'), hai=model('anthropic','haiku'), opu=model('anthropic','opus');
+  const son=model('anthropic','sonnet'), hai=model('google','flash'), opu=model('anthropic','opus');
   ok(effModel(son,1)===son,'中強度回傳原本的模型物件');
-  ok(effModel(hai,0).cap===1&&effModel(opu,2).cap===6,'Haiku 低強度能力 1、Opus 高強度能力 6');
+  ok(effModel(hai,0).cap===1&&effModel(opu,2).cap===6&&effModel(model('anthropic','fable'),2).cap===7,'Gemini Flash 低強度能力 1、Opus 高強度能力 6、Fable 高強度能力 7');
   const sh=effModel(son,2); ok(sh.price===son.price&&sh.w===son.w&&sh.name==='Sonnet・高強度','高強度不改價格與額度權重，名稱 Sonnet・高強度',sh.name);
   ok(EFFORT.map(f=>[f.cap,f.tk,f.hrs].join('/')).join()==='-1/0.7/0.8,0/1/1,1/1.5/1.4','EFFORT 倍率');
   newRun('laravel'); S.advanced=true; const t44=ticket('laravel',4);
@@ -918,13 +918,13 @@ function tests(){
 
   /* agent-catalog：模型數值表 */
   const MODELS=[
-    ['anthropic','haiku',2,.12,.3,.5,.9],['anthropic','sonnet',4,.45,1,.8,1],['anthropic','opus',5,1.5,3,1,.85],
+    ['anthropic','haiku',3,.15,.3,.7,.9],['anthropic','sonnet',4,.45,1,.8,1],['anthropic','opus',5,.9,2,1,.85],['anthropic','fable',6,1.8,4,1.2,.85],
     ['openai','mini',3,.15,.3,.7,1],['openai','std',4,.4,1,.8,1.05],['openai','high',5,1.6,3,1,.95],
     ['google','flash',2,.06,.25,.4,1.1],['google','pro',4,.35,1,.9,1],
     ['deepseek','chat',3,.03,1,.7,1.15],['deepseek','reasoner',4,.06,1,1.2,1.5],
     ['zhipu','air',3,.04,.5,.6,1.1],['zhipu','glm',4,.1,1,.9,1.1],['moonshot','k2',4,.12,1,.9,1.2],
     ['local','qwen',3,0,0,2.1,1.3],['local','gemma',3,0,0,2.4,1.25],['local','oss',2,0,0,1.8,1.2]];
-  ok(Object.values(VENDORS).reduce((a,V)=>a+V.models.length,0)===16&&Object.keys(VENDORS).length===7,'agent-catalog：7 家廠商 16 個模型');
+  ok(Object.values(VENDORS).reduce((a,V)=>a+V.models.length,0)===17&&Object.keys(VENDORS).length===7,'agent-catalog：7 家廠商 17 個模型');
   for(const [v,m,cap,price,w,speed,verb] of MODELS){const x=model(v,m); ok(x&&x.cap===cap&&x.price===price&&x.w===w&&x.speed===speed&&x.verb===verb,`agent-catalog：${v}/${m} 數值符合表格`);}
   ok(['flash','pro'].every(m=>model('google',m).ctx)&&MODELS.filter(r=>r[0]!=='google').every(([v,m])=>!model(v,m).ctx),'agent-catalog：只有 Gemini 有 ctx');
   ok(Object.keys(VENDORS).filter(v=>VENDORS[v].cn).join()==='deepseek,zhipu,moonshot'&&model('local','qwen').cn&&!model('local','gemma').cn&&!model('local','oss').cn,'agent-catalog：中國廠商與 Qwen 中國權重');
@@ -943,6 +943,8 @@ function tests(){
   {const tg=ticket('laravel',2,{client:CLIENTS[3]}); S.issues=[tg]; sel.issue=tg.id; render(); const h=els.app.innerHTML;
   ok(/data-v="openai" data-m="mini" ><b>Luna<\/b><span>能力 ●●●○○<\/span><span class="">\$0\.15\/k/.test(h)&&/data-v="deepseek" data-m="chat" disabled><b>Chat<\/b><span>能力 ●●●○○<\/span><span class="why">政府標案禁用/.test(h),'agent-catalog：政府標案可用 Luna（$0.15/k），DeepSeek Chat 停用');
   S.issues=[tc]; sel.issue=tc.id; render();}
+  {const h=els.app.innerHTML, at=s=>h.indexOf(s), cl=[['Haiku','●●●○○','0.15'],['Sonnet','●●●●○','0.45'],['Opus','●●●●●','0.9'],['Fable','●●●●●●','1.8']].map(([n,d,p])=>`<b>${n}</b><span>能力 ${d}</span><span class="">$${p}/k`);
+  ok(cl.every(s=>at(s)>=0)&&cl.every((s,i)=>!i||at(cl[i-1])<at(s)),'agent-catalog：Claude Code 依序顯示 Haiku、Sonnet、Opus、Fable（能力 3／4／5／6，$0.15／0.45／0.9／1.8）');}
   ok(els.app.innerHTML.includes('價格、額度與模型能力都是遊戲平衡用的虛構數字，不代表各家實際方案。'),'agent-catalog：頁尾保留虛構數字聲明');
   ok(els.app.innerHTML.includes('<b>Gemma 27B</b><span>能力 ●●●○○</span><span class="">免費</span>')&&els.app.innerHTML.includes('免費・中國權重'),'agent-catalog：本地模型顯示免費、Qwen 標中國權重');
   ok(els.app.innerHTML.includes('派給 Codex CLI'),'agent-catalog：單線模式按鈕寫派給');
@@ -950,7 +952,7 @@ function tests(){
   clickApp({v:'anthropic',m:'sonnet'}); ok(sel.b==='api','agent-catalog：離開本地切回個人 API');
   S.outage='anthropic'; render();
   ok(sel.v==='openai'&&sel.m==='mini','agent-catalog：當機的選擇改到下一家第一個可用模型',sel.v+sel.m);
-  ok(['haiku','sonnet','opus'].every(m=>new RegExp(`data-v="anthropic" data-m="${m}" disabled`).test(els.app.innerHTML))&&els.app.innerHTML.includes('<span>今日當機</span>'),'agent-catalog：當機廠商的模型都停用');
+  ok(['haiku','sonnet','opus','fable'].every(m=>new RegExp(`data-v="anthropic" data-m="${m}" disabled`).test(els.app.innerHTML))&&els.app.innerHTML.includes('<span>今日當機</span>'),'agent-catalog：當機廠商的模型都停用');
   S.outage=null; S.mode='parallel'; render(); ok(els.app.innerHTML.includes('派到背景 Codex CLI'),'agent-catalog：平行模式按鈕寫派到背景');
   S.hours=.1; render(); ok(/data-act="go" disabled/.test(els.app.innerHTML),'agent-catalog：剩不到 0.2h 時派工按鈕停用');
 
@@ -966,7 +968,7 @@ function tests(){
   /* 扣款 */
   newRun('laravel');
   charge('api','anthropic',model('anthropic','sonnet'),200); ok(near(S.wallet,8000-90)&&near(S.st.api,90),'billing-methods：200k Sonnet 個人 API 扣 NT$90');
-  S.subs.anthropic='max5'; charge('sub','anthropic',model('anthropic','opus'),200); ok(near(S.used.sub.anthropic.d,600)&&near(S.used.sub.anthropic.w,600),'billing-methods：200k Opus 吃訂閱 600k');
+  S.subs.anthropic='max5'; charge('sub','anthropic',model('anthropic','opus'),200); ok(near(S.used.sub.anthropic.d,400)&&near(S.used.sub.anthropic.w,400),'billing-methods：200k Opus（w 2）吃訂閱 400k');
   charge('corp','anthropic',model('anthropic','sonnet'),200); ok(near(S.corp,12000-90)&&near(S.corpDay,90)&&near(S.st.corp,90),'billing-methods：公司 API 扣預算、計入當日與月底帳單');
   ok(charge('local','local',model('local','gemma'),200).spend==='電費','billing-methods：本地 GPU 記為電費');
   S.wallet=10; charge('api','anthropic',model('anthropic','sonnet'),200); ok(near(S.wallet,-80),'billing-methods：錢包可以變負的');
@@ -1092,9 +1094,9 @@ function tests(){
   /* dispatch-outcome：成功率表 */
   {
   newRun('laravel');
-  for(const [v,m,cx,big,p] of [['anthropic','sonnet',2,false,.95],['anthropic','sonnet',4,false,.8],['anthropic','haiku',3,false,.5],['anthropic','haiku',4,false,.25],['anthropic','haiku',5,false,.1],['google','pro',4,true,.88],['deepseek','chat',3,true,.72],['anthropic','opus',3,true,.95]])
+  for(const [v,m,cx,big,p] of [['anthropic','sonnet',2,false,.95],['anthropic','sonnet',4,false,.8],['google','flash',3,false,.5],['google','flash',4,false,.25],['google','flash',5,false,.1],['google','pro',4,true,.88],['deepseek','chat',3,true,.72],['anthropic','opus',3,true,.95],['anthropic','opus',5,false,.8],['anthropic','fable',5,false,.95]])
     ok(near(est(ticket('fe',cx,{big}),v,m,0).p,p),`dispatch-outcome：${m} × 複雜度 ${cx}${big?'・大型':''} → ${p*100}%`,est(ticket('fe',cx,{big}),v,m,0).p);
-  ok(near(est(ticket('fe',5),'anthropic','haiku',0).p,.1)&&near(est(ticket('fe',5,{big:true}),'google','flash',0).p,.18)&&near(est(ticket('fe',5,{big:true}),'anthropic','haiku',0).p,.05),'dispatch-outcome：成功率下限 5%');
+  ok(near(est(ticket('fe',5),'local','oss',0).p,.1)&&near(est(ticket('fe',5,{big:true}),'google','flash',0).p,.18)&&near(est(ticket('fe',5,{big:true}),'local','oss',0).p,.05),'dispatch-outcome：成功率下限 5%');
   S.inv.md.fe=true; S.inv.sdd=true; ok(near(est(ticket('fe',2),'anthropic','sonnet',0).p,.97),'dispatch-outcome：成功率上限 97%'); S.inv.md={}; S.inv.sdd=false;
   /* token 預估 */
   newRun('laravel'); S.hours=8; const t2=ticket('fe',2); S.issues=[t2]; sel.issue=t2.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'api',rv:0});
@@ -1109,12 +1111,12 @@ function tests(){
   /* 費用列 */
   const cl=(b,v,m)=>costLine(b,model(v,m),v,est(t2,v,m,0));
   ok(near(cl('api','anthropic','sonnet').hi,e2.hi*.45)&&cl('api','anthropic','sonnet').t==='自付'&&cl('corp','anthropic','sonnet').t==='公司付'&&cl('local','local','gemma').hi===0,'dispatch-outcome：費用列依付費方式');
-  ok(near(cl('sub','anthropic','opus').hi,est(t2,'anthropic','opus',0).hi*3)&&cl('sub','anthropic','opus').t==='額度','dispatch-outcome：訂閱的費用列是額度 × w');
+  ok(near(cl('sub','anthropic','opus').hi,est(t2,'anthropic','opus',0).hi*2)&&cl('sub','anthropic','opus').t==='額度','dispatch-outcome：訂閱的費用列是額度 × w');
   /* 單線跑到下班 */
   newRun('laravel'); S.hours=2; const t5=ticket('fe',5); S.issues=[t5]; sel.issue=t5.id; Object.assign(sel,{v:'anthropic',m:'opus',b:'corp',rv:0}); render();
   ok(els.app.innerHTML.includes('今天剩的工時可能不夠跑完。'),'dispatch-outcome：單線工時可能不夠的警告');
   withRand(.5,dispatch);
-  ok(S.hours===0&&near(S.st.tk.anthropic,722.5*.4)&&near(S.st.corp,722.5*.4*1.5)&&t5.tries===1&&S.log[0].msg.includes('跑到下班還沒結束'),'dispatch-outcome：單線跑到下班扣掉同比例 token、失敗',[S.hours,S.st.tk.anthropic].join());
+  ok(S.hours===0&&near(S.st.tk.anthropic,722.5*.4)&&near(S.st.corp,722.5*.4*.9)&&t5.tries===1&&S.log[0].msg.includes('跑到下班還沒結束'),'dispatch-outcome：單線跑到下班扣掉同比例 token、失敗',[S.hours,S.st.tk.anthropic].join());
   /* 一般失敗 */
   newRun('laravel'); const tfl=ticket('fe',2); S.issues=[tfl]; settle(job(tfl,'anthropic','sonnet','corp',{ok:false,tk:80}));
   ok(S.log[0].msg.includes('測試沒過，改壞了')&&near(S.st.tk.anthropic,80)&&near(S.st.byBill.corp,80),'dispatch-outcome：失敗紀錄與 token 照算');
@@ -1122,7 +1124,7 @@ function tests(){
   const panel=(st,cx,v,m,b,rv=0,extra={},mode='serial')=>{newRun('laravel',mode); S.hours=8; const t=ticket(st,cx,extra); S.issues=[t]; sel.issue=t.id; Object.assign(sel,{v,m,b,rv}); render(); return els.app.innerHTML;};
   ok(panel('fe',3,'deepseek','chat','api',0,{big:true}).includes('class="meh">72%'),'dispatch-outcome：72% 是黃色');
   ok(panel('fe',2,'anthropic','sonnet','corp').includes('class="good">95%'),'dispatch-outcome：95% 是綠色');
-  ok(panel('fe',4,'anthropic','haiku','corp').includes('class="bad">25%'),'dispatch-outcome：25% 是紅色');
+  ok(panel('fe',4,'google','flash','corp').includes('class="bad">25%'),'dispatch-outcome：25% 是紅色');
   ok(!panel('fe',2,'anthropic','sonnet','corp').includes('（原')&&panel('fe',2,'anthropic','sonnet','corp',1).includes('成功率（原 95%）'),'dispatch-outcome：有審核才顯示原始成功率');
   ok(panel('fe',2,'anthropic','sonnet','corp').includes('<label>工時</label>')&&panel('fe',2,'anthropic','sonnet','corp',0,{},'parallel').includes('<label>執行時間</label>'),'dispatch-outcome：單線寫工時、平行寫執行時間');
   /* 警告優先順序 */
@@ -1140,7 +1142,7 @@ function tests(){
   {
   newRun('laravel');
   ok(JSON.stringify(C.REVIEW.map(r=>[r.name,r.tk,r.hrs]))===JSON.stringify([['不審核',1,1],['自審',1.3,1.2],['嚴格審核',1.6,1.35]]),'self-review：三種審核的 token 與時間倍率');
-  for(const [v,m,c1,c2] of [['anthropic','haiku',.61,.81],['deepseek','chat',.69,.89],['anthropic','sonnet',.77,.95],['anthropic','opus',.85,.95]])
+  for(const [v,m,c1,c2] of [['google','flash',.61,.81],['deepseek','chat',.69,.89],['anthropic','sonnet',.77,.95],['anthropic','opus',.85,.95],['anthropic','fable',.93,.95]])
     ok(near(catchRate(1,model(v,m)),c1)&&near(catchRate(2,model(v,m)),c2)&&catchRate(0,model(v,m))===0,`self-review：${m} 抓錯率 ${c1*100}%／${c2*100}%`);
   const tr=ticket('fe',4); S.hours=8; S.issues=[tr]; sel.issue=tr.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:1}); render();
   ok(els.app.innerHTML.includes('token ×1.3・抓錯 77%')&&els.app.innerHTML.includes('token ×1.6・抓錯 95%')&&els.app.innerHTML.includes('改壞就整單重做'),'self-review：審核按鈕顯示倍率與抓錯率');
@@ -1372,7 +1374,7 @@ function tests(){
   S.subs.anthropic='pro'; S.used.sub.anthropic.d=450; ok(res(job({b:'sub'})).outcome==='quota','choice-analytics：額度不夠 → quota');
   ok(res(job({ok:false,caught:true})).outcome==='caught','choice-analytics：審核抓到 → caught');
   const rs=res(job());
-  ok(rs.outcome==='success'&&rs.tokens===100&&rs.cost===150&&rs.hours===2&&rs.vendor==='anthropic'&&rs.model==='opus'&&rs.bill==='api'&&rs.review==='self'&&rs.effort==='mid'&&rs.cx===2&&rs.stack==='laravel'&&rs.gig===false,'choice-analytics：成功 → success，Opus 100k 花 NT$150',JSON.stringify(rs));
+  ok(rs.outcome==='success'&&rs.tokens===100&&rs.cost===90&&rs.hours===2&&rs.vendor==='anthropic'&&rs.model==='opus'&&rs.bill==='api'&&rs.review==='self'&&rs.effort==='mid'&&rs.cx===2&&rs.stack==='laravel'&&rs.gig===false,'choice-analytics：成功 → success，Opus 100k 花 NT$90',JSON.stringify(rs));
   ok(res(job({ok:false,stop:true})).outcome==='trap_stop','choice-analytics：陷阱停下 → trap_stop');
   ok(res(job({ok:false})).outcome==='fail','choice-analytics：失敗沒抓到 → fail');
   /* 手寫：單線 Laravel 複雜度 1 */

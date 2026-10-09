@@ -10,6 +10,7 @@
 // SIM_SEATS=1..3 量團隊席位的上限：在第 6、11、16 天依序直接給 Anthropic、OpenAI、Google 席位（不經申請與信任審核，當作信任一直夠），給到指定個數；
 // 有席位時公司工單刷第一個今日席位額度還超過 300k 的廠商，用它能力 4 的模型（Sonnet、Codex Sol、Gemini Pro），外包單照舊走個人 API。
 // SIM_LUNA=1 讓自動玩家在 DeepSeek 被禁、又沒用席位時改派 Codex Luna（個人 API），不派 Sonnet，量 Luna 的影響（預設的自動玩家只有 Anthropic 當機被自動改派時才會用到 Luna，不會派 Astra）。
+// SIM_HAIKU=1 讓自動玩家在 DeepSeek 被禁、又沒用席位時改派 Claude Haiku 不派 Sonnet，付費方式照 Sonnet 的規則（訂閱額度夠用訂閱，否則公司 API），量 Haiku 的影響。
 // SIM_COMBOS=1 改跑六種雙選組合（另跑單選 Laravel 當對照）。
 // SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
 import {els} from './fake-dom.js';
@@ -34,6 +35,7 @@ const COMBOS=process.env.SIM_COMBOS==='1';
 const OUT=process.env.SIM_OUTSOURCE==='1';
 const EFF=process.env.SIM_EFFORT==='1';
 const LUNA=process.env.SIM_LUNA==='1';
+const HAIKU=process.env.SIM_HAIKU==='1';
 // SIM_SLOTS=2..6 指定平行模式的工作槽數（預設 3）
 const SLOTS=process.env.SIM_SLOTS===undefined?3:Number(process.env.SIM_SLOTS);
 if(![2,3,4,5,6].includes(SLOTS)){ console.error(`SIM_SLOTS 必須是 2–6 的整數，收到「${process.env.SIM_SLOTS}」`); process.exit(1); }
@@ -67,7 +69,7 @@ function sim(){
               sel.issue=free[0].id; sel.rv=g%3;
               const dsOk=!cnBlock(free[0],'deepseek',model('deepseek','chat'));
               const seatV=SEATS&&!free[0].out?S.seats.find(v=>quotaLeft('seat',v)>300):undefined;
-              const alt=LUNA?['openai','mini']:['anthropic','sonnet'];
+              const alt=LUNA?['openai','mini']:['anthropic',HAIKU?'haiku':'sonnet'];
               sel.v=seatV||(dsOk?'deepseek':alt[0]); sel.m=seatV?SEAT_MODEL[seatV]:dsOk?'chat':alt[1]; dispatchPanel();
               if(EFF){const gap=model(sel.v,sel.m).cap-free[0].cx; sel.ef=gap<=-1?2:gap>=2?0:1;}
               if(seatV)sel.b='seat'; else if(dsOk||free[0].out||LUNA)sel.b='api'; else sel.b=quotaLeft('sub','anthropic')>300?'sub':'corp';
