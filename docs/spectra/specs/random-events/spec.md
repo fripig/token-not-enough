@@ -39,7 +39,7 @@ Each event SHALL have exactly this effect. Price drop and outage SHALL pick a ra
 | 主管宣布：全公司暫停把程式碼送到中國雲端模型 | Starts the company-wide Chinese cloud ban (see `client-restrictions`); if already active or the day is before 8, shows 主管在週會上提醒 with no effect instead |
 | 年度預算凍結 | Company budget × 0.7 |
 | `<vendor>` 調整訂閱用量政策 | That vendor's daily and weekly subscription quota × 0.8 for the rest of the month |
-| 大新聞爆發，流量暴增 | Two incident tickets are added |
+| 大新聞爆發，流量暴增 | Two incident tickets are added; if the day is before 6, shows 新聞流量比平常高一點 with the text 監控曲線抖了一下，系統還撐得住。沒有其他變化。 and adds no ticket instead |
 | 主管在週會上點名稱讚 / 主管問進度怎麼這麼慢 | Trust +6 (cap 100) if KPI > day × 7, otherwise trust −4 (floor 0) |
 | 外包案尾款入帳 | Wallet + NT$1,500 |
 
@@ -63,16 +63,17 @@ Each event SHALL have exactly this effect. Price drop and outage SHALL pick a ra
 - **WHEN** the company-wide ban event is drawn on day 7
 - **THEN** the title is 主管在週會上提醒 and the ban stays inactive
 
+#### Scenario: Traffic spike too early
+
+- **WHEN** the traffic spike event is drawn on day 5 with 3 tickets in the queue
+- **THEN** the title is 新聞流量比平常高一點 and the queue still holds 3 tickets
+
+#### Scenario: Traffic spike from day 6
+
+- **WHEN** the traffic spike event is drawn on day 6 with 3 tickets in the queue
+- **THEN** the title is 大新聞爆發，流量暴增 and the queue holds 5 tickets, the 2 new ones incidents
+
 #### Scenario: Outage cancels running agents
 
 - **WHEN** the outage event hits Anthropic while two Anthropic agents run overnight
 - **THEN** both are cancelled with 廠商當機，session 斷了 and the summary reports 2 個跑在 Anthropic 的 agent 因為當機斷線。
-
-<!-- @trace
-source: gh-09-01-core-rules-specs
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - tools/check.js
-  - tools/fake-dom.js
--->
