@@ -9,7 +9,7 @@ export const VENDORS={
     models:[{id:'haiku',name:'Haiku',cap:2,price:.12,w:.3,speed:.5,verb:.9},{id:'sonnet',name:'Sonnet',cap:4,price:.45,w:1,speed:.8,verb:1},{id:'opus',name:'Opus',cap:5,price:1.5,w:3,speed:1,verb:.85}]},
   openai:{name:'OpenAI',agent:'Codex CLI',vc:'--oai',corp:false,
     plans:[{id:'none',name:'不訂閱',price:0},{id:'plus',name:'Plus',price:650,day:500,week:2000},{id:'pro',name:'Pro',price:6500,day:8000,week:30000}],
-    models:[{id:'mini',name:'mini',cap:2,price:.1,w:.3,speed:.5,verb:1},{id:'std',name:'標準',cap:4,price:.4,w:1,speed:.8,verb:1.05},{id:'high',name:'高推理',cap:5,price:.4,w:1,speed:1.4,verb:1.8}]},
+    models:[{id:'mini',name:'Luna',cap:3,price:.15,w:.3,speed:.7,verb:1},{id:'std',name:'Sol',cap:4,price:.4,w:1,speed:.8,verb:1.05},{id:'high',name:'Astra',cap:5,price:1.6,w:3,speed:1,verb:.95}]},
   google:{name:'Google',agent:'Gemini CLI',vc:'--goog',corp:true,
     plans:[{id:'none',name:'不訂閱',price:0},{id:'aipro',name:'AI Pro',price:650,day:700,week:2800},{id:'ultra',name:'Ultra',price:8000,day:10000,week:40000}],
     models:[{id:'flash',name:'Flash',cap:2,price:.06,w:.25,speed:.4,verb:1.1,ctx:true},{id:'pro',name:'Pro',cap:4,price:.35,w:1,speed:.9,verb:1,ctx:true}]},

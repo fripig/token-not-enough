@@ -8,7 +8,8 @@
 // SIM_OUTSOURCE=1 開啟接外包：外包單一律走個人 API（能用 DeepSeek 就用，否則 Sonnet）。
 // SIM_EFFORT=1 開啟進階模式：每張單看選到模型的原始能力減顯示複雜度，≤ −1 用高強度、≥ 2 用低強度、其他用中。
 // SIM_SEATS=1..3 量團隊席位的上限：在第 6、11、16 天依序直接給 Anthropic、OpenAI、Google 席位（不經申請與信任審核，當作信任一直夠），給到指定個數；
-// 有席位時公司工單刷第一個今日席位額度還超過 300k 的廠商，用它能力 4 的模型（Sonnet、Codex 標準、Gemini Pro），外包單照舊走個人 API。
+// 有席位時公司工單刷第一個今日席位額度還超過 300k 的廠商，用它能力 4 的模型（Sonnet、Codex Sol、Gemini Pro），外包單照舊走個人 API。
+// SIM_LUNA=1 讓自動玩家在 DeepSeek 被禁、又沒用席位時改派 Codex Luna（個人 API），不派 Sonnet，量 Luna 的影響（預設的自動玩家只有 Anthropic 當機被自動改派時才會用到 Luna，不會派 Astra）。
 // SIM_COMBOS=1 改跑六種雙選組合（另跑單選 Laravel 當對照）。
 // SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
 import {els} from './fake-dom.js';
@@ -32,6 +33,7 @@ if(!EXTRA.every(k=>['fastlane','monitor','scan'].includes(k))){ console.error(`S
 const COMBOS=process.env.SIM_COMBOS==='1';
 const OUT=process.env.SIM_OUTSOURCE==='1';
 const EFF=process.env.SIM_EFFORT==='1';
+const LUNA=process.env.SIM_LUNA==='1';
 // SIM_SLOTS=2..6 指定平行模式的工作槽數（預設 3）
 const SLOTS=process.env.SIM_SLOTS===undefined?3:Number(process.env.SIM_SLOTS);
 if(![2,3,4,5,6].includes(SLOTS)){ console.error(`SIM_SLOTS 必須是 2–6 的整數，收到「${process.env.SIM_SLOTS}」`); process.exit(1); }
@@ -65,9 +67,10 @@ function sim(){
               sel.issue=free[0].id; sel.rv=g%3;
               const dsOk=!cnBlock(free[0],'deepseek',model('deepseek','chat'));
               const seatV=SEATS&&!free[0].out?S.seats.find(v=>quotaLeft('seat',v)>300):undefined;
-              sel.v=seatV||(dsOk?'deepseek':'anthropic'); sel.m=seatV?SEAT_MODEL[seatV]:dsOk?'chat':'sonnet'; dispatchPanel();
+              const alt=LUNA?['openai','mini']:['anthropic','sonnet'];
+              sel.v=seatV||(dsOk?'deepseek':alt[0]); sel.m=seatV?SEAT_MODEL[seatV]:dsOk?'chat':alt[1]; dispatchPanel();
               if(EFF){const gap=model(sel.v,sel.m).cap-free[0].cx; sel.ef=gap<=-1?2:gap>=2?0:1;}
-              if(seatV)sel.b='seat'; else if(dsOk||free[0].out)sel.b='api'; else sel.b=quotaLeft('sub','anthropic')>300?'sub':'corp';
+              if(seatV)sel.b='seat'; else if(dsOk||free[0].out||LUNA)sel.b='api'; else sel.b=quotaLeft('sub','anthropic')>300?'sub':'corp';
               if(sel.b==='corp'&&S.corp<=0) sel.b='api';
               const before=S.hours; dispatch(); acted=S.hours!==before||PAR();
               if(!PAR()&&S.hours===before)acted=false;
@@ -80,7 +83,7 @@ function sim(){
         const score=+html.match(/總分<\/span><span>(-?[\d,]+)/)[1].replace(/,/g,'');
         const k=mode+' '+company; sum[k]??={n:0,tot:0,g:{}};
         sum[k].n++; sum[k].tot+=score; sum[k].g[grade]=(sum[k].g[grade]||0)+1;
-        if(g<3){const self=S.st.subFee+S.st.api;console.log(mode,company,'rv',g%3,'caught',S.st.caught,'cnBan',S.cnBan,'ds',Math.round(S.st.tk.deepseek),'ant',Math.round(S.st.tk.anthropic),'kpi',S.kpi,'done',S.st.done,'late',S.st.late,'trust',Math.round(S.trust),'self',Math.round(self),'corp',Math.round(S.st.corp),'conf',S.st.conflicts,'out',S.st.outDone+'/'+S.st.outLate,'outIncome',S.st.outIncome,...(SEATS?['seats',S.seats.join('+'),'oai',Math.round(S.st.tk.openai),'goog',Math.round(S.st.tk.google)]:[]),'grade',grade);}
+        if(g<3){const self=S.st.subFee+S.st.api;console.log(mode,company,'rv',g%3,'caught',S.st.caught,'cnBan',S.cnBan,'ds',Math.round(S.st.tk.deepseek),'ant',Math.round(S.st.tk.anthropic),'kpi',S.kpi,'done',S.st.done,'late',S.st.late,'trust',Math.round(S.trust),'self',Math.round(self),'corp',Math.round(S.st.corp),'conf',S.st.conflicts,'out',S.st.outDone+'/'+S.st.outLate,'outIncome',S.st.outIncome,...(LUNA?['oai',Math.round(S.st.tk.openai)]:[]),...(SEATS?['seats',S.seats.join('+'),'oai',Math.round(S.st.tk.openai),'goog',Math.round(S.st.tk.google)]:[]),'grade',grade);}
       }
     }
   }

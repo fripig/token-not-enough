@@ -919,7 +919,7 @@ function tests(){
   /* agent-catalog：模型數值表 */
   const MODELS=[
     ['anthropic','haiku',2,.12,.3,.5,.9],['anthropic','sonnet',4,.45,1,.8,1],['anthropic','opus',5,1.5,3,1,.85],
-    ['openai','mini',2,.1,.3,.5,1],['openai','std',4,.4,1,.8,1.05],['openai','high',5,.4,1,1.4,1.8],
+    ['openai','mini',3,.15,.3,.7,1],['openai','std',4,.4,1,.8,1.05],['openai','high',5,1.6,3,1,.95],
     ['google','flash',2,.06,.25,.4,1.1],['google','pro',4,.35,1,.9,1],
     ['deepseek','chat',3,.03,1,.7,1.15],['deepseek','reasoner',4,.06,1,1.2,1.5],
     ['zhipu','air',3,.04,.5,.6,1.1],['zhipu','glm',4,.1,1,.9,1.1],['moonshot','k2',4,.12,1,.9,1.2],
@@ -938,6 +938,11 @@ function tests(){
   /* 派工台選模型 */
   newRun('laravel'); S.hours=8; const tc=ticket('fe',2); S.issues=[tc]; sel.issue=tc.id; Object.assign(sel,{v:'openai',m:'std',b:'api'}); render();
   ok(/data-b="corp" disabled>公司 API<small>公司沒簽約/.test(els.app.innerHTML),'agent-catalog：OpenAI 不能走公司 API');
+  {const h=els.app.innerHTML, at=s=>h.indexOf(s), gpt=['<b>Luna</b><span>能力 ●●●○○</span>','<b>Sol</b><span>能力 ●●●●○</span>','<b>Astra</b><span>能力 ●●●●●</span>'];
+  ok(gpt.every(s=>at(s)>=0)&&at(gpt[0])<at(gpt[1])&&at(gpt[1])<at(gpt[2])&&!['<b>mini</b>','<b>標準</b>','<b>高推理</b>'].some(s=>h.includes(s)),'agent-catalog：Codex CLI 依序顯示 Luna、Sol、Astra（能力 3／4／5），沒有舊名稱');}
+  {const tg=ticket('laravel',2,{client:CLIENTS[3]}); S.issues=[tg]; sel.issue=tg.id; render(); const h=els.app.innerHTML;
+  ok(/data-v="openai" data-m="mini" ><b>Luna<\/b><span>能力 ●●●○○<\/span><span class="">\$0\.15\/k/.test(h)&&/data-v="deepseek" data-m="chat" disabled><b>Chat<\/b><span>能力 ●●●○○<\/span><span class="why">政府標案禁用/.test(h),'agent-catalog：政府標案可用 Luna（$0.15/k），DeepSeek Chat 停用');
+  S.issues=[tc]; sel.issue=tc.id; render();}
   ok(els.app.innerHTML.includes('價格、額度與模型能力都是遊戲平衡用的虛構數字，不代表各家實際方案。'),'agent-catalog：頁尾保留虛構數字聲明');
   ok(els.app.innerHTML.includes('<b>Gemma 27B</b><span>能力 ●●●○○</span><span class="">免費</span>')&&els.app.innerHTML.includes('免費・中國權重'),'agent-catalog：本地模型顯示免費、Qwen 標中國權重');
   ok(els.app.innerHTML.includes('派給 Codex CLI'),'agent-catalog：單線模式按鈕寫派給');
