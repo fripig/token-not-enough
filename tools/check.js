@@ -1194,7 +1194,8 @@ function tests(){
   }
   { newRun('laravel','parallel'); S.hours=8; const a=ticket('fe',2), b=ticket('fe',2), c=ticket('fe',2); S.issues=[a,b,c];
     S.jobs=[job(a,'anthropic','opus','corp',{left:.1,hrs:.1}),job(b,'anthropic','opus','corp',{left:.1,hrs:.1}),job(c,'anthropic','opus','corp',{left:5,hrs:5})];
-    advance(.1); const n=S.log.filter(l=>l.msg.includes('審 PR 花了 0.5h')).length; ok(n===2&&near(S.hours,8-.1-1),'game-modes：兩個同時做完、一個還在跑 → 各審 PR 0.5h（×1.25）',[n,S.hours]); }
+    /* 固定亂數：不讓合併衝突（每個還在跑的 agent 10%）把其中一張變成解決衝突工單 */
+    {const rr=Math.random; Math.random=()=>.99; advance(.1); Math.random=rr;} const n=S.log.filter(l=>l.msg.includes('審 PR 花了 0.5h')).length; ok(n===2&&near(S.hours,8-.1-1),'game-modes：兩個同時做完、一個還在跑 → 各審 PR 0.5h（×1.25）',[n,S.hours]); }
   newRun('laravel','parallel'); S.hours=8;
   const tr3=ticket('fe',4); S.issues=[tr3]; const h3=S.hours; S.jobs=[job(tr3,'anthropic','opus','corp',{ok:false,left:.1,hrs:.1})]; advance(.1); ok(near(S.hours,h3-.1),'game-modes：失敗不用審 PR');
   /* 過夜與中止 */
