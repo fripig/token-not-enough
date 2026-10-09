@@ -12,9 +12,9 @@ export function planPicker(adjust){
     const V=VENDORS[v];
     return `<div class="pv" style="--vc:${vc(v)}"><b>${V.name}・${V.agent}</b><div class="seg">${V.plans.map(p=>`<button class="sb ${draft.subs[v]===p.id?'sel':''}" data-pv="${v}" data-pp="${p.id}">${p.name}<small>${p.price?`${nt(p.price)}/月・每日 ${kt(p.day)}`:'只用 API'}</small></button>`).join('')}</div></div>`;
   }).join('');
-  const canSeat=!adjust||S.seat.status==='none'||S.seat.status==='rejected';
-  const seat=canSeat?`<div class="pv" style="--vc:var(--accent)"><b>向公司申請團隊席位（5 天後審核，信任需 55 以上）</b><div class="seg">
-    ${[['','不申請'],...SEAT.vendors.map(v=>[v,VENDORS[v].name])].map(([v,n])=>`<button class="sb ${draft.seat===v?'sel':''}" data-seat="${v}">${n}<small>${v?'公司付・每日 2.5M 額度':'自己想辦法'}</small></button>`).join('')}</div></div>`:'';
+  const canSeat=!S.seatReq&&S.seats.length<SEAT.vendors.length;
+  const seat=canSeat?`<div class="pv" style="--vc:var(--accent)"><b>向公司申請第 ${S.seats.length+1} 個團隊席位（5 天後審核，信任需 ${SEAT.trust[S.seats.length]} 以上）</b><div class="seg">
+    ${[['','不申請'],...SEAT.vendors.filter(v=>!S.seats.includes(v)).map(v=>[v,VENDORS[v].name])].map(([v,n])=>`<button class="sb ${draft.seat===v?'sel':''}" data-seat="${v}">${n}<small>${v?'公司付・每日 2.5M 額度':'自己想辦法'}</small></button>`).join('')}</div></div>`:'';
   const cost=planCost(adjust);
   return `${rows}${seat}<div class="sum"><span>這次要從個人錢包付</span><b class="num">${nt(cost)}</b><span>付完剩 <b class="num">${nt(S.wallet-cost)}</b></span></div>`;
 }
@@ -86,7 +86,7 @@ export function showSetup(adjust){
         S.mode=draft.mode; S.slots=draft.slots; S.advanced=draft.advanced; log('dim',`· ${companyName()}・遊戲模式：${PAR()?`平行（同時 ${S.slots} 個 agent）`:'單線'}${S.advanced?'・進階':''}`);
       }
       for(const v in draft.subs) if(draft.subs[v]!==S.subs[v]){ S.subs[v]=draft.subs[v]; }
-      if(draft.seat){S.seat={vendor:draft.seat,status:'pending',day:S.day};log('dim',`· 提出 ${VENDORS[draft.seat].name} 團隊席位採購申請`);}
+      if(draft.seat){S.seatReq={vendor:draft.seat,day:S.day};log('dim',`· 提出 ${VENDORS[draft.seat].name} 團隊席位採購申請`);}
       const names=SUBV.filter(v=>S.subs[v]!=='none').map(v=>`${VENDORS[v].name} ${planOf(v).name}`);
       log('dim',`· 訂閱：${names.join('、')||'無'}${c?`（付 ${nt(c)}）`:''}`);
       ov.hidden=true; render();

@@ -37,7 +37,7 @@ export function cnBlock(is,v,M){
   if(b==='all'&&M.cn) return '中國權重禁用';
   return '';
 }
-export const SEAT={day:2500,week:10000,name:'公司團隊席位',vendors:['anthropic','openai','google']};
+export const SEAT={day:2500,week:10000,name:'公司團隊席位',vendors:['anthropic','openai','google'],trust:[55,65,75]};
 export const BASE=[0,60,180,350,550,850];
 export const KPI=[0,3,6,10,16,24];
 /* 技術線：前四個是可選的公司（主技術線），fe 是每家公司都會有的前端工單 */

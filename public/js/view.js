@@ -28,8 +28,8 @@ export function render(){
     const u=S.used.sub[v], cm=S.capMod[v], dl=Math.max(0,p.day*cm-u.d), wl=Math.max(0,p.week*cm-u.w);
     qs+=qbox(`${VENDORS[v].name} ${p.name}`,S.outage===v?'今日當機':'個人訂閱',dl,p.day*cm,wl,p.week*cm);
   }
-  if(S.seat.status==='approved'){const u=S.used.seat[S.seat.vendor];qs+=qbox(`${VENDORS[S.seat.vendor].name} 團隊席位`,'公司付費',Math.max(0,SEAT.day-u.d),SEAT.day,Math.max(0,SEAT.week-u.w),SEAT.week);}
-  else if(S.seat.status==='pending') qs+=`<div class="q none">團隊席位採購審核中，預計第 ${S.seat.day+5} 天有結果</div>`;
+  for(const v of S.seats){const u=S.used.seat[v];qs+=qbox(`${VENDORS[v].name} 團隊席位`,'公司付費',Math.max(0,SEAT.day-u.d),SEAT.day,Math.max(0,SEAT.week-u.w),SEAT.week);}
+  if(S.seatReq) qs+=`<div class="q none">團隊席位採購審核中，預計第 ${S.seatReq.day+5} 天有結果</div>`;
   if(!qs) qs=`<div class="q none">目前沒有任何訂閱。只能用 API、公司預算或本地模型。</div>`;
 
   const jobsHtml=!PAR()?'':`<div class="ph" style="margin-top:6px"><h2>背景 agent</h2><span>${S.jobs.length} / ${S.slots} 個工作槽</span></div>
@@ -119,7 +119,7 @@ export function dispatchPanel(){
   const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m))||(sel.b==='local'&&localBusy());
   return `<div class="ph"><h2>派工台</h2><span>${is.title}</span></div>
   <div class="sec"><label>選 AGENT 與模型</label>${rows}</div>
-  <div class="sec"><label>誰付這筆 TOKEN</label><div class="seg">${segs}</div>${S.seat.status==='approved'&&S.seat.vendor!==sel.v?`<p class="hint">你有 ${VENDORS[S.seat.vendor].name} 團隊席位，選 ${VENDORS[S.seat.vendor].agent} 的模型才能用公司席位付款。</p>`:''}</div>
+  <div class="sec"><label>誰付這筆 TOKEN</label><div class="seg">${segs}</div>${S.seats.length&&!S.seats.includes(sel.v)?`<p class="hint">你有 ${S.seats.map(v=>VENDORS[v].name).join('、')} 團隊席位，選 ${S.seats.map(v=>VENDORS[v].agent).join('、')} 的模型才能用公司席位付款。</p>`:''}</div>
   <div class="sec"><label>自我審核</label><div class="seg">${REVIEW.map((r,i)=>`<button class="sb ${sel.rv===i?'sel':''}" data-rv="${i}">${r.name}<small>${i?`token ×${r.tk}・抓錯 ${Math.round(catchRate(i,M)*100)}%`:'改壞就整單重做'}</small></button>`).join('')}</div></div>
   ${S.advanced?`<div class="sec"><label>推理強度</label><div class="seg">${EFFORT.map((f,i)=>`<button class="sb ${sel.ef===i?'sel':''}" data-ef="${i}">${f.name}<small>${f.cap?`能力 ${f.cap>0?'+':'−'}${Math.abs(f.cap)}・token ×${f.tk}・時間 ×${f.hrs}`:'原本的模型'}</small></button>`).join('')}</div></div>`:''}
   <div class="sec"><label>派工方案</label><div class="seg">${S.presets.map((p,i)=>`<button class="sb" data-load="${i}">載入方案 ${PN[i]}<small>${model(p.v,p.m).name}${S.advanced&&p.ef!==1?`・${EFFORT[p.ef].name}強度`:''}・${BILL_LABEL[p.b]}・${REVIEW[p.rv].name}</small></button>`).join('')}</div>

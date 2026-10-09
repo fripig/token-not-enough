@@ -1,10 +1,4 @@
-# team-seats Specification
-
-## Purpose
-
-Lets the player ask the company to pay for a team seat with one vendor, trading a five-day procurement wait and a trust requirement for a company-paid daily and weekly quota that does not touch the personal wallet or the company API budget.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Seat request
 
@@ -29,22 +23,6 @@ The player SHALL be able to hold up to three team seats, at most one per seat ve
 
 - **WHEN** Anthropic, OpenAI and Google seats are all approved and the Monday adjustment modal opens
 - **THEN** the modal shows no seat request options
-
-
-<!-- @trace
-source: gh-06-01-multi-team-seats
-updated: 2026-10-09
-code:
-  - public/js/actions.js
-  - public/js/modals.js
-  - docs/DESIGN.md
-  - CLAUDE.md
-  - public/js/state.js
-  - public/js/view.js
-  - tools/check.js
-  - public/js/calc.js
-  - public/js/data.js
--->
 
 ---
 ### Requirement: Seat approval
@@ -90,22 +68,6 @@ On the first day at least five days after the request, a pending request SHALL b
 - **WHEN** a seat request is approved or rejected when day 6 starts and the player opens the day-6 Monday adjustment
 - **THEN** the modal offers a seat request
 
-
-<!-- @trace
-source: gh-06-01-multi-team-seats
-updated: 2026-10-09
-code:
-  - public/js/actions.js
-  - public/js/modals.js
-  - docs/DESIGN.md
-  - CLAUDE.md
-  - public/js/state.js
-  - public/js/view.js
-  - tools/check.js
-  - public/js/calc.js
-  - public/js/data.js
--->
-
 ---
 ### Requirement: Seat billing
 
@@ -130,18 +92,3 @@ Each approved seat SHALL add 公司席位 as a billing method for models of that
 
 - **WHEN** OpenAI and Google seats are approved and the player selects a Claude Code model
 - **THEN** the panel hints that Codex CLI and Gemini CLI models can use a seat
-
-<!-- @trace
-source: gh-06-01-multi-team-seats
-updated: 2026-10-09
-code:
-  - public/js/actions.js
-  - public/js/modals.js
-  - docs/DESIGN.md
-  - CLAUDE.md
-  - public/js/state.js
-  - public/js/view.js
-  - tools/check.js
-  - public/js/calc.js
-  - public/js/data.js
--->

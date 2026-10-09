@@ -1,4 +1,4 @@
-import {APIV,BASE,BILL_LABEL,COMPANIES,INVEST,KPI,MCP_REVEAL,MD_P,MD_TK,PN,R,SDD_P,SDD_TK,SDD_TRAP_STOP,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,pick,rnd} from './data.js';
+import {APIV,BASE,BILL_LABEL,COMPANIES,INVEST,KPI,MCP_REVEAL,MD_P,MD_TK,PN,R,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,pick,rnd} from './data.js';
 import {GIG_LATE,S,addGigs,hardStack,makeIssue,sel} from './state.js';
 import {REVIEW,STORE_REJECT,est,gigBlocked,localBusy,log,manualHrs,presetFor,quotaLeft,useQuota} from './calc.js';
 import {render} from './view.js';
@@ -257,9 +257,10 @@ export function endDay(){
   for(const k of ['sub','seat'])for(const v in S.used[k])S.used[k][v].d=0;
   const monday=(S.day-1)%5===0;
   if(monday)for(const k of ['sub','seat'])for(const v in S.used[k])S.used[k][v].w=0;
-  if(S.seat.status==='pending'&&S.day>=S.seat.day+5){
-    if(S.trust>=55){S.seat.status='approved';rep.push(`採購通過：公司幫你開了 ${VENDORS[S.seat.vendor].name} 團隊席位。`);log('ok',`★ ${VENDORS[S.seat.vendor].name} 團隊席位核准`);}
-    else{S.seat.status='rejected';rep.push('採購被退件：主管信任不夠（需要 55 以上）。');log('bad','✗ 團隊席位申請被退件');}
+  if(S.seatReq&&S.day>=S.seatReq.day+5){
+    const sv=S.seatReq.vendor, need=SEAT.trust[S.seats.length]; S.seatReq=null;
+    if(S.trust>=need){S.seats.push(sv);rep.push(`採購通過：公司幫你開了 ${VENDORS[sv].name} 團隊席位。`);log('ok',`★ ${VENDORS[sv].name} 團隊席位核准`);}
+    else{rep.push(`採購被退件：主管信任不夠（需要 ${need} 以上）。`);log('bad','✗ 團隊席位申請被退件');}
   }
   let ev=null; if(Math.random()<.55) ev=pick(EVENTS)();
   if(S.outage){const n=cancelJobs(j=>j.v===S.outage,'廠商當機，session 斷了');if(n)rep.push(`${n} 個跑在 ${VENDORS[S.outage].name} 的 agent 因為當機斷線。`);}

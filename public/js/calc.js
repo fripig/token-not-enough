@@ -51,7 +51,7 @@ export function bills(v,is){
   if(v==='local') return [{id:'local',label:'本地 GPU',note:'不花 token 錢，但很慢',ok:true}];
   const V=VENDORS[v], pl=planOf(v), out=[];
   out.push({id:'sub',label:'個人訂閱',note:pl.id==='none'?'沒有訂閱':`${pl.name}・剩 ${kt(quotaLeft('sub',v))}`,ok:pl.id!=='none'});
-  if(S.seat.status==='approved'&&S.seat.vendor===v) out.push({id:'seat',label:'公司席位',note:`剩 ${kt(quotaLeft('seat',v))}`,ok:true});
+  if(S.seats.includes(v)) out.push({id:'seat',label:'公司席位',note:`剩 ${kt(quotaLeft('seat',v))}`,ok:true});
   out.push({id:'api',label:'個人 API',note:'自己的信用卡',ok:true});
   out.push({id:'corp',label:'公司 API',note:!V.corp?'公司沒簽約':S.corp<=0?'預算用完':'走部門預算',ok:V.corp&&S.corp>0});
   return out.map(b=>gigBlocked(is,b.id)?{...b,note:GIG_NOTE,ok:false}:b);
@@ -68,7 +68,7 @@ export function presetBlock(is,p){
   if(S.outage===p.v) return '今日當機';
   const why=cnBlock(is,p.v,M); if(why) return why;
   if(gigBlocked(is,p.b)) return GIG_NOTE;
-  if(p.b==='seat'&&!(S.seat.status==='approved'&&S.seat.vendor===p.v)) return '沒有公司席位';
+  if(p.b==='seat'&&!S.seats.includes(p.v)) return '沒有公司席位';
   const bl=bills(p.v,is).find(b=>b.id===p.b); if(!bl) return '不能用這種付費方式'; if(!bl.ok) return bl.note;
   if(p.b==='local'&&PAR()&&localBusy()) return '本地 GPU 忙';
   const cl=costLine(p.b,M,p.v,est(is,p.v,p.m,p.rv,p.ef));
