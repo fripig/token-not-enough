@@ -1,5 +1,5 @@
 import {MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd} from './data.js';
-import {GIG_LATE,START,S,addGigs,hardStack,makeIssue,saveGame,sel,track,unfamiliar} from './state.js';
+import {GIG_LATE,START,S,addGigs,daySnap,hardStack,makeIssue,saveGame,sel,track,unfamiliar} from './state.js';
 import {REVIEW,est,gigBlocked,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetFor,quotaLeft,storeReject,useQuota} from './calc.js';
 import {render} from './view.js';
 import {showDay,showEnd} from './modals.js';
@@ -26,13 +26,16 @@ export const jobChoice=j=>({vendor:j.v,model:j.m??'unknown',bill:j.b,review:RV_I
 /* via：panel（派工按鈕）、quick（一鍵派工）、batch（批次派工）；preset 是方案字母 */
 export function dispatch(via='panel',preset='none'){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is||gigBlocked(is,sel.b)||hwBlock(model(sel.v,sel.m))) return;
-  const j=makeJob(is);
+  const pe=est(is,sel.v,sel.m).pe, j=makeJob(is);
   if(PAR()&&(S.jobs.length>=S.slots||(j.b==='local'&&localBusy()))) return;
   useHw(j.v,j.m);
   track('dispatch',{...jobChoice(j),via,preset,cx:is.cx,stack:is.stack,incident:!!is.inc,sensitive:!!is.sens,gig:!!is.out,merge:!!is.merge});
+  /* 復盤用：記下派工當下看到的條件（成功率是派工台顯示的，陷阱照顯示的複雜度） */
+  const tags=[`複雜度 ${is.cx}`,is.due<=S.day?'今天到期':`第 ${is.due} 天到期`,...(is.inc?['事故']:[]),...(is.sens?['機敏']:[]),...(is.out?['外包']:[])].join('・');
+  const how=via==='quick'?`一鍵派工方案 ${preset}`:via==='batch'?`批次派工方案 ${preset}`:'派工台';
+  log('dim',`→ 派出 ${is.title}（${tags}）｜${VENDORS[j.v].agent} / ${j.M.name}・${BILL_LABEL[j.b]}・${REVIEW[j.rv].name}｜成功率 ${Math.round(pe*100)}%｜${how}｜預計 ${h1(j.hrs)}h`);
   if(PAR()){
     j.left=j.hrs; is.running=true; S.jobs.push(j); sel.issue=null;
-    log('dim',`→ 派出 ${is.title}｜${VENDORS[j.v].agent} / ${j.M.name}｜預計 ${h1(j.hrs)}h`);
     advance(.2); render(); return;
   }
   let frac=1,note='';
@@ -125,7 +128,7 @@ export function settle(j,o={}){
   S.st.tk[v]+=tk; S.st.byBill[b]+=tk;
   const outcome=o.fail?'aborted':ch.short?'quota':conflict?'conflict':rejected?'rejected':ok?(fixed?'caught':'success'):j.stop?'trap_stop':'fail';
   track('job_result',{...jobChoice(j),cx:is.cx,stack:is.stack,gig:!!is.out,outcome,tokens:Math.round(tk),cost:Math.round(ch.cost||0),hours:Math.round(hrs*10)/10});
-  const who=`${VENDORS[v].agent} / ${M.name}`;
+  const who=`${VENDORS[v].agent} / ${M.name}・${BILL_LABEL[b]}`;
   if(ok){
     S.issues=S.issues.filter(i=>i!==is); const rw=reward(is);
     if(is.inc) S.trust=Math.min(100,S.trust+2);
@@ -148,8 +151,12 @@ export function settle(j,o={}){
   return {ok,hrs,rejected};
 }
 export function wait(next){
-  if(next){ if(!S.jobs.length) return; advance(Math.min(...S.jobs.map(j=>j.left))); }
-  else advance(1);
+  if(next&&!S.jobs.length) return;
+  const n0=S.log.length, el=START.hours-S.hours;
+  advance(next?Math.min(...S.jobs.map(j=>j.left)):1);
+  /* 等待那行照實際經過的時間（含期間審 PR）寫，排在等待期間產生的紀錄之前 */
+  const dt=START.hours-S.hours-el;
+  if(dt>1e-9){ log('dim',`· ${next?'等到下一個 agent 完成':'等待'} ${h1(dt)}h（${clock(el)}→${clock(el+dt)}）`); S.log.splice(S.log.length-n0-1,0,S.log.shift()); }
   render();
 }
 export function manual(){
@@ -182,10 +189,11 @@ export function evaluate(){
   const ch=charge(sel.b,sel.v,M,tk), used=tk*ch.frac; useHw(sel.v,sel.m);
   S.st.tk[sel.v]+=used; S.st.byBill[sel.b]+=used;
   const evt=outcome=>track('evaluate',{vendor:sel.v,model:sel.m,bill:sel.b,cx,stack:is.stack,gig:!!is.out,outcome});
-  if(ch.short){ evt('quota'); log('bad',`✗ ${is.title}｜評估｜額度不夠，評估沒做完｜${ch.spend}`); render(); return; }
+  const ew=`評估｜${VENDORS[sel.v].agent} / ${M.name}・${BILL_LABEL[sel.b]}`;
+  if(ch.short){ evt('quota'); log('bad',`✗ ${is.title}｜${ew}｜額度不夠，評估沒做完｜${ch.spend}`); render(); return; }
   is.evaluated=true;
-  if(is.trap&&Math.random()<revealRate(M)){ reveal(is); evt('found'); S.st.trapFound++; log('ok',`★ ${is.title}｜評估發現牽扯架構：原估複雜度 ${is.shownCx}，實際 ${is.cx}｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
-  else{ evt('clear'); log('dim',`· ${is.title}｜評估完成，看起來沒問題｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
+  if(is.trap&&Math.random()<revealRate(M)){ reveal(is); evt('found'); S.st.trapFound++; log('ok',`★ ${is.title}｜${ew}｜發現牽扯架構：原估複雜度 ${is.shownCx}，實際 ${is.cx}｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
+  else{ evt('clear'); log('dim',`· ${is.title}｜${ew}｜評估完成，看起來沒問題｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
   auditRoll(is,sel.b,sel.v); checkOverdraft();
   render();
 }
@@ -294,6 +302,13 @@ export function intakeIssue(){
   return makeIssue(false);
 }
 
+/* 下班總結：KPI、信任、錢包、公司預算的當天變化（目前值）；沒有變化寫 ±0 */
+export function daySummary(){
+  const b=S.dayStart||daySnap(), sg=d=>d>0?'+':d<0?'-':'±';
+  const n=(k,lab)=>{const d=Math.round(S[k]-b[k]);return `${lab} ${sg(d)}${Math.abs(d)}（${Math.round(S[k])}）`;};
+  const m=(k,lab)=>{const d=Math.round(S[k]-b[k]);return `${lab} ${sg(d)}${nt(Math.abs(d))}（${nt(S[k])}）`;};
+  return `═ 第 ${S.day} 天下班｜${n('kpi','KPI')}｜${n('trust','信任')}｜${m('wallet','錢包')}｜${m('corp','公司')}`;
+}
 export function endDay(){
   const rep=[];
   if(PAR()&&S.jobs.length) advance(S.hours);
@@ -304,15 +319,17 @@ export function endDay(){
   gigLate.forEach(i=>{const pen=Math.round(i.pay*GIG_LATE);S.wallet-=pen;S.st.outPenalty+=pen;S.st.outLate++;log('bad',`⌛ 外包逾期：${i.title}｜違約金 ${nt(pen)}`);});
   if(gigLate.length) rep.push(`${gigLate.length} 張外包單逾期，賠了 ${nt(gigLate.reduce((a,i)=>a+Math.round(i.pay*GIG_LATE),0))} 違約金。`);
   const late=S.issues.filter(i=>!i.out&&i.due<=S.day);
-  late.forEach(i=>{const pen=Math.ceil(i.kpi*LATE_KPI);S.kpi-=pen;S.st.kpiLost+=pen;S.trust=Math.max(0,S.trust-(i.inc?(S.inv.monitor?MONITOR_LATE:INC_LATE_TRUST):LATE_TRUST));S.st.late++;log('bad',`⌛ 逾期：${i.title}｜KPI -${pen}`);});
+  let lateTrust=0;
+  late.forEach(i=>{const pen=Math.ceil(i.kpi*LATE_KPI), t=i.inc?(S.inv.monitor?MONITOR_LATE:INC_LATE_TRUST):LATE_TRUST;S.kpi-=pen;S.st.kpiLost+=pen;S.trust=Math.max(0,S.trust-t);lateTrust+=t;S.st.late++;log('bad',`⌛ 逾期：${i.title}｜KPI -${pen}｜信任 -${t}`);});
   S.issues=S.issues.filter(i=>i.due>S.day);
-  if(late.length) rep.push(`${late.length} 張工單逾期，主管信任下降。`);
+  if(late.length) rep.push(`${late.length} 張工單逾期，主管信任 -${lateTrust}。`);
   if(S.corpDay>CORP_DAY_LIMIT){S.trust=Math.max(0,S.trust-CORP_DAY_TRUST);rep.push(`今天公司 API 刷了 ${nt(S.corpDay)}，主管在 Slack 問你在幹嘛（信任 -${CORP_DAY_TRUST}）。`);log('warn',`! 公司單日花費 ${nt(S.corpDay)} 太高，信任 -${CORP_DAY_TRUST}`);}
   /* 買了電腦沒用：每台每天信任 -2 */
   const idle=HW_KEYS.filter(k=>S.hw[k]&&!S.hwUsed[k]);
   if(idle.length){const n=HW_IDLE*idle.length;S.trust=Math.max(0,S.trust-n);const msg=`電腦閒置：${idle.map(k=>HW[k].name).join('、')} 今天沒用到，主管覺得白買了（信任 -${n}）。`;rep.push(msg);log('warn',`! ${msg}`);}
+  log('dim',daySummary());
   if(S.day>=20){render();return showEnd();}
-  S.day++; S.hours=START.hours; S.corpDay=0; S.outage=null;
+  S.day++; S.hours=START.hours; S.corpDay=0; S.outage=null; S.dayStart=daySnap();
   for(const k of ['sub','seat'])for(const v in S.used[k])S.used[k][v].d=0;
   const monday=(S.day-1)%5===0;
   if(monday)for(const k of ['sub','seat'])for(const v in S.used[k])S.used[k][v].w=0;
@@ -328,11 +345,12 @@ export function endDay(){
     else{rep.push(`採購被退件：主管信任不夠（需要 ${H.trust} 以上）。`);log('bad',`✗ ${H.name} 採購申請被退件`);}
   }
   let ev=null; if(Math.random()<EVENT_RATE) ev=pick(EVENTS)();
+  if(ev) log('dim',`◆ ${ev[0]}｜${ev[1]}`);
   if(S.outage){const n=cancelJobs(j=>j.v===S.outage,'廠商當機，session 斷了');if(n)rep.push(`${n} 個跑在 ${VENDORS[S.outage].name} 的 agent 因為當機斷線。`);}
   if(S.jobs.length){ S.jobs.forEach(j=>j.left=Math.max(.05,j.left-OVERNIGHT_HRS)); rep.push(`${S.jobs.length} 個 agent 跑了一整晚，一早會陸續有結果。`); }
   const n=PAR()?3+rnd(4):2+rnd(3); for(let i=0;i<n;i++)S.issues.push(intakeIssue());
   const g=addGigs();
-  log('dim',`— 第 ${S.day} 天開工，新進 ${n} 張工單${g?`，外包 ${g} 張`:''} —`);
+  log('dim',`— 第 ${S.day} 天開工${monday?'・新的一週，每週額度重置':''}，新進 ${n} 張工單${g?`，外包 ${g} 張`:''} —`);
   sel.issue=null;
   track('day_reached');
   saveGame({rep,ev,monday});

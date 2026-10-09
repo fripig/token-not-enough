@@ -1,5 +1,5 @@
 import {COMPANIES,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
-import {S,addGigs,clearSave,loadGame,saveGame,track} from './state.js';
+import {S,addGigs,clearSave,daySnap,loadGame,saveGame,track} from './state.js';
 import {log} from './calc.js';
 import {PAR,REVIEW_LOAD,SLOT_CHOICES,invCount} from './actions.js';
 import {app,mo,ov,render} from './view.js';
@@ -101,7 +101,7 @@ export function showSetup(adjust){
       if(draft.seat){S.seatReq={vendor:draft.seat,day:S.day};log('dim',`· 提出 ${VENDORS[draft.seat].name} 團隊席位採購申請`);}
       const names=SUBV.filter(v=>S.subs[v]!=='none').map(v=>`${VENDORS[v].name} ${planOf(v).name}`);
       log('dim',`· 訂閱：${names.join('、')||'無'}${c?`（付 ${nt(c)}）`:''}`);
-      if(!adjust) saveGame();
+      if(!adjust){ S.dayStart=daySnap(); saveGame(); }
       ov.hidden=true; render();
     }
   };
