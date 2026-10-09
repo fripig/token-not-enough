@@ -1,28 +1,25 @@
 // 平衡模擬器（非遊戲本體）
-// 用法：node tools/sim.js [public/js/game.js | 單檔 .html]
-// 讀入遊戲腳本，用假的 DOM 跑自動玩家：兩種模式 × 四家公司 × 三種審核等級各跑 N 個月（預設 100，可用 SIM_N 調整），
+// 用法：node tools/sim.js
+// 載入遊戲模組，用假的 DOM 跑自動玩家：兩種模式 × 四家公司 × 三種審核等級各跑 N 個月（預設 100，可用 SIM_N 調整），
 // 印出抽樣結果，最後每個模式 × 公司印一行平均分、對照同模式 Laravel 的差距與評等分布。
 // SIM_TRAP=<比例> 可覆寫陷阱題比例（例如 SIM_TRAP=0 關掉陷阱）；SIM_SLOTS=2..6 指定平行模式工作槽數。
 // SIM_INVEST=1 讓自動玩家做工程投資：每天開工時依序買 CLAUDE.md（每條主技術線）、補測試、導入 SDD 裡下一項付得起的。
 // SIM_COMBOS=1 改跑六種雙選組合（另跑單選 Laravel 當對照）。
 // SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
-const el=()=>({innerHTML:'',hidden:true,addEventListener(){},querySelector(){return null},onclick:null});
-const els={app:el(),ov:el(),mo:el()};
-global.document={getElementById:id=>els[id]};
-global.localStorage={getItem(){return null},setItem(){}};
-const file=process.argv[2]||require('path').join(__dirname,'..','public','js','game.js');
-const raw=require('fs').readFileSync(file,'utf8');
-let src=file.endsWith('.html')?raw.match(/<script>([\s\S]*)<\/script>/)[1]:raw;
-// SIM_TRAP=0 關掉陷阱題，用來和有陷阱時比較
+import {els} from './fake-dom.js';
+import './seed.js';
+// 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
+import {firstIssues,start} from '../public/js/main.js';
+import {COMPANIES,cnBlock,model} from '../public/js/data.js';
+import {S,sel,setTrapRate} from '../public/js/state.js';
+import {quotaLeft} from '../public/js/calc.js';
+import {PAR,dispatch,endDay,invest,wait} from '../public/js/actions.js';
+import {dispatchPanel} from '../public/js/view.js';
+// 自動玩家不記最高分（和改成模組前一樣）
+globalThis.localStorage={getItem(){return null},setItem(){}};
+
 const TRAP=process.env.SIM_TRAP===undefined?undefined:Number(process.env.SIM_TRAP);
 if(TRAP!==undefined&&(process.env.SIM_TRAP.trim()===''||!Number.isFinite(TRAP))){ console.error(`SIM_TRAP 必須是數字，收到「${process.env.SIM_TRAP}」`); process.exit(1); }
-if(process.env.SIM_SEED!==undefined){
-  const seed=Number(process.env.SIM_SEED);
-  if(process.env.SIM_SEED.trim()===''||!Number.isInteger(seed)){ console.error(`SIM_SEED 必須是整數，收到「${process.env.SIM_SEED}」`); process.exit(1); }
-  // mulberry32
-  let t=seed>>>0;
-  Math.random=()=>{t=(t+0x6D2B79F5)>>>0;let r=Math.imul(t^(t>>>15),1|t);r=(r+Math.imul(r^(r>>>7),61|r))^r;return((r^(r>>>14))>>>0)/4294967296;};
-}
 const N=+process.env.SIM_N||100;
 const INV=process.env.SIM_INVEST==='1';
 const COMBOS=process.env.SIM_COMBOS==='1';
@@ -76,4 +73,4 @@ function sim(){
   }
 }
 
-eval(src+'\n;('+sim.toString()+')();');
+sim();

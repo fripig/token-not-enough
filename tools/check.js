@@ -1,13 +1,15 @@
 // 規則檢查（非遊戲本體）
-// 用法：node tools/check.js [public/js/game.js]
-// 用假的 DOM 載入遊戲腳本，把 spec 裡的範例數字逐條斷言；任何一條不符就以非 0 結束。
-const el=()=>({innerHTML:'',hidden:true,addEventListener(){},querySelector(){return null},setAttribute(){},onclick:null});
-const els={app:el(),ov:el(),mo:el()};
-global.document={getElementById:id=>els[id]};
-let store={};
-global.localStorage={getItem:k=>k in store?store[k]:null,setItem:(k,v)=>{store[k]=String(v);}};
-const file=process.argv[2]||require('path').join(__dirname,'..','public','js','game.js');
-const src=require('fs').readFileSync(file,'utf8');
+// 用法：node tools/check.js
+// 用假的 DOM 載入遊戲模組，把 spec 裡的範例數字逐條斷言；任何一條不符就以非 0 結束。
+import {els,store,resetStore} from './fake-dom.js';
+// 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
+import {start} from '../public/js/main.js';
+import {BASE,CLIENTS,COMPANIES,DEFAULT_PRESETS,KPI,SEAT,STACKS,VENDORS,bestKey,cnBlock,h1,kt,model,presetsOf,rnd} from '../public/js/data.js';
+import {S,fresh,makeIssue,nextId,pickStack,sel,unfamiliar} from '../public/js/state.js';
+import {catchRate,est,manualHrs,presetBlock,presetFor,quotaLeft,stackHint} from '../public/js/calc.js';
+import {advance,conflictRate,batch,canEvaluate,charge,dispatch,endDay,evalCost,evaluate,invCount,invest,loadPreset,makeJob,manual,parMul,quick,rescope,reveal,revealRate,savePreset,settle,trueView} from '../public/js/actions.js';
+import {dispatchPanel,render} from '../public/js/view.js';
+import {showEnd,showSetup} from '../public/js/modals.js';
 
 let pass=0,fail=0;
 function ok(cond,name,detail=''){if(cond){pass++;}else{fail++;console.log('✗',name,detail);}}
@@ -129,7 +131,7 @@ function tests(){
   ok(r.ok,'上架審核通過時正常完成');
 
   /* 3.3 最高分 key */
-  const endWith=(company,mode,seed)=>{newRun(company,mode);store={...seed};S.day=20;showEnd();return els.mo.innerHTML;};
+  const endWith=(company,mode,seed)=>{newRun(company,mode);resetStore(seed);S.day=20;showEnd();return els.mo.innerHTML;};
   let html=endWith('laravel','parallel',{'tokgame-best-parallel':'4200'});
   ok(html.includes('4,200'),'Laravel 沿用舊 key 的最高分（spec：4200 → 4,200）');
   ok(html.includes('月底結算・Laravel 新聞站'),'結算標題有公司名稱');
@@ -396,10 +398,9 @@ function tests(){
   newRun('laravel','parallel'); S.inv.tests=true;
   ok(near(catchRate(1,model('anthropic','sonnet')),.87)&&catchRate(0,model('anthropic','sonnet'))===0,'補測試：Sonnet 自審抓錯率 0.77 → 0.87，不審核仍是 0');
   ok(near(catchRate(2,model('anthropic','opus')),.95),'抓錯率上限 0.95');
-  const realSettle=settle; let seen=null; settle=(j,o)=>{seen=o.conflict;return {ok:false,hrs:0};};
   const mk=left=>({v:'anthropic',b:'api',M:model('anthropic','sonnet'),issue:ticket('fe',1),left,hrs:5});
-  S.hours=8; S.jobs=[mk(.1),mk(5),mk(5)]; advance(.2); settle=realSettle;
-  ok(near(seen,.1),'補測試：另外 2 個在跑時合併衝突 0.2 → 0.1',seen);
+  S.jobs=[mk(5),mk(5)]; const seen=conflictRate(); S.inv.tests=false; const plain=conflictRate(); S.inv.tests=true; S.jobs=[];
+  ok(near(seen,.1)&&near(plain,.2),'補測試：另外 2 個在跑時合併衝突 0.2 → 0.1',`${plain} → ${seen}`);
 
   /* 合併衝突留下「解決衝突」工單 */
   {
@@ -525,7 +526,7 @@ function tests(){
   ok(h1(manualHrs(ticket('app',2)))==='8.8'&&unfamiliar(ticket('app',2)),'laravel+rust：app 不熟，手寫 8.8h');
 
   /* 公司名稱與最高分 key */
-  const endPair=(cs,seed)=>{newRun(cs,'parallel');store={...seed};S.day=20;S.kpi=900;showEnd();return els.mo.innerHTML;};
+  const endPair=(cs,seed)=>{newRun(cs,'parallel');resetStore(seed);S.day=20;S.kpi=900;showEnd();return els.mo.innerHTML;};
   let h2=endPair(['laravel','app'],{'tokgame-best-parallel':'999999'});
   ok(h2.includes('月底結算・Laravel 新聞站＋App 團隊・'),'結算標題顯示 Laravel 新聞站＋App 團隊');
   ok('tokgame-best-parallel-laravel+app' in store&&!h2.includes('999,999'),'雙選寫入 tokgame-best-parallel-laravel+app，不讀舊 key');
@@ -544,4 +545,4 @@ function tests(){
   if(fail) process.exitCode=1;
 }
 
-eval(src+'\n;('+tests.toString()+')();');
+tests();

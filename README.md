@@ -17,7 +17,7 @@
 
 ## 本機執行
 
-純靜態網頁，沒有建置步驟：
+純靜態網頁，沒有建置步驟。遊戲用原生 ES modules 載入，瀏覽器不允許從 `file://` 載入模組，所以要透過本機伺服器開，不能直接雙擊 `index.html`：
 
 ```sh
 npx serve public
@@ -29,7 +29,7 @@ python3 -m http.server -d public 8000
 
 ```sh
 node tools/check.js   # 把 spec 範例數字逐條斷言
-node tools/sim.js     # 兩種模式 × 四家公司 × 三種審核等級各跑 100 個月（SIM_N 可調，SIM_TRAP=0 關掉陷阱題，SIM_SLOTS=2..6 指定工作槽數）
+node tools/sim.js     # 兩種模式 × 四家公司 × 三種審核等級各跑 100 個月（SIM_N 可調，SIM_TRAP=0 關掉陷阱題，SIM_SLOTS=2..6 指定工作槽數，SIM_SEED=<整數> 固定亂數讓輸出可重現）
 ```
 
 改數值後兩支都跑一次，確認不會壞、各公司沒有明顯失衡。
@@ -45,9 +45,17 @@ node tools/sim.js     # 兩種模式 × 四家公司 × 三種審核等級各跑
 public/
   index.html     # 頁面骨架
   css/style.css  # 樣式（含深色模式）
-  js/game.js     # 遊戲資料、規則與畫面
+  js/main.js     # 入口：事件委派、開局
+  js/data.js     # 廠商、案主、技術線、方案、投資等資料與工具函式
+  js/state.js    # 遊戲狀態與工單產生
+  js/calc.js     # 成功率、帳單、額度等計算
+  js/actions.js  # 派工、結算、評估、投資、每日事件
+  js/view.js     # 畫面重繪
+  js/modals.js   # 開局、每日、月底彈窗
 tools/sim.js     # 平衡模擬器
 tools/check.js   # 規則檢查
+tools/fake-dom.js # 工具共用的假 DOM
+tools/seed.js    # SIM_SEED 固定亂數
 docs/CLAUDE.md   # 開發交接文件（需求來源、規則數值、程式碼地圖）
 .github/workflows/pages.yml
 ```
