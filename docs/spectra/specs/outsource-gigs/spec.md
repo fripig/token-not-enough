@@ -46,7 +46,7 @@ code:
 ---
 ### Requirement: Outsourced ticket generation
 
-With outsourcing on, day 1 and every following day SHALL add 0, 1 or 2 outsourced tickets (uniformly) in addition to the company tickets; with outsourcing off no outsourced tickets SHALL appear. An outsourced ticket's stack SHALL be one of laravel, rails, rust, app, fe chosen uniformly, and its title SHALL come from that stack's pool following the existing trap-title rule. Outsourced tickets SHALL NOT be incidents and SHALL NOT be sensitive. They SHALL follow the existing rules for complexity, traps, due dates, Rust/App compensation, store review, unfamiliar stacks and manual hours. Their client SHALL be 外包案主 with no ban, and the company-wide China cloud ban SHALL NOT apply to them. Outsourced ticket cards SHALL show an 外包 chip and the pay as NT$<pay> instead of the KPI value, and SHALL NOT show the 禁中國雲端 chip after the company-wide ban. Engineering investments SHALL apply to outsourced tickets exactly as to company tickets.
+With outsourcing on, day 1 and every following day SHALL add 0, 1 or 2 outsourced tickets (uniformly) in addition to the company tickets; with outsourcing off no outsourced tickets SHALL appear. An outsourced ticket's stack SHALL be one of laravel, rails, rust, app, sre, devops, fe chosen uniformly, and its title SHALL come from that stack's pool following the existing trap-title rule. Outsourced tickets SHALL NOT be incidents and SHALL NOT be sensitive. They SHALL follow the existing rules for complexity, traps, due dates, Rust/App/DevOps compensation, store review, unfamiliar stacks and manual hours. Their client SHALL be 外包案主 with no ban, and the company-wide China cloud ban SHALL NOT apply to them. Outsourced ticket cards SHALL show an 外包 chip and the pay as NT$<pay> instead of the KPI value, and SHALL NOT show the 禁中國雲端 chip after the company-wide ban. Engineering investments SHALL apply to outsourced tickets exactly as to company tickets.
 
 #### Scenario: Daily gigs
 
@@ -56,7 +56,7 @@ With outsourcing on, day 1 and every following day SHALL add 0, 1 or 2 outsource
 #### Scenario: Stack spread
 
 - **WHEN** 5,000 outsourced tickets are generated in a Laravel-only run
-- **THEN** each of laravel, rails, rust, app and fe appears about 20% of the time, none is an incident or sensitive, and the rust ones show the 不熟 chip
+- **THEN** each of laravel, rails, rust, app, sre, devops and fe appears about 14.3% of the time, none is an incident or sensitive, and the rust, sre and devops ones show the 不熟 chip
 
 #### Scenario: China ban exemption
 
@@ -70,20 +70,14 @@ With outsourcing on, day 1 and every following day SHALL add 0, 1 or 2 outsource
 
 
 <!-- @trace
-source: outsource-gigs
-updated: 2026-10-09
+source: gh-18-01-work-roles-sre-devops
+updated: 2026-10-10
 code:
-  - public/js/state.js
-  - public/css/style.css
   - public/js/data.js
-  - public/js/modals.js
-  - tools/check.js
-  - docs/DESIGN.md
-  - tools/sim.js
-  - public/js/main.js
-  - public/js/actions.js
   - public/js/calc.js
-  - public/js/view.js
+  - public/js/actions.js
+  - public/js/state.js
+  - public/js/modals.js
 -->
 
 ---
