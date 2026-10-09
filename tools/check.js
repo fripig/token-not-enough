@@ -521,7 +521,7 @@ function tests(){
     ok(q.kpi===Math.round(KPI[4]*1.6*(hardStack('laravel')?1.3:1))&&m5.kpi===Math.round(KPI[4]*1.2),'有監控：之後的事故單 KPI 加成 ×1.6 → ×1.2',`${q.kpi} ${m5.kpi}`);
     ok(m5.due===6&&m20.due===20&&q.due===5,'有監控：第 5 天的事故單第 6 天到期、第 20 天仍是 20，已在佇列的不變',`${m5.due} ${m20.due}`);
     const spike=EVENTS.find(f=>String(f).includes('流量暴增'));
-    newRun('laravel'); S.issues=[]; let txt=spike(); ok(txt[1].includes('今天下班前'),'沒有監控：流量暴增寫今天');
+    newRun('laravel'); S.day=6; S.issues=[]; let txt=spike(); ok(txt[1].includes('今天下班前'),'沒有監控：流量暴增寫今天');
     S.inv.monitor=true; S.issues=[]; txt=spike(); ok(txt[1].includes('明天下班前')&&S.issues.every(i=>i.due===S.day+1),'有監控：流量暴增寫明天、事故單隔天到期');
     const lateInc=withMon=>{newRun('laravel'); S.hours=0; S.trust=70; S.inv.monitor=withMon; S.issues=[ticket('laravel',4,{inc:true,due:S.day})];
       Math.random=()=>.99; endDay(); Math.random=realRand; return 70-S.trust;};
@@ -1036,13 +1036,19 @@ function tests(){
   /* 每日進件 */
   start(); ok(S.issues.length===4&&S.issues.every(i=>!i.inc),'ticket-lifecycle：第 1 天 4 張、沒有事故單');
   const intake=mode=>{const ns=[]; let tot=0, incN=0; newRun('laravel',mode);
-    for(let i=0;i<600;i++){S.day=2; S.issues=[]; S.jobs=[]; S.cnBan=false; endDay(); const n=+S.log[0].msg.match(/新進 (\d+) 張工單/)[1]; ns.push(n);
+    for(let i=0;i<600;i++){S.day=4; S.issues=[]; S.jobs=[]; S.cnBan=false; endDay(); const n=+S.log[0].msg.match(/新進 (\d+) 張工單/)[1]; ns.push(n);
       if(!els.mo.innerHTML.includes('class="evt"')){tot+=S.issues.length; incN+=S.issues.filter(x=>x.inc).length;}}
     return {min:Math.min(...ns),max:Math.max(...ns),inc:incN/tot};};
   const ip=intake('parallel'), is_=intake('serial');
   ok(ip.min===3&&ip.max===6&&is_.min===2&&is_.max===4,'ticket-lifecycle：平行每天 3–6 張、單線 2–4 張',JSON.stringify([ip,is_]));
   ok(Math.abs(ip.inc-.12)<=.03&&Math.abs(is_.inc-.12)<=.03,'ticket-lifecycle：新進工單 12% 是事故',[ip.inc,is_.inc].join());
-  ok(/— 第 3 天開工，新進 \d+ 張工單 —/.test(S.log[0].msg),'ticket-lifecycle：開工紀錄');
+  ok(/— 第 5 天開工，新進 \d+ 張工單 —/.test(S.log[0].msg),'ticket-lifecycle：開工紀錄');
+  /* 第一週事故單逐日遞增 */
+  for(const [day,r] of [[2,.03],[3,.06],[4,.09],[5,.12],[12,.12],[20,.12]]) ok(near(A.incRate(day),r),`ticket-lifecycle：第 ${day} 天事故機率 ${r}`,A.incRate(day));
+  {let tot=0, incN=0; newRun('laravel','parallel');
+    while(tot<10000){S.day=1; S.issues=[]; S.jobs=[]; S.cnBan=false; endDay();
+      if(!els.mo.innerHTML.includes('class="evt"')){tot+=S.issues.length; incN+=S.issues.filter(x=>x.inc).length;}}
+    ok(Math.abs(incN/tot-.03)<=.01,'ticket-lifecycle：第 2 天進件 3% 是事故',incN/tot);}
   /* 佇列排序 */
   newRun('laravel'); const qa=ticket('fe',1,{due:3,kpi:6}), qb=ticket('fe',1,{due:2,kpi:3}), qc=ticket('fe',1,{due:3,kpi:10});
   ok([qa,qb,qc].sort(A.queueOrder).map(i=>i.kpi).join()==='3,10,6','ticket-lifecycle：佇列依期限再依 KPI 排序');
@@ -1229,6 +1235,10 @@ function tests(){
   S.day=7; ev=EVENTS[2](); ok(ev[0]==='主管在週會上提醒'&&!S.cnBan,'random-events：第 8 天前不會禁中國雲端');
   S.day=8; ev=EVENTS[2](); ok(ev[0]==='主管宣布：全公司暫停把程式碼送到中國雲端模型'&&S.cnBan,'random-events：第 8 天起可能禁中國雲端');
   ev=EVENTS[2](); ok(ev[0]==='主管在週會上提醒'&&S.cnBan,'random-events：已經禁了就只是提醒');
+  {const spike=EVENTS.find(f=>String(f).includes('流量暴增'));
+    newRun('laravel'); S.day=5; S.issues=[ticket('fe',1),ticket('fe',2),ticket('fe',3)]; let sp=spike();
+    ok(sp[0]==='新聞流量比平常高一點'&&S.issues.length===3,'random-events：第 6 天前流量暴增沒有效果',sp[0]);
+    S.day=6; sp=spike(); ok(sp[0]==='大新聞爆發，流量暴增'&&S.issues.length===5&&S.issues.slice(3).every(i=>i.inc),'random-events：第 6 天起流量暴增加兩張事故單',sp[0]);}
   S.corp=10000; ev=EVENTS[3](); ok(ev[0]==='年度預算凍結'&&near(S.corp,7000),'random-events：預算凍結 -30%');
   S.subs.anthropic='pro'; S.used.sub.anthropic={d:0,w:0}; ev=withRand(0,EVENTS[4]); ok(ev[0]==='Anthropic 調整訂閱用量政策'&&near(S.capMod.anthropic,.8)&&near(quotaLeft('sub','anthropic'),360),'random-events：訂閱額度縮水 20%');
   S.issues=[]; ev=EVENTS[5](); ok(ev[0]==='大新聞爆發，流量暴增'&&S.issues.length===2&&S.issues.every(i=>i.inc),'random-events：流量暴增進兩張事故單');

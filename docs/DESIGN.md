@@ -54,6 +54,8 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
    → 每天開工時自動存一格，開頁問要不要繼續。使用者選了開工時存（允許重骰當天）、只存一格、結構版本不同就丟、讀檔的局照常記最高分。設計紀錄在 Spectra change `gh-11-01-save-game`。
 17. 「平行模式 不同工作間會加成其實不大合理」
    → 見第 3 條：拿掉平行 token 加成，改成審 PR 的切換成本。使用者在「改成審 PR 切換成本／同廠商共用速率限制／直接拿掉」裡選了第一個。
+18. 「目前很常遇到還沒準備好就突然出現緊急任務 花了資源下去以後還是失敗 而且還沒時間重試就被扣信任了」、「降低第一週的出現機率 理論上有做足夠的事前準備應該會比較能接受一點」
+   → 事故單機率第 1 週逐日遞增，流量暴增事件第 6 天起才生效，少掉的不在後面補回（三項都是使用者從選項裡選的）。設計紀錄在 Spectra change `gh-13-01-incident-ramp-up`（#13）。
 
 介面文字一律繁體中文（台灣用語）。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
@@ -105,6 +107,9 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
 - 複雜度 1–5，越後期越難；`BASE[cx]` 為基準 token，`KPI[cx]` 為獎勵。
 - 屬性：技術線 `stack`、事故（當天到期、KPI ×1.6）、機敏、大型 codebase、案主、到期日、上架審核 `store`。
 - 逾期：扣 KPI 一半、信任 −4（事故 −8，有監控告警時 −4）。
+- 每日進件：第 1 天 4 張一般工單；之後每張新工單是事故單的機率 `incRate(day) = min(INC_RATE, INC_RAMP × (day − 1))`（`INC_RATE = 0.12`、`INC_RAMP = 0.03`），也就是第 2 天 3%、第 3 天 6%、第 4 天 9%，第 5 天起 12%。讓玩家第一週有時間存預算、買監控告警；少掉的事故單不在後面補回。
+
+  實測（2026-10-09，`SIM_N=100`，每格 300 局，跑兩次；改動前一律 12%、流量暴增不限天數）：平行 Laravel 8,376／8,289 → 8,417／8,150（−0.6%）、Rails −0.9%、Rust +0.1%、App −0.2%，都在雜訊內；單線 Laravel 2,720／2,830 → 2,930／2,934（+5.7%）、Rails +3.2%、Rust +9.0%、App +3.3%。不設目標、沒有調數值，照實記錄。
 
 ### 公司與技術線（`STACKS`、`COMPANIES`、`pickStack`）
 - 開局在 `showSetup` 選 1–2 家公司（主技術線），存在 `S.companies`，固定照 laravel、rails、rust、app 的順序（`normCompanies`；跨 `fresh()` 保留；舊版存的單一字串視為只選一條；不合法退回 `['laravel']`）。選滿兩條時其他按鈕停用，最後一條不能取消（`toggleCompany`）。週一調整訂閱時不能換公司。開局換選擇會用 `firstIssues()` 重抽第 1 天的工單。公司名稱用 `companyName()` 以「＋」串起來（標頭、開局說明、紀錄、結算標題）。
@@ -313,7 +318,7 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
 - 畫面顯示的成功率是 `pe = p + (1-p) × c`，並附原始機率。
 
 ### 隨機事件（`EVENTS`，每天 55% 機率抽一個）
-API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度縮水 20%、流量暴增（兩張事故單）、主管稱讚或質疑、外包尾款 +NT$1,500、全公司禁中國雲端。
+API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度縮水 20%、流量暴增（兩張事故單；第 6 天前抽到只顯示「新聞流量比平常高一點」，沒有效果，理由見「工單」的每日進件）、主管稱讚或質疑、外包尾款 +NT$1,500、全公司禁中國雲端。
 
 ### 結算（`showEnd`）
 總分 = KPI × 10 + 信任 × 4 + (8000 − 個人花費) ÷ 8（下限 −4000 ÷ 8）− 稽核次數 × 80。個人花費 = 訂閱費 + 個人 API + 外包違約金 − 外包收入。
@@ -336,7 +341,7 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 | `data.js` | 資料與工具函式，沒有狀態：`GAME_VERSION`、`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP`、`INV_KEYS`、`HOOK_PR`、`SCAN_AUDIT`、`FASTLANE_REJECT`、`MONITOR_LATE`、`MONITOR_KPI` |
 | `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件、存檔：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`SAVE_KEY`、`SAVE_VER`、`saveGame`、`clearSave`、`readSave`、`loadGame`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`hardStack`、`unfamiliar`、`makeIssue`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs` |
 | `calc.js` | 計算（`est(is, v, mid, rv, ef)` 會套推理強度）：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log` |
-| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`endDay` |
+| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`endDay` |
 | `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`quickBtn`、`invPanel`、`qbox`、`dispatchPanel` |
 | `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showResume`、`showBadSave`、`showEnd` |
 

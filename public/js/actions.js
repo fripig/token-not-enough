@@ -240,10 +240,14 @@ export const EVENTS=[
   ()=>{if(S.cnBan||S.day<8)return ['主管在週會上提醒','「用 AI 前先看清楚案主合約。」沒有其他變化。'];if(0)return ['資安部門發布新版 AI 使用規範','內容跟上次一樣，大家已讀不回。'];S.cnBan=true;return ['主管宣布：全公司暫停把程式碼送到中國雲端模型','從今天起所有工單都不能用 DeepSeek、GLM、Kimi 的雲端服務，本地跑的開源權重不受影響。'];},
   ()=>{S.corp*=.7;return ['年度預算凍結','公司 API 剩餘預算砍 30%。'];},
   ()=>{const v=pick(SUBV);S.capMod[v]*=.8;return [`${VENDORS[v].name} 調整訂閱用量政策`,'這家訂閱的每日與每週額度縮水 20%。'];},
-  ()=>{S.issues.push(makeIssue(true));S.issues.push(makeIssue(true));return ['大新聞爆發，流量暴增',`一次進來兩張事故單，${S.inv.monitor?'監控提早告警，明天':'今天'}下班前要處理。`];},
+  ()=>{if(S.day<6)return ['新聞流量比平常高一點','監控曲線抖了一下，系統還撐得住。沒有其他變化。'];S.issues.push(makeIssue(true));S.issues.push(makeIssue(true));return ['大新聞爆發，流量暴增',`一次進來兩張事故單，${S.inv.monitor?'監控提早告警，明天':'今天'}下班前要處理。`];},
   ()=>{const g=S.kpi>S.day*7;S.trust=Math.max(0,Math.min(100,S.trust+(g?6:-4)));return g?['主管在週會上點名稱讚','「AI 工具用得很有效率。」信任 +6。']:['主管問進度怎麼這麼慢','「不是有買 AI 嗎？」信任 -4。'];},
   ()=>{S.wallet+=1500;return ['外包案尾款入帳','個人錢包 +NT$1,500，可以拿來養 token。'];},
 ];
+
+/* 事故單機率逐日遞增：第 2 天 3%、第 3 天 6%、第 4 天 9%，第 5 天起 12% */
+export const INC_RATE=.12, INC_RAMP=.03;
+export const incRate=day=>Math.min(INC_RATE,INC_RAMP*(day-1));
 
 export function endDay(){
   const rep=[];
@@ -272,7 +276,7 @@ export function endDay(){
   let ev=null; if(Math.random()<.55) ev=pick(EVENTS)();
   if(S.outage){const n=cancelJobs(j=>j.v===S.outage,'廠商當機，session 斷了');if(n)rep.push(`${n} 個跑在 ${VENDORS[S.outage].name} 的 agent 因為當機斷線。`);}
   if(S.jobs.length){ S.jobs.forEach(j=>j.left=Math.max(.05,j.left-3)); rep.push(`${S.jobs.length} 個 agent 跑了一整晚，一早會陸續有結果。`); }
-  const n=PAR()?3+rnd(4):2+rnd(3); for(let i=0;i<n;i++)S.issues.push(makeIssue(Math.random()<.12));
+  const n=PAR()?3+rnd(4):2+rnd(3); for(let i=0;i<n;i++)S.issues.push(makeIssue(Math.random()<incRate(S.day)));
   const g=addGigs();
   log('dim',`— 第 ${S.day} 天開工，新進 ${n} 張工單${g?`，外包 ${g} 張`:''} —`);
   sel.issue=null;
