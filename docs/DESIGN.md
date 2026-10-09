@@ -12,7 +12,7 @@
 - `public/css/style.css`：樣式。開頭補了 `body{margin:0}`、`[hidden]{display:none!important}`，原本由 Artifact 外殼提供；少了後者 `.ov` 的 `display:flex` 會蓋過 `hidden`，彈窗關不掉。
 - `public/js/*.js`：遊戲本體，拆成七個原生 ES modules（見「程式碼地圖」），由 `public/index.html` 以 `<script type="module" src="js/main.js">` 載入；無建置步驟、遊戲邏輯沒有外部 JS 相依。瀏覽器不允許從 `file://` 載入模組，一定要用本機伺服器開。頁面另外從 Google Fonts 載字型，並在 `public/index.html` 載入 Google Analytics（gtag.js）做流量統計。本機用 `python3 -m http.server -d public 8000` 開。
 - `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 四家公司 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資（`SIM_INVEST=2` 再加買三項新投資，`SIM_INV_EXTRA=monitor,scan` 之類可只加買指定幾項），`SIM_COMBOS=1` 改跑六種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_EFFORT=1` 開啟進階模式並讓自動玩家挑推理強度，`SIM_SEATS=1..3` 在第 6、11、16 天直接給團隊席位（量上限用，不經信任審核）並讓自動玩家優先刷席位，`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 公司」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
-- `tools/check.js`：規則檢查。`node tools/check.js` 把 spec 裡的範例數字逐條斷言（技術線分布、成功率、時間倍率、手寫時數、上架審核、KPI 補償、最高分 key、難度標示、接外包），任何一條不符就以非 0 結束。改規則時同步更新。
+- `tools/check.js`：規則檢查。`node tools/check.js` 把 spec 裡的範例數字逐條斷言（技術線分布、成功率、時間倍率、手寫時數、上架審核、KPI 補償、最高分 key、難度標示、接外包，以及十份核心規則 spec 的情境），任何一條不符就以非 0 結束。改規則時同步更新。
 
 部署：push 到 `main` 後 `.github/workflows/pages.yml` 把 `public/` 發佈到 https://token-not-enough.youareright.app/ 。只有 `public/` 會公開。自訂網域設在 repo 的 Pages 設定（用 Actions 部署時 `CNAME` 檔不會生效），DNS 是 Cloudflare 上 `youareright.app` 的 CNAME `token-not-enough` → `fripig.github.io`（DNS only），舊網址 `fripig.github.io/token-not-enough/` 會轉址過來。
 
@@ -55,6 +55,8 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 ## 遊戲規則與數值
 
 所有價格、額度、能力值都是遊戲平衡用的虛構數字，不是各家真實方案；頁面底部有聲明，保留它。
+
+v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spectra change `gh-09-01-core-rules-specs`）：`work-calendar`（時間與資源、週一調整訂閱）、`agent-catalog`（廠商與模型、派工台選模型）、`billing-methods`（付費方式、透支、資安稽核）、`client-restrictions`（案主與中國模型限制）、`ticket-lifecycle`（工單產生、完成、失敗、手寫、逾期）、`dispatch-outcome`（成功率、token、時間、結算）、`self-review`（自我審核）、`game-modes`（單線／平行模式）、`random-events`（隨機事件）、`month-end-scoring`（結算與評等）。後來加入的功能各有自己的 spec，核心公式裡跟它們有關的係數只寫「見某某 spec」，同一條規則只在一份 spec 定義。這份文件保留數字與設計脈絡，spec 定義行為；改核心規則時用 Spectra change 的 delta spec 一起改，並更新 `tools/check.js` 裡對應的斷言。
 
 ### 時間與資源
 - 20 個工作天，每週 5 天。週一重置每週額度，且可調整訂閱（升級只補剩餘週數差價，降級不退）。

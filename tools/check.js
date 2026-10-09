@@ -11,6 +11,12 @@ import {catchRate,costLine,storeReject,est,manualHrs,presetBlock,presetFor,quota
 import {EVENTS,advance,auditOdds,auditRoll,conflictRate,prHrs,batch,canEvaluate,charge,dispatch,endDay,evalCost,evaluate,invCount,invest,loadPreset,makeJob,manual,parMul,quick,rescope,reveal,revealRate,savePreset,settle,trueView} from '../public/js/actions.js';
 import {dispatchPanel,render} from '../public/js/view.js';
 import {showEnd,showSetup} from '../public/js/modals.js';
+// 核心規則（gh-09-01-core-rules-specs）用命名空間取用，避免和上面的具名 import 重複
+import * as A from '../public/js/actions.js';
+import * as C from '../public/js/calc.js';
+import * as M from '../public/js/modals.js';
+// 另一份沒玩過的 state.js：用來測第一次 fresh() 的預設值（主模組的 S 已經被 start() 設過）
+const pristine=await import('../public/js/state.js?pristine');
 
 let pass=0,fail=0;
 function ok(cond,name,detail=''){if(cond){pass++;}else{fail++;console.log('✗',name,detail);}}
@@ -859,6 +865,404 @@ function tests(){
   S.advanced=false;
   }
 
+  {
+  /* ===== 核心規則（gh-09-01-core-rules-specs） ===== */
+  const R0=Math.random;
+  /* 依序回傳 seq 裡的值，用完後一直回傳最後一個 */
+  const withRand=(seq,f)=>{const a=[].concat(seq);let i=0;Math.random=()=>a[Math.min(i++,a.length-1)];try{return f();}finally{Math.random=R0;}};
+  const clickMo=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+  const clickApp=ds=>els.app.on.click({target:{closest:()=>({dataset:ds,disabled:false})}});
+  const job=(is,v,m,b,extra={})=>({issue:is,v,b,M:model(v,m),mul:1,rv:0,tk:100,hrs:1,ok:true,caught:false,left:0,hidden:false,stop:false,sdd:false,...extra});
+
+  /* work-calendar：起始資源 */
+  start();
+  ok(S.day===1&&S.hours===8&&S.wallet===8000&&S.corp===12000&&S.trust===70&&S.kpi===0,'work-calendar：新局第 1 天、8h、NT$8,000、NT$12,000、信任 70、KPI 0');
+  /* 開局買 Anthropic Pro 與 Kimi 會員 */
+  clickMo({pv:'anthropic',pp:'pro'}); clickMo({pv:'moonshot',pp:'member'}); clickMo({act:'confirm'});
+  ok(S.wallet===7050&&S.st.subFee===950,'work-calendar：開局訂閱 Pro＋會員付 NT$950',[S.wallet,S.st.subFee].join());
+  /* 下班換日 */
+  newRun('laravel'); S.day=3; S.hours=1.5; S.corpDay=200; S.outage='openai';
+  S.subs.anthropic='pro'; S.used.sub.anthropic={d:100,w:300};
+  withRand(.99,endDay);
+  ok(S.day===4&&S.hours===8&&S.corpDay===0&&S.outage===null&&S.used.sub.anthropic.d===0&&S.used.sub.anthropic.w===300,'work-calendar：換日後 8h、今日額度與公司當日花費歸零、當機解除、本週用量保留');
+  ok(els.mo.innerHTML.includes('<h2>第 4 天</h2>'),'work-calendar：彈窗標題「第 4 天」');
+  newRun('laravel'); S.day=20; withRand(.99,endDay);
+  ok(S.day===20&&els.mo.innerHTML.includes('月底結算'),'work-calendar：第 20 天下班打開月底結算');
+  /* 週一重置 */
+  newRun('laravel'); S.day=5; S.subs.anthropic='pro'; S.used.sub.anthropic={d:50,w:500};
+  withRand(.99,endDay);
+  ok(S.day===6&&S.used.sub.anthropic.w===0,'work-calendar：第 6 天每週用量歸零');
+  ok(els.mo.innerHTML.includes('第 6 天・新的一週')&&els.mo.innerHTML.includes('每週額度已重置。今天可以調整訂閱方案。')&&els.mo.innerHTML.includes('data-act="adj"'),'work-calendar：第 6 天彈窗顯示新的一週與調整訂閱');
+  render(); ok(els.app.innerHTML.includes('data-act="adjust"'),'work-calendar：週一整天都有調整訂閱按鈕');
+  S.day=7; render(); ok(!els.app.innerHTML.includes('data-act="adjust"'),'work-calendar：第 7 天沒有調整訂閱按鈕');
+  /* 週一補差價 */
+  const adjCost=(day,v,from,to)=>{newRun('laravel'); S.day=day; S.subs[v]=from; showSetup(true); clickMo({pv:v,pp:to}); return M.planCost(true);};
+  ok(adjCost(6,'anthropic','pro','max5')===1987.5,'work-calendar：第 6 天 Pro→Max 5× 補 NT$1,987.5');
+  ok(adjCost(11,'anthropic','pro','max5')===1325,'work-calendar：第 11 天 Pro→Max 5× 補 NT$1,325');
+  ok(adjCost(16,'openai','none','plus')===162.5,'work-calendar：第 16 天不訂閱→Plus 補 NT$162.5');
+  ok(adjCost(11,'anthropic','max5','pro')===0,'work-calendar：降級不用付錢');
+  const w0=S.wallet; clickMo({act:'confirm'}); ok(S.subs.anthropic==='pro'&&S.wallet===w0,'work-calendar：降級立即生效、不退費');
+  newRun('laravel'); S.day=6; S.subs.anthropic='pro'; showSetup(true); clickMo({pv:'anthropic',pp:'max20'}); clickMo({act:'close'});
+  ok(els.ov.hidden&&S.subs.anthropic==='pro','work-calendar：不改了就關掉、方案不變');
+  showSetup(true); ok(els.mo.innerHTML.includes('這次要從個人錢包付'),'work-calendar：調整彈窗顯示要付多少');
+  /* 訂閱額度 */
+  newRun('laravel'); S.subs.anthropic='pro'; S.used.sub.anthropic={d:100,w:1700};
+  ok(quotaLeft('sub','anthropic')===100,'work-calendar：每週上限比較緊時剩 100k');
+  newRun('laravel'); render(); ok(els.app.innerHTML.includes('目前沒有任何訂閱。只能用 API、公司預算或本地模型。'),'work-calendar：沒有訂閱時的額度區文字');
+  S.subs.anthropic='pro'; render(); ok(/Anthropic Pro<span>個人訂閱/.test(els.app.innerHTML),'work-calendar：訂閱的額度方塊標示個人訂閱');
+  S.outage='anthropic'; render(); ok(/Anthropic Pro<span>今日當機/.test(els.app.innerHTML),'work-calendar：當機時額度方塊標示今日當機');
+
+  /* agent-catalog：模型數值表 */
+  const MODELS=[
+    ['anthropic','haiku',2,.12,.3,.5,.9],['anthropic','sonnet',4,.45,1,.8,1],['anthropic','opus',5,1.5,3,1,.85],
+    ['openai','mini',2,.1,.3,.5,1],['openai','std',4,.4,1,.8,1.05],['openai','high',5,.4,1,1.4,1.8],
+    ['google','flash',2,.06,.25,.4,1.1],['google','pro',4,.35,1,.9,1],
+    ['deepseek','chat',3,.03,1,.7,1.15],['deepseek','reasoner',4,.06,1,1.2,1.5],
+    ['zhipu','air',3,.04,.5,.6,1.1],['zhipu','glm',4,.1,1,.9,1.1],['moonshot','k2',4,.12,1,.9,1.2],
+    ['local','qwen',3,0,0,2.1,1.3],['local','gemma',3,0,0,2.4,1.25],['local','oss',2,0,0,1.8,1.2]];
+  ok(Object.values(VENDORS).reduce((a,V)=>a+V.models.length,0)===16&&Object.keys(VENDORS).length===7,'agent-catalog：7 家廠商 16 個模型');
+  for(const [v,m,cap,price,w,speed,verb] of MODELS){const x=model(v,m); ok(x&&x.cap===cap&&x.price===price&&x.w===w&&x.speed===speed&&x.verb===verb,`agent-catalog：${v}/${m} 數值符合表格`);}
+  ok(['flash','pro'].every(m=>model('google',m).ctx)&&MODELS.filter(r=>r[0]!=='google').every(([v,m])=>!model(v,m).ctx),'agent-catalog：只有 Gemini 有 ctx');
+  ok(Object.keys(VENDORS).filter(v=>VENDORS[v].cn).join()==='deepseek,zhipu,moonshot'&&model('local','qwen').cn&&!model('local','gemma').cn&&!model('local','oss').cn,'agent-catalog：中國廠商與 Qwen 中國權重');
+  ok(Object.keys(VENDORS).filter(v=>VENDORS[v].corp).join()==='anthropic,google','agent-catalog：只有 Anthropic、Google 可走公司 API');
+  /* 訂閱方案表 */
+  const PLANS={anthropic:[['pro',650,450,1800],['max5',3300,2200,9000],['max20',6500,9000,36000]],openai:[['plus',650,500,2000],['pro',6500,8000,30000]],google:[['aipro',650,700,2800],['ultra',8000,10000,40000]],zhipu:[['lite',100,1500,6000],['pro',500,6000,24000]],moonshot:[['member',300,1500,6000]]};
+  for(const v in PLANS) ok(JSON.stringify(VENDORS[v].plans.filter(p=>p.id!=='none').map(p=>[p.id,p.price,p.day,p.week]))===JSON.stringify(PLANS[v])&&VENDORS[v].plans[0].id==='none',`agent-catalog：${v} 訂閱方案符合表格`);
+  ok(VENDORS.deepseek.plans.length===1&&VENDORS.local.plans.length===0,'agent-catalog：DeepSeek 與自架開源沒有訂閱');
+  start();
+  ok(['anthropic','openai','google','zhipu','moonshot'].every(v=>els.mo.innerHTML.includes(`data-pv="${v}" data-pp="none"`))&&!els.mo.innerHTML.includes('data-pv="deepseek"')&&!els.mo.innerHTML.includes('data-pv="local"'),'agent-catalog：開局只列五家訂閱，每家從不訂閱開始');
+  /* 派工台選模型 */
+  newRun('laravel'); S.hours=8; const tc=ticket('fe',2); S.issues=[tc]; sel.issue=tc.id; Object.assign(sel,{v:'openai',m:'std',b:'api'}); render();
+  ok(/data-b="corp" disabled>公司 API<small>公司沒簽約/.test(els.app.innerHTML),'agent-catalog：OpenAI 不能走公司 API');
+  ok(els.app.innerHTML.includes('價格、額度與模型能力都是遊戲平衡用的虛構數字，不代表各家實際方案。'),'agent-catalog：頁尾保留虛構數字聲明');
+  ok(els.app.innerHTML.includes('<b>Gemma 27B</b><span>能力 ●●●○○</span><span class="">免費</span>')&&els.app.innerHTML.includes('免費・中國權重'),'agent-catalog：本地模型顯示免費、Qwen 標中國權重');
+  ok(els.app.innerHTML.includes('派給 Codex CLI'),'agent-catalog：單線模式按鈕寫派給');
+  sel.b='api'; clickApp({v:'local',m:'gemma'}); ok(sel.b==='local','agent-catalog：選本地模型切到本地 GPU');
+  clickApp({v:'anthropic',m:'sonnet'}); ok(sel.b==='api','agent-catalog：離開本地切回個人 API');
+  S.outage='anthropic'; render();
+  ok(sel.v==='openai'&&sel.m==='mini','agent-catalog：當機的選擇改到下一家第一個可用模型',sel.v+sel.m);
+  ok(['haiku','sonnet','opus'].every(m=>new RegExp(`data-v="anthropic" data-m="${m}" disabled`).test(els.app.innerHTML))&&els.app.innerHTML.includes('<span>今日當機</span>'),'agent-catalog：當機廠商的模型都停用');
+  S.outage=null; S.mode='parallel'; render(); ok(els.app.innerHTML.includes('派到背景 Codex CLI'),'agent-catalog：平行模式按鈕寫派到背景');
+  S.hours=.1; render(); ok(/data-act="go" disabled/.test(els.app.innerHTML),'agent-catalog：剩不到 0.2h 時派工按鈕停用');
+
+  /* billing-methods：付費選項 */
+  {
+  newRun('laravel'); const tb=ticket('fe',2), note=(v,id)=>C.bills(v,tb).find(b=>b.id===id);
+  ok(C.bills('local',tb).map(b=>b.id).join()==='local'&&C.bills('local',tb)[0].note==='不花 token 錢，但很慢','billing-methods：本地模型只有本地 GPU');
+  ok(C.bills('google',tb).map(b=>b.id).join()==='sub,api,corp','billing-methods：沒席位時依序是個人訂閱、個人 API、公司 API');
+  ok(!note('google','sub').ok&&note('google','sub').note==='沒有訂閱'&&note('google','api').ok&&note('google','api').note==='自己的信用卡'&&note('google','corp').ok&&note('google','corp').note==='走部門預算','billing-methods：沒訂閱 Google 時的選項與註記');
+  S.subs.anthropic='pro'; ok(note('anthropic','sub').ok&&note('anthropic','sub').note==='Pro・剩 450k','billing-methods：有訂閱時顯示剩餘額度');
+  ok(!note('openai','corp').ok&&note('openai','corp').note==='公司沒簽約','billing-methods：沒簽約的廠商不能走公司 API');
+  S.corp=0; ok(!note('anthropic','corp').ok&&note('anthropic','corp').note==='預算用完','billing-methods：公司預算用完');
+  /* 扣款 */
+  newRun('laravel');
+  charge('api','anthropic',model('anthropic','sonnet'),200); ok(near(S.wallet,8000-90)&&near(S.st.api,90),'billing-methods：200k Sonnet 個人 API 扣 NT$90');
+  S.subs.anthropic='max5'; charge('sub','anthropic',model('anthropic','opus'),200); ok(near(S.used.sub.anthropic.d,600)&&near(S.used.sub.anthropic.w,600),'billing-methods：200k Opus 吃訂閱 600k');
+  charge('corp','anthropic',model('anthropic','sonnet'),200); ok(near(S.corp,12000-90)&&near(S.corpDay,90)&&near(S.st.corp,90),'billing-methods：公司 API 扣預算、計入當日與月底帳單');
+  ok(charge('local','local',model('local','gemma'),200).spend==='電費','billing-methods：本地 GPU 記為電費');
+  S.wallet=10; charge('api','anthropic',model('anthropic','sonnet'),200); ok(near(S.wallet,-80),'billing-methods：錢包可以變負的');
+  /* 錢包不夠只警告、不擋派工 */
+  newRun('laravel'); S.hours=8; S.wallet=10; const tw=ticket('fe',1); S.issues=[tw]; sel.issue=tw.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'api',rv:0}); render();
+  ok(els.app.innerHTML.includes('錢包可能不夠付這一筆。')&&!/data-act="go" disabled/.test(els.app.innerHTML),'billing-methods：錢包不夠只警告、派工按鈕可按');
+  /* 額度用完 */
+  newRun('laravel'); S.subs.anthropic='pro'; S.used.sub.anthropic={d:250,w:250}; const tq=ticket('fe',2); S.issues=[tq];
+  const rq=settle(job(tq,'anthropic','sonnet','sub',{tk:400,hrs:2}));
+  ok(!rq.ok&&near(S.used.sub.anthropic.d,450)&&near(S.st.tk.anthropic,200)&&near(rq.hrs,1)&&S.issues.includes(tq)&&tq.tries===1&&S.log[0].msg.includes('撞到用量上限，agent 停在一半'),'billing-methods：額度只剩一半時用光剩下的、失敗留在佇列');
+  S.used.sub.anthropic={d:440,w:440}; S.hours=8; sel.issue=tq.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'sub',rv:0}); render();
+  ok(els.app.innerHTML.includes('剩餘額度可能不夠，跑到一半會被限流。'),'billing-methods：額度可能不夠時警告');
+  /* 公司花費上限 */
+  newRun('laravel'); S.corp=100; const to=ticket('fe',1); S.issues=[to];
+  settle(job(to,'anthropic','opus','corp',{tk:200})); ok(S.corp===0&&S.trust===62&&S.log.some(l=>l.msg.includes('! 公司 API 預算透支，財務來信關切')),'billing-methods：透支時預算歸零、信任 -8');
+  newRun('laravel'); S.corpDay=1600; withRand(.99,endDay);
+  ok(S.trust===64&&els.mo.innerHTML.includes('今天公司 API 刷了 NT$1,600，主管在 Slack 問你在幹嘛（信任 -6）。'),'billing-methods：單日公司花費超過 NT$1,500 信任 -6');
+  newRun('laravel'); S.corpDay=1500; withRand(.99,endDay); ok(S.trust===70,'billing-methods：剛好 NT$1,500 不扣信任');
+  /* 資安稽核 */
+  ok(auditOdds('anthropic')===.35&&auditOdds('deepseek')===.6,'billing-methods：稽核機率 35%／中國 60%');
+  const auditWith=(b,v,m,okFlag=true)=>{newRun('laravel'); const ts=ticket('fe',1,{sens:true}); S.issues=[ts]; withRand(0,()=>settle(job(ts,v,m,b,{ok:okFlag}))); return [S.st.audits,S.trust];};
+  ok(auditWith('api','anthropic','sonnet').join()==='1,58','billing-methods：機敏單走個人 API 被稽核、信任 -12');
+  ok(auditWith('api','anthropic','sonnet',false).join()==='1,58','billing-methods：失敗的嘗試一樣擲稽核');
+  ok(auditWith('corp','anthropic','sonnet').join()==='0,70'&&auditWith('local','local','gemma').join()==='0,70','billing-methods：公司 API 與本地 GPU 不會被稽核');
+  S.subs.anthropic='pro'; const tsub=ticket('fe',1,{sens:true}); S.issues=[tsub]; withRand(0,()=>settle(job(tsub,'anthropic','sonnet','sub'))); ok(S.st.audits===1,'billing-methods：個人訂閱也會被稽核');
+  const warnFor=(v,m,b)=>{newRun('laravel'); S.hours=8; const ts=ticket('fe',1,{sens:true}); S.issues=[ts]; sel.issue=ts.id; Object.assign(sel,{v,m,b,rv:0}); render(); return els.app.innerHTML;};
+  ok(warnFor('anthropic','sonnet','api').includes('機敏工單用個人帳號：有 35% 機率被資安稽核抓到。'),'billing-methods：個人帳號稽核警告');
+  ok(warnFor('deepseek','chat','api').includes('機敏工單送到中國雲端：有 60% 機率被資安稽核抓到。'),'billing-methods：中國雲端稽核警告');
+  ok(warnFor('anthropic','sonnet','corp').includes('<div class="warnline"></div>'),'billing-methods：公司 API 沒有稽核警告');
+  }
+
+  /* client-restrictions：案主分布 */
+  {
+  newRun('laravel'); const N=10000, cc={};
+  for(let i=0;i<N;i++){const n=makeIssue(false).client.name; cc[n]=(cc[n]||0)+1;}
+  ok([['內部專案',.42],['新創客戶',.18],['金融客戶',.18],['政府標案',.22]].every(([n,w])=>Math.abs((cc[n]||0)/N-w)<=.02),'client-restrictions：案主比例在 ±0.02 內',JSON.stringify(cc));
+  ok([...Array(300)].map(()=>makeIssue(true)).every(i=>i.client.name==='內部專案'),'client-restrictions：事故單都是內部專案');
+  /* 禁用規則 */
+  const cl=n=>CLIENTS.find(c=>c.name===n), tk=n=>ticket('fe',2,{client:cl(n)}), blk=(is,v,m)=>cnBlock(is,v,model(v,m));
+  const fin=tk('金融客戶'), gov=tk('政府標案'), su=tk('新創客戶');
+  ok(['deepseek/chat','zhipu/air','moonshot/k2'].every(x=>blk(fin,...x.split('/'))==='金融客戶禁用')&&blk(fin,'local','qwen')==='','client-restrictions：金融客戶禁中國雲端、Qwen 可用');
+  ok(['deepseek/reasoner','zhipu/glm','moonshot/k2'].every(x=>blk(gov,...x.split('/'))==='政府標案禁用')&&blk(gov,'local','qwen')==='中國權重禁用'&&blk(gov,'local','gemma')==='','client-restrictions：政府標案連 Qwen 都禁、Gemma 可用');
+  ok(blk(su,'deepseek','chat')===''&&blk(su,'local','qwen')==='','client-restrictions：沒有禁令時都能用');
+  S.cnBan=true;
+  ok(blk(su,'deepseek','chat')==='公司政策禁用'&&blk(su,'local','qwen')==='','client-restrictions：全公司禁令下中國雲端顯示公司政策禁用、Qwen 可用');
+  ok(blk(gov,'local','oss')===''&&blk(gov,'local','gemma')==='','client-restrictions：Gemma 與 gpt-oss 永遠不會被禁');
+  /* 卡片標籤 */
+  const card=id=>{const h=els.app.innerHTML; const st=h.indexOf(`data-iss="${id}"`); return h.slice(st,h.indexOf('</button>',st));};
+  const inn=tk('內部專案'); S.issues=[inn,gov,fin,su]; render();
+  ok(card(inn.id).includes('chip ban">禁中國雲端')&&card(gov.id).includes('chip ban">政府標案・禁中國模型')&&card(fin.id).includes('chip ban">金融客戶・禁中國雲端'),'client-restrictions：全公司禁令下的卡片標籤');
+  S.cnBan=false; render();
+  ok(card(su.id).includes('<span class="chip">新創客戶</span>')&&card(inn.id).includes('<span class="chip">內部專案</span>'),'client-restrictions：沒有禁令時顯示案主名稱');
+  }
+
+  /* ticket-lifecycle：工單產生 */
+  {
+  newRun('laravel');
+  for(const [day,r,cx] of [[1,.25,1],[1,.5,2],[10,.5,3],[20,0,2],[20,.99,5]]){S.day=day; const is=withRand([r,.5],()=>makeIssue(false)); ok(is.cx===cx,`ticket-lifecycle：第 ${day} 天 random ${r} → 複雜度 ${cx}`,is.cx);}
+  S.day=5; S.inv.monitor=false; const inc=makeIssue(true);
+  ok(inc.cx===4&&inc.kpi===26&&inc.due===5&&inc.inc,'ticket-lifecycle：Laravel 事故單複雜度 4、KPI 26、今天到期');
+  S.day=3; const gen=[...Array(6000)].map(()=>makeIssue(false));
+  ok(gen.every(i=>i.base>=BASE[i.cx]*.85-1e-9&&i.base<=BASE[i.cx]*1.15+1e-9),'ticket-lifecycle：基準 token 在 BASE ×0.85–1.15');
+  const easy=gen.filter(i=>!hardStack(i.stack));
+  ok(easy.every(i=>i.kpi===KPI[i.cx]),'ticket-lifecycle：一般工單 KPI 照 KPI 表');
+  ok(easy.filter(i=>i.cx<=2).every(i=>i.due>=4&&i.due<=6)&&easy.filter(i=>i.cx>=3).every(i=>i.due>=5&&i.due<=8),'ticket-lifecycle：期限 1–3 天（複雜度 ≤2）或 2–5 天');
+  S.day=19; ok([...Array(500)].map(()=>makeIssue(false)).every(i=>i.due<=20),'ticket-lifecycle：期限不超過第 20 天');
+  const rate=(a,f)=>a.filter(f).length/a.length;
+  ok(Math.abs(rate(gen,i=>i.sens)-.25)<=.03,'ticket-lifecycle：一般工單 25% 機敏',rate(gen,i=>i.sens));
+  S.day=3; const incs=[...Array(5000)].map(()=>makeIssue(true));
+  ok(Math.abs(rate(incs,i=>i.sens)-.55)<=.03,'ticket-lifecycle：事故單 55% 機敏',rate(incs,i=>i.sens));
+  ok(Math.abs(rate(gen.filter(i=>i.cx>=3),i=>i.big)-.45)<=.03&&gen.filter(i=>i.cx<3).every(i=>!i.big),'ticket-lifecycle：複雜度 ≥3 有 45% 是大型 codebase');
+  /* 每日進件 */
+  start(); ok(S.issues.length===4&&S.issues.every(i=>!i.inc),'ticket-lifecycle：第 1 天 4 張、沒有事故單');
+  const intake=mode=>{const ns=[]; let tot=0, incN=0; newRun('laravel',mode);
+    for(let i=0;i<600;i++){S.day=2; S.issues=[]; S.jobs=[]; S.cnBan=false; endDay(); const n=+S.log[0].msg.match(/新進 (\d+) 張工單/)[1]; ns.push(n);
+      if(!els.mo.innerHTML.includes('class="evt"')){tot+=S.issues.length; incN+=S.issues.filter(x=>x.inc).length;}}
+    return {min:Math.min(...ns),max:Math.max(...ns),inc:incN/tot};};
+  const ip=intake('parallel'), is_=intake('serial');
+  ok(ip.min===3&&ip.max===6&&is_.min===2&&is_.max===4,'ticket-lifecycle：平行每天 3–6 張、單線 2–4 張',JSON.stringify([ip,is_]));
+  ok(Math.abs(ip.inc-.12)<=.03&&Math.abs(is_.inc-.12)<=.03,'ticket-lifecycle：新進工單 12% 是事故',[ip.inc,is_.inc].join());
+  ok(/— 第 3 天開工，新進 \d+ 張工單 —/.test(S.log[0].msg),'ticket-lifecycle：開工紀錄');
+  /* 佇列排序 */
+  newRun('laravel'); const qa=ticket('fe',1,{due:3,kpi:6}), qb=ticket('fe',1,{due:2,kpi:3}), qc=ticket('fe',1,{due:3,kpi:10});
+  ok([qa,qb,qc].sort(A.queueOrder).map(i=>i.kpi).join()==='3,10,6','ticket-lifecycle：佇列依期限再依 KPI 排序');
+  S.issues=[qa,qb,qc]; render(); ok(els.app.innerHTML.includes('3 張・依到期排序'),'ticket-lifecycle：佇列標題');
+  S.issues=[]; render(); ok(els.app.innerHTML.includes('工單清空了。可以提早下班，把工時留給明天。'),'ticket-lifecycle：空佇列文字');
+  /* 完成 */
+  newRun('laravel'); S.kpi=40; const ti=ticket('laravel',4,{inc:true,kpi:26}); S.issues=[ti];
+  settle(job(ti,'anthropic','opus','corp'));
+  ok(S.kpi===66&&S.trust===72&&!S.issues.includes(ti)&&S.st.done===1,'ticket-lifecycle：完成事故單 KPI +26、信任 +2');
+  S.trust=99; const ti2=ticket('laravel',4,{inc:true,kpi:26}); S.issues=[ti2]; settle(job(ti2,'anthropic','opus','corp')); ok(S.trust===100,'ticket-lifecycle：信任上限 100');
+  /* 失敗 */
+  newRun('laravel'); const tf=ticket('fe',3); S.issues=[tf]; const hrs0=est(tf,'anthropic','sonnet',0).hrs, mh0=manualHrs(tf);
+  settle(job(tf,'anthropic','sonnet','corp',{ok:false}));
+  ok(near(tf.base,245)&&tf.tries===1&&S.issues.includes(tf),'ticket-lifecycle：失敗後基準 ×0.7、留在佇列');
+  ok(near(est(tf,'anthropic','sonnet',0).hrs,hrs0*.8)&&near(manualHrs(tf),mh0*.8),'ticket-lifecycle：失敗過的工單 agent 與手寫時數 ×0.8');
+  render(); ok(els.app.innerHTML.includes('已失敗 1 次'),'ticket-lifecycle：卡片顯示已失敗 1 次');
+  /* 自己手寫 */
+  newRun('laravel'); S.hours=8; const tm=ticket('laravel',2); S.issues=[tm]; sel.issue=tm.id; manual();
+  ok(near(S.hours,8-4.4)&&!S.issues.includes(tm)&&S.st.manual===1&&Object.values(S.st.tk).every(x=>x===0)&&S.kpi===KPI[2],'ticket-lifecycle：手寫複雜度 2 花 4.4h、0 token、完成');
+  const hand4=r=>{newRun('laravel'); S.hours=9; const t4=ticket('laravel',4); S.issues=[t4]; sel.issue=t4.id; withRand(r,manual); return t4;};
+  const h1t=hand4(.69); ok(!S.issues.includes(h1t),'ticket-lifecycle：手寫複雜度 4 在 70% 內成功');
+  const h2t=hand4(.71); ok(S.issues.includes(h2t)&&h2t.tries===1&&near(h2t.base,BASE[4]*.7)&&S.log[0].msg.includes('自己手寫卡關')&&S.st.manual===1,'ticket-lifecycle：手寫複雜度 4 卡關算一次失敗');
+  newRun('laravel'); S.hours=4; const tm3=ticket('laravel',2); S.issues=[tm3]; sel.issue=tm3.id; render();
+  ok(/data-act="manual" disabled/.test(els.app.innerHTML),'ticket-lifecycle：工時不夠時手寫按鈕停用');
+  newRun('laravel','parallel'); S.hours=8; const tp1=ticket('laravel',2), tp2=ticket('fe',5,{due:20}); S.issues=[tp1,tp2];
+  S.jobs=[job(tp2,'anthropic','opus','corp',{hrs:10,left:10})]; tp2.running=true; sel.issue=tp1.id; manual();
+  ok(near(S.hours,8-4.4)&&near(S.jobs[0].left,10-4.4)&&!S.issues.includes(tp1),'ticket-lifecycle：平行模式手寫推進時鐘、背景 agent 照跑');
+  /* 逾期 */
+  newRun('laravel'); S.day=5; S.kpi=50; const tl=ticket('laravel',4,{inc:true,kpi:26,due:5}), tn=ticket('fe',2,{kpi:6,due:5}); S.issues=[tl];
+  withRand(.99,endDay); ok(S.kpi===37&&S.trust===62&&S.st.late===1&&S.st.kpiLost===13&&els.mo.innerHTML.includes('1 張工單逾期，主管信任下降。')&&S.log.some(l=>l.msg.includes('⌛ 逾期：')),'ticket-lifecycle：事故單逾期 KPI -13、信任 -8');
+  newRun('laravel'); S.day=5; S.issues=[tn]; withRand(.99,endDay); ok(S.kpi===-3&&S.trust===66&&!S.issues.includes(tn),'ticket-lifecycle：一般工單逾期 KPI 扣一半（無條件進位）、信任 -4');
+  newRun('laravel'); S.day=5; const d0=ticket('fe',1,{due:5}), d2=ticket('fe',1,{due:7}); S.issues=[d0,d2]; render();
+  ok(els.app.innerHTML.includes('chip due">今天到期')&&els.app.innerHTML.includes('剩 2 天'),'ticket-lifecycle：卡片顯示今天到期與剩 N 天');
+  }
+
+  /* dispatch-outcome：成功率表 */
+  {
+  newRun('laravel');
+  for(const [v,m,cx,big,p] of [['anthropic','sonnet',2,false,.95],['anthropic','sonnet',4,false,.8],['anthropic','haiku',3,false,.5],['anthropic','haiku',4,false,.25],['anthropic','haiku',5,false,.1],['google','pro',4,true,.88],['deepseek','chat',3,true,.72],['anthropic','opus',3,true,.95]])
+    ok(near(est(ticket('fe',cx,{big}),v,m,0).p,p),`dispatch-outcome：${m} × 複雜度 ${cx}${big?'・大型':''} → ${p*100}%`,est(ticket('fe',cx,{big}),v,m,0).p);
+  ok(near(est(ticket('fe',5),'anthropic','haiku',0).p,.1)&&near(est(ticket('fe',5,{big:true}),'google','flash',0).p,.18)&&near(est(ticket('fe',5,{big:true}),'anthropic','haiku',0).p,.05),'dispatch-outcome：成功率下限 5%');
+  S.inv.md.fe=true; S.inv.sdd=true; ok(near(est(ticket('fe',2),'anthropic','sonnet',0).p,.97),'dispatch-outcome：成功率上限 97%'); S.inv.md={}; S.inv.sdd=false;
+  /* token 預估 */
+  newRun('laravel'); S.hours=8; const t2=ticket('fe',2); S.issues=[t2]; sel.issue=t2.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'api',rv:0});
+  ok(near(est(t2,'anthropic','sonnet',0).tk,153),'dispatch-outcome：Sonnet 估複雜度 2 為 153k');
+  render(); ok(els.app.innerHTML.includes('<b>107k–199k</b>'),'dispatch-outcome：派工台顯示 107k–199k');
+  ok(near(est(ticket('fe',4),'anthropic','haiku',0).tk,495),'dispatch-outcome：Haiku 估複雜度 4 為 495k（沒有折扣）');
+  ok(near(est(ticket('fe',4,{big:true}),'google','pro',0).tk,550*.7),'dispatch-outcome：大型 codebase 對 ctx 模型 token ×0.7');
+  ok(['laravel','rails','rust','app','fe'].every(st=>near(est(ticket(st,3),'anthropic','sonnet',0).tk,est(ticket('fe',3),'anthropic','sonnet',0).tk)),'dispatch-outcome：技術線不影響 token');
+  ok(near(est(t2,'anthropic','sonnet',0).hrs,1.6),'dispatch-outcome：Sonnet 複雜度 2 要 1.6h');
+  const jobs=[...Array(500)].map(()=>makeJob(t2)), e2=est(t2,'anthropic','sonnet',0);
+  ok(jobs.every(j=>j.tk>=e2.tk*.7-1e-9&&j.tk<=e2.tk*1.3+1e-9&&j.hrs>=e2.hrs*.8-1e-9&&j.hrs<=e2.hrs*1.2+1e-9),'dispatch-outcome：實際 token 在 0.7–1.3 倍、時數在 0.8–1.2 倍');
+  /* 費用列 */
+  const cl=(b,v,m)=>costLine(b,model(v,m),v,est(t2,v,m,0));
+  ok(near(cl('api','anthropic','sonnet').hi,e2.hi*.45)&&cl('api','anthropic','sonnet').t==='自付'&&cl('corp','anthropic','sonnet').t==='公司付'&&cl('local','local','gemma').hi===0,'dispatch-outcome：費用列依付費方式');
+  ok(near(cl('sub','anthropic','opus').hi,est(t2,'anthropic','opus',0).hi*3)&&cl('sub','anthropic','opus').t==='額度','dispatch-outcome：訂閱的費用列是額度 × w');
+  /* 單線跑到下班 */
+  newRun('laravel'); S.hours=2; const t5=ticket('fe',5); S.issues=[t5]; sel.issue=t5.id; Object.assign(sel,{v:'anthropic',m:'opus',b:'corp',rv:0}); render();
+  ok(els.app.innerHTML.includes('今天剩的工時可能不夠跑完。'),'dispatch-outcome：單線工時可能不夠的警告');
+  withRand(.5,dispatch);
+  ok(S.hours===0&&near(S.st.tk.anthropic,722.5*.4)&&near(S.st.corp,722.5*.4*1.5)&&t5.tries===1&&S.log[0].msg.includes('跑到下班還沒結束'),'dispatch-outcome：單線跑到下班扣掉同比例 token、失敗',[S.hours,S.st.tk.anthropic].join());
+  /* 一般失敗 */
+  newRun('laravel'); const tfl=ticket('fe',2); S.issues=[tfl]; settle(job(tfl,'anthropic','sonnet','corp',{ok:false,tk:80}));
+  ok(S.log[0].msg.includes('測試沒過，改壞了')&&near(S.st.tk.anthropic,80)&&near(S.st.byBill.corp,80),'dispatch-outcome：失敗紀錄與 token 照算');
+  /* 顯示 */
+  const panel=(st,cx,v,m,b,rv=0,extra={},mode='serial')=>{newRun('laravel',mode); S.hours=8; const t=ticket(st,cx,extra); S.issues=[t]; sel.issue=t.id; Object.assign(sel,{v,m,b,rv}); render(); return els.app.innerHTML;};
+  ok(panel('fe',3,'deepseek','chat','api',0,{big:true}).includes('class="meh">72%'),'dispatch-outcome：72% 是黃色');
+  ok(panel('fe',2,'anthropic','sonnet','corp').includes('class="good">95%'),'dispatch-outcome：95% 是綠色');
+  ok(panel('fe',4,'anthropic','haiku','corp').includes('class="bad">25%'),'dispatch-outcome：25% 是紅色');
+  ok(!panel('fe',2,'anthropic','sonnet','corp').includes('（原')&&panel('fe',2,'anthropic','sonnet','corp',1).includes('成功率（原 95%）'),'dispatch-outcome：有審核才顯示原始成功率');
+  ok(panel('fe',2,'anthropic','sonnet','corp').includes('<label>工時</label>')&&panel('fe',2,'anthropic','sonnet','corp',0,{},'parallel').includes('<label>執行時間</label>'),'dispatch-outcome：單線寫工時、平行寫執行時間');
+  /* 警告優先順序 */
+  const warn=h=>h.match(/<div class="warnline">([^<]*)<\/div>/)[1];
+  const wq=(sens,hours)=>{newRun('laravel'); S.hours=hours; S.subs.anthropic='pro'; S.used.sub.anthropic={d:445,w:445}; const t=ticket('fe',3,{sens}); S.issues=[t]; sel.issue=t.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'sub',rv:0}); render(); return warn(els.app.innerHTML);};
+  ok(wq(true,8).startsWith('機敏工單用個人帳號')&&wq(false,1).startsWith('剩餘額度可能不夠'),'dispatch-outcome：機敏先於額度、額度先於工時');
+  newRun('laravel','parallel'); S.slots=2; S.hours=1; const tz=ticket('fe',5,{due:S.day}); S.issues=[tz]; sel.issue=tz.id; Object.assign(sel,{v:'anthropic',m:'opus',b:'corp',rv:0}); render();
+  ok(warn(els.app.innerHTML)==='這張今天到期，但下班前跑不完，會逾期。','dispatch-outcome：今天到期跑不完先於跑過夜');
+  S.jobs=[job(ticket('fe',1),'anthropic','haiku','corp',{left:5,hrs:5}),job(ticket('fe',1),'anthropic','haiku','corp',{left:5,hrs:5})]; render();
+  ok(warn(els.app.innerHTML)==='工作槽都滿了，先等一個 agent 跑完。','dispatch-outcome：工作槽滿先於到期');
+  tz.due=S.day+2; S.jobs=[]; render(); ok(warn(els.app.innerHTML)==='今天跑不完，agent 會跑過夜，明早才有結果。','dispatch-outcome：跑過夜警告');
+  }
+
+  /* self-review：審核等級與抓錯率 */
+  {
+  newRun('laravel');
+  ok(JSON.stringify(C.REVIEW.map(r=>[r.name,r.tk,r.hrs]))===JSON.stringify([['不審核',1,1],['自審',1.3,1.2],['嚴格審核',1.6,1.35]]),'self-review：三種審核的 token 與時間倍率');
+  for(const [v,m,c1,c2] of [['anthropic','haiku',.61,.81],['deepseek','chat',.69,.89],['anthropic','sonnet',.77,.95],['anthropic','opus',.85,.95]])
+    ok(near(catchRate(1,model(v,m)),c1)&&near(catchRate(2,model(v,m)),c2)&&catchRate(0,model(v,m))===0,`self-review：${m} 抓錯率 ${c1*100}%／${c2*100}%`);
+  const tr=ticket('fe',4); S.hours=8; S.issues=[tr]; sel.issue=tr.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:1}); render();
+  ok(els.app.innerHTML.includes('token ×1.3・抓錯 77%')&&els.app.innerHTML.includes('token ×1.6・抓錯 95%')&&els.app.innerHTML.includes('改壞就整單重做'),'self-review：審核按鈕顯示倍率與抓錯率');
+  ok(els.app.innerHTML.includes('class="good">95%')&&els.app.innerHTML.includes('成功率（原 80%）'),'self-review：Sonnet 自審複雜度 4 顯示 95%（原 80%）');
+  ok(near(est(tr,'anthropic','sonnet',1).pe,.8+.2*.77),'self-review：顯示的成功率 = p + (1 − p) × 抓錯率');
+  pristine.fresh(); ok(pristine.sel.rv===1,'self-review：第一次開局預設自審');
+  sel.rv=2; fresh(); ok(sel.rv===2,'self-review：審核等級跨局保留'); sel.rv=1;
+  /* 抓到錯誤 */
+  newRun('laravel'); const tc=ticket('fe',2); S.issues=[tc];
+  settle(job(tc,'anthropic','sonnet','api',{ok:false,caught:true,rv:1,tk:200}));
+  ok(!S.issues.includes(tc)&&near(S.st.api,250*.45)&&near(S.st.tk.anthropic,250)&&S.st.caught===1&&S.log.some(l=>l.msg.includes('自審抓到錯誤並當場修正，省掉整單重做')),'self-review：抓到錯誤時成功、token ×1.25');
+  newRun('laravel'); const tn=ticket('fe',2); S.issues=[tn]; settle(job(tn,'anthropic','sonnet','corp',{ok:false,caught:false,rv:2}));
+  ok(S.issues.includes(tn)&&S.log[0].msg.includes('審核沒抓到，上線後測試才爆'),'self-review：沒抓到的紀錄');
+  /* 救不了的情況 */
+  newRun('laravel'); S.subs.anthropic='pro'; S.used.sub.anthropic={d:400,w:400}; const tq=ticket('fe',2); S.issues=[tq];
+  settle(job(tq,'anthropic','sonnet','sub',{ok:false,caught:true,rv:2,tk:200}));
+  ok(S.issues.includes(tq)&&S.log[0].msg.includes('撞到用量上限，agent 停在一半')&&S.st.caught===0,'self-review：嚴格審核救不了額度用完');
+  const tt=ticket('fe',2); S.issues=[tt]; const rt=settle(job(tt,'anthropic','sonnet','corp',{ok:false,caught:true,rv:1}),{frac:.5,fail:true,note:'跑到下班還沒結束'});
+  ok(!rt.ok&&S.issues.includes(tt)&&S.st.caught===0,'self-review：救不了跑到下班');
+  const ts=ticket('app',2,{store:true}); S.issues=[ts]; const rs=withRand(0,()=>settle(job(ts,'anthropic','sonnet','corp',{ok:false,caught:true,rv:1})));
+  ok(!rs.ok&&rs.rejected&&S.issues.includes(ts),'self-review：抓到錯誤後仍可能被 App Store 退件');
+  }
+
+  /* game-modes：模式選擇 */
+  {
+  S.slots=3; start(); S.mode='parallel'; showSetup(false);
+  ok(/class="sb sel" data-mode="parallel"/.test(els.mo.innerHTML)&&els.mo.innerHTML.includes('data-mode="serial"'),'game-modes：開局可選平行或單線，選中平行');
+  clickMo({act:'confirm'}); ok(S.log.some(l=>l.msg.includes('遊戲模式：平行（同時 3 個 agent）')),'game-modes：開局紀錄寫平行與工作槽數');
+  pristine.fresh(); ok(pristine.S.mode==='parallel','game-modes：第一次開局預設平行模式');
+  S.mode='serial'; fresh(); ok(S.mode==='serial','game-modes：模式跨局保留');
+  start(); clickMo({act:'confirm'}); ok(S.log.some(l=>l.msg.endsWith('遊戲模式：單線')),'game-modes：開局紀錄寫單線');
+  showSetup(true); ok(!els.mo.innerHTML.includes('data-mode'),'game-modes：週一調整不能換模式');
+  /* 單線 */
+  newRun('laravel'); S.hours=8; const ts=ticket('fe',2); S.issues=[ts]; sel.issue=ts.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0});
+  withRand(.5,dispatch); ok(near(S.hours,6.4)&&!S.issues.includes(ts)&&S.log[0].msg.startsWith('D01 ✓'),'game-modes：單線派工當場結算、扣 1.6h');
+  render(); ok(els.app.innerHTML.includes('今日剩餘工時')&&els.app.innerHTML.includes('6.4<small style="font-size:13px"> / 8h')&&!els.app.innerHTML.includes('data-act="wait1"')&&!els.app.innerHTML.includes('背景 agent'),'game-modes：單線顯示剩餘工時、沒有等待按鈕與背景 agent');
+  /* 平行時鐘 */
+  newRun('laravel','parallel'); S.slots=3; S.hours=8; const tp=ticket('fe',2), tq=ticket('fe',3); S.issues=[tp,tq]; sel.issue=tp.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0});
+  withRand(.5,dispatch); ok(near(S.hours,7.8)&&A.clock(8-S.hours)==='9:12'&&S.jobs.length===1&&tp.running,'game-modes：派到背景花 0.2h、時鐘 9:12');
+  render(); ok(els.app.innerHTML.includes('9:12')&&els.app.innerHTML.includes('背景 agent 1 / 3')&&!els.app.innerHTML.includes(`data-iss="${tp.id}"`),'game-modes：平行顯示時鐘、背景 agent 數，跑的工單不在佇列');
+  A.wait(false); ok(near(S.hours,6.8),'game-modes：等 1 小時');
+  A.wait(true); ok(!S.jobs.length&&!S.issues.includes(tp),'game-modes：等到下一個 agent 完成');
+  render(); ok(/data-act="waitn" disabled/.test(els.app.innerHTML),'game-modes：沒有 agent 時不能等下一個');
+  /* 平行加成 */
+  S.jobs=[job(tq,'anthropic','haiku','corp',{left:5,hrs:5}),job(tq,'anthropic','haiku','corp',{left:5,hrs:5})];
+  ok(near(parMul(),1.3)&&near(est(tq,'anthropic','sonnet',0).tk,BASE[3]*.85*1.3),'game-modes：兩個在跑時 token ×1.30');
+  sel.issue=tq.id; render(); ok(els.app.innerHTML.includes('預估 tokens ×1.30')&&els.app.innerHTML.includes('平行加成：已有 2 個 agent 在跑'),'game-modes：派工台顯示平行加成');
+  /* 審 PR */
+  newRun('laravel','parallel'); S.hours=8; const tr=ticket('fe',4); S.issues=[tr]; S.jobs=[job(tr,'anthropic','opus','corp',{rv:1,left:.1,hrs:.1})];
+  advance(.1); ok(near(S.hours,7.5)&&S.log.some(l=>l.msg.includes('審 PR 花了 0.4h')),'game-modes：自審複雜度 4 成功後審 PR 0.4h');
+  const tr2=ticket('fe',4); S.issues=[tr2]; S.jobs=[job(tr2,'anthropic','opus','corp',{rv:0,left:.1,hrs:.1})]; advance(.1); ok(near(S.hours,7.5-.1-.8),'game-modes：不審核時審 PR 0.8h');
+  const tr3=ticket('fe',4); S.issues=[tr3]; const h3=S.hours; S.jobs=[job(tr3,'anthropic','opus','corp',{ok:false,left:.1,hrs:.1})]; advance(.1); ok(near(S.hours,h3-.1),'game-modes：失敗不用審 PR');
+  /* 過夜與中止 */
+  newRun('laravel','parallel'); S.day=3; S.hours=0; const to=ticket('fe',3,{due:6}); S.issues=[to]; S.jobs=[job(to,'anthropic','opus','corp',{left:3.5,hrs:5})]; to.running=true;
+  withRand(.99,endDay); ok(S.jobs.length===1&&near(S.jobs[0].left,.5)&&els.mo.innerHTML.includes('1 個 agent 跑了一整晚，一早會陸續有結果。'),'game-modes：過夜扣 3h');
+  newRun('laravel','parallel'); S.day=3; S.hours=0; const to2=ticket('fe',3,{due:6}); S.issues=[to2]; S.jobs=[job(to2,'anthropic','opus','corp',{left:2,hrs:5})]; withRand(.99,endDay); ok(near(S.jobs[0].left,.05),'game-modes：過夜後至少剩 0.05h');
+  newRun('laravel','parallel'); S.day=3; S.hours=0; const tdue=ticket('fe',3,{due:3,kpi:10}); S.issues=[tdue]; S.jobs=[job(tdue,'anthropic','opus','corp',{left:4,hrs:4,tk:100})]; tdue.running=true;
+  withRand(.99,endDay);
+  ok(!S.jobs.length&&near(S.st.tk.anthropic,5)&&S.st.late===1&&S.log.some(l=>l.msg.includes('到期還沒跑完，只好中止'))&&els.mo.innerHTML.includes('1 個背景 agent 跑到截止還沒完成，被你中止了。'),'game-modes：到期的背景 agent 被中止、至少算 5% token、工單逾期');
+  newRun('laravel','parallel'); S.hours=3; const t17=ticket('fe',3,{due:9}); S.issues=[t17]; S.jobs=[job(t17,'anthropic','opus','corp',{left:8,hrs:8})]; withRand(.99,endDay);
+  ok(near(S.jobs[0].left,8-3-3),'game-modes：下班前先跑到 17:00 再過夜');
+  /* 本地 GPU */
+  newRun('laravel','parallel'); S.hours=8; const tl=ticket('fe',5,{due:9}), tg=ticket('fe',2); S.issues=[tl,tg]; S.jobs=[job(tl,'local','qwen','local',{left:5,hrs:5})]; tl.running=true;
+  sel.issue=tg.id; Object.assign(sel,{v:'local',m:'gemma',b:'local',rv:0}); render();
+  ok(/data-act="go" disabled/.test(els.app.innerHTML)&&els.app.innerHTML.includes('本地 GPU 已經有一個 agent 在跑，等它跑完才能再派。')&&els.app.innerHTML.includes('本地 GPU 跑 agent 中，電腦卡到沒辦法手寫'),'game-modes：本地 GPU 忙時不能派本地、不能手寫');
+  const nJobs=S.jobs.length; dispatch(); manual(); ok(S.jobs.length===nJobs&&S.issues.includes(tg)&&S.st.manual===0,'game-modes：本地 GPU 忙時派工與手寫都不動作');
+  Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp'}); render(); ok(!/data-act="go" disabled/.test(els.app.innerHTML),'game-modes：本地 GPU 忙時仍可派雲端 agent');
+  }
+
+  /* random-events：每天 55% 抽一個 */
+  {
+  newRun('laravel'); let evDays=0; const N=10000;
+  for(let i=0;i<N;i++){S.day=2; S.issues=[]; S.cnBan=false; endDay(); if(els.mo.innerHTML.includes('class="evt"'))evDays++;}
+  ok(Math.abs(evDays/N-.55)<=.02,'random-events：有事件的天數約 55%',evDays/N);
+  ok(EVENTS.length===8,'random-events：共 8 種事件');
+  /* 當機事件經過 endDay：中止該廠商的背景 agent */
+  newRun('laravel','parallel'); S.day=3; S.hours=0; const ta=ticket('fe',3,{due:9}), tb=ticket('fe',3,{due:9}); S.issues=[ta,tb];
+  S.jobs=[job(ta,'anthropic','opus','corp',{left:5,hrs:5}),job(tb,'anthropic','sonnet','corp',{left:5,hrs:5})];
+  withRand([0,.13,0,.99],endDay);
+  ok(S.outage==='anthropic'&&!S.jobs.length&&S.log.filter(l=>l.msg.includes('廠商當機，session 斷了')).length===2&&els.mo.innerHTML.includes('2 個跑在 Anthropic 的 agent 因為當機斷線。'),'random-events：當機中止該廠商的 agent');
+  ok(els.mo.innerHTML.includes('<div class="evt"><b>Anthropic 服務大當機</b>'),'random-events：彈窗顯示事件標題');
+  /* 各事件效果 */
+  ok(dataModule.APIV.join()==='anthropic,openai,google,deepseek,zhipu,moonshot'&&dataModule.SUBV.join()==='anthropic,openai,google,zhipu,moonshot','random-events：降價與當機不抽自架開源，縮水只抽訂閱廠商');
+  newRun('laravel');
+  let ev=withRand(0,EVENTS[0]); ok(ev[0]==='Anthropic 新模型上架，API 降價 30%'&&near(S.priceMod.anthropic,.7),'random-events：降價 30%');
+  withRand(0,EVENTS[0]); ok(near(S.priceMod.anthropic,.49),'random-events：降價可以疊加');
+  ev=withRand(.5,EVENTS[1]); ok(S.outage==='deepseek'&&ev[0]==='DeepSeek 服務大當機','random-events：當機一天');
+  S.day=7; ev=EVENTS[2](); ok(ev[0]==='主管在週會上提醒'&&!S.cnBan,'random-events：第 8 天前不會禁中國雲端');
+  S.day=8; ev=EVENTS[2](); ok(ev[0]==='主管宣布：全公司暫停把程式碼送到中國雲端模型'&&S.cnBan,'random-events：第 8 天起可能禁中國雲端');
+  ev=EVENTS[2](); ok(ev[0]==='主管在週會上提醒'&&S.cnBan,'random-events：已經禁了就只是提醒');
+  S.corp=10000; ev=EVENTS[3](); ok(ev[0]==='年度預算凍結'&&near(S.corp,7000),'random-events：預算凍結 -30%');
+  S.subs.anthropic='pro'; S.used.sub.anthropic={d:0,w:0}; ev=withRand(0,EVENTS[4]); ok(ev[0]==='Anthropic 調整訂閱用量政策'&&near(S.capMod.anthropic,.8)&&near(quotaLeft('sub','anthropic'),360),'random-events：訂閱額度縮水 20%');
+  S.issues=[]; ev=EVENTS[5](); ok(ev[0]==='大新聞爆發，流量暴增'&&S.issues.length===2&&S.issues.every(i=>i.inc),'random-events：流量暴增進兩張事故單');
+  S.day=5; S.kpi=40; S.trust=70; ev=EVENTS[6](); ok(ev[0]==='主管在週會上點名稱讚'&&S.trust===76,'random-events：KPI 40 > 35 時主管稱讚 +6');
+  S.kpi=35; S.trust=70; ev=EVENTS[6](); ok(ev[0]==='主管問進度怎麼這麼慢'&&S.trust===66,'random-events：KPI 35 時主管質疑 -4');
+  S.kpi=40; S.trust=98; EVENTS[6](); ok(S.trust===100,'random-events：稱讚後信任上限 100');
+  S.kpi=0; S.trust=2; EVENTS[6](); ok(S.trust===0,'random-events：質疑後信任下限 0');
+  S.wallet=1000; ev=EVENTS[7](); ok(ev[0]==='外包案尾款入帳'&&S.wallet===2500,'random-events：尾款 +NT$1,500');
+  }
+
+  /* month-end-scoring：總分、評等、稱號、結算單 */
+  {
+  const endRun=(mode,set)=>{newRun('laravel',mode); resetStore(); S.day=20; set(); showEnd(); const h=els.mo.innerHTML;
+    return {h,score:+h.match(/<span>總分<\/span><span>([\d,-]+)<\/span>/)[1].replace(/,/g,''),grade:h.match(/<span class="g">(\w)<\/span>/)[1],title:h.match(/<div class="gt"><b>([^<]+)<\/b>/)[1]};};
+  const base=()=>{S.kpi=300; S.trust=50; S.st.subFee=2000; S.st.audits=1;};
+  let r=endRun('serial',base); ok(r.score===3870&&r.grade==='A','month-end-scoring：3,870 分在單線是 A',r.score+r.grade);
+  r=endRun('parallel',base); ok(r.score===3870&&r.grade==='C','month-end-scoring：3,870 分在平行是 C',r.score+r.grade);
+  r=endRun('serial',()=>{base(); S.st.subFee=0; S.st.api=50000;}); ok(r.score===3000+200-500-80,'month-end-scoring：個人花費項下限 −500',r.score);
+  r=endRun('serial',()=>{S.kpi=0; S.trust=0; S.st.outIncome=3000; S.st.outPenalty=1000; S.st.api=500;}); ok(r.score===Math.round((8000-(500+1000-3000))/8),'month-end-scoring：個人花費 = 訂閱 + API + 外包違約金 − 外包收入',r.score);
+  ok(r.h.includes('總分 = KPI × 10 + 信任 × 4 + 省下的個人預算 ÷ 8 − 稽核次數 × 80'),'month-end-scoring：結算單寫出公式');
+  /* 評等門檻 */
+  const gradeAt=(mode,score)=>endRun(mode,()=>{S.trust=0; S.st.subFee=8000; S.kpi=score/10;}).grade;
+  ok([[4600,'S'],[4590,'A'],[3800,'A'],[3000,'B'],[2200,'C'],[2190,'D']].every(([s,g])=>gradeAt('serial',s)===g),'month-end-scoring：單線門檻 4,600／3,800／3,000／2,200');
+  ok([[7360,'S'],[7350,'A'],[6080,'A'],[4800,'B'],[3520,'C'],[3510,'D']].every(([s,g])=>gradeAt('parallel',s)===g),'month-end-scoring：平行門檻 ×1.6');
+  /* 稱號 */
+  const titleOf=set=>endRun('serial',()=>{S.kpi=120; S.trust=0; set();}).title;
+  ok(titleOf(()=>{})==='還在摸索的開發者','month-end-scoring：預設稱號');
+  ok(endRun('serial',()=>{S.kpi=1000; S.st.audits=2;}).title==='資安部門的常客','month-end-scoring：稽核 2 次優先於 S 評等');
+  ok(titleOf(()=>{S.st.api=7001;})==='自費養 AI 的勇者','month-end-scoring：自費超過 NT$7,000');
+  ok(titleOf(()=>{S.st.corp=10501;})==='公司帳單上的頭號人物','month-end-scoring：公司帳單超過 NT$10,500');
+  ok(titleOf(()=>{S.st.tk.deepseek=41; S.st.tk.anthropic=59;})==='對岸模型省錢達人'&&titleOf(()=>{S.st.tk.deepseek=40; S.st.tk.anthropic=60;})==='還在摸索的開發者','month-end-scoring：中國模型超過 40%');
+  ok(titleOf(()=>{S.st.tk.local=41; S.st.tk.anthropic=59;})==='地端信仰者','month-end-scoring：本地超過 40%');
+  ok(titleOf(()=>{S.st.manual=13;})==='手工藝工程師'&&titleOf(()=>{S.st.manual=12;})==='還在摸索的開發者','month-end-scoring：手寫超過 12 次');
+  ok(endRun('serial',()=>{S.kpi=400; S.trust=0;}).title==='Token 精算師','month-end-scoring：A 評等是 Token 精算師');
+  ok(titleOf(()=>{S.st.api=7001; S.st.corp=10501; S.st.manual=13;})==='自費養 AI 的勇者','month-end-scoring：稱號照順序取第一個符合的');
+  /* 結算單 */
+  r=endRun('serial',()=>{S.st.subFee=650; S.st.api=120; S.st.corp=3000; S.st.done=12; S.st.late=2; S.st.kpiLost=8; S.st.manual=3; S.st.caught=4; S.st.audits=1; S.trust=55; S.kpi=90; S.st.tk.anthropic=100; S.st.tk.deepseek=300;});
+  ok(['個人訂閱月費</span><span>NT$650','個人 API 帳單</span><span>NT$120','你自己掏的錢</span><span>NT$770','公司 API 帳單</span><span>NT$3,000','Anthropic</span><span>100k tokens・25%','DeepSeek</span><span>300k tokens・75%','完成工單</span><span>12 張','逾期工單</span><span>2 張（KPI -8）','自己手寫</span><span>3 次','審核救回</span><span>4 張','資安稽核</span><span>1 次','主管信任</span><span>55','<span>KPI</span><span>90']
+    .every(x=>r.h.includes(x)),'month-end-scoring：結算單列出核心項目');
+  ok(!r.h.includes('先前最佳')&&endRun('serial',()=>{}).h.includes('沒有用到任何 agent'),'month-end-scoring：沒有最佳分時不顯示、沒用 agent 時的文字');
+  newRun('laravel'); resetStore({[bestKey()]:'5000'}); S.day=20; showEnd(); ok(els.mo.innerHTML.includes('<span>先前最佳</span><span>5,000</span>'),'month-end-scoring：有最佳分時顯示先前最佳');
+  /* 按鈕 */
+  els.app.attrs.length=0; clickMo({act:'close'}); ok(els.ov.hidden&&els.app.attrs.some(([s,k])=>s==='[data-act="end"]'&&k==='disabled'),'month-end-scoring：看看紀錄關掉結算並停用下班按鈕');
+  S.mode='serial'; S.day=20; showEnd(); clickMo({act:'again'}); ok(S.day===1&&S.mode==='serial'&&els.mo.innerHTML.includes('月初：決定這個月怎麼付 token')&&/class="sb sel" data-mode="serial"/.test(els.mo.innerHTML),'month-end-scoring：再玩一個月開新局、沿用選擇');
+  resetStore();
+  }
+  }
   console.log(`\n${pass} passed, ${fail} failed`);
   if(fail) process.exitCode=1;
 }

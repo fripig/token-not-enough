@@ -1,0 +1,142 @@
+# ticket-lifecycle Specification
+
+## Purpose
+
+Defines how company tickets are generated each day, what they are worth, how long they can wait, and what happens when they are finished, failed, written by hand, or left overdue.
+
+## Requirements
+
+### Requirement: Ticket generation
+
+A non-incident ticket SHALL get complexity from r = random + day ÷ 20 × 0.38: r < 0.28 → 1, < 0.6 → 2, < 0.9 → 3, < 1.12 → 4, otherwise 5. An incident ticket SHALL have complexity 4. Base tokens SHALL be BASE[complexity] × a uniform factor in [0.85, 1.15] with BASE = 60, 180, 350, 550, 850 k for complexity 1–5. KPI SHALL be round(KPI[complexity] × incident factor × stack factor) with KPI = 3, 6, 10, 16, 24, incident factor 1.6 (see `engineering-investments` for monitoring) and stack factor from `stack-agent-effects`. The deadline SHALL be today for an incident, today + 1–3 days for complexity 1–2, and today + 2–5 days otherwise, plus the stack extension from `stack-agent-effects`, capped at day 20. A ticket SHALL be sensitive with probability 55% for incidents and 25% otherwise, and SHALL be large codebase with probability 45% when complexity is at least 3. Stack, trap and store-review fields come from `company-tech-stack`, `trap-tickets` and `stack-agent-effects`.
+
+#### Scenario: Complexity by day
+
+##### Example: complexity rolls
+
+| Day | random | r | Complexity |
+| --- | --- | --- | --- |
+| 1 | 0.25 | 0.269 | 1 |
+| 1 | 0.5 | 0.519 | 2 |
+| 10 | 0.5 | 0.69 | 3 |
+| 20 | 0.0 | 0.38 | 2 |
+| 20 | 0.99 | 1.37 | 5 |
+
+#### Scenario: Incident KPI
+
+- **WHEN** an incident is generated for a Laravel company without monitoring
+- **THEN** its complexity is 4, its KPI is 26 (round(16 × 1.6)) and its deadline is today
+
+
+<!-- @trace
+source: gh-09-01-core-rules-specs
+updated: 2026-10-09
+code:
+  - docs/DESIGN.md
+  - tools/check.js
+  - tools/fake-dom.js
+-->
+
+---
+### Requirement: Daily ticket intake
+
+Day 1 SHALL start with 4 non-incident tickets. Each later day SHALL add 3–6 tickets in parallel mode and 2–4 in serial mode, each one an incident with probability 12%. The log SHALL record — 第 N 天開工，新進 M 張工單 —. The queue SHALL list tickets not currently running, sorted by deadline ascending and then KPI descending, with the header `<n> 張・依到期排序`; when empty it SHALL read 工單清空了。可以提早下班，把工時留給明天。
+
+#### Scenario: First day
+
+- **WHEN** a run starts
+- **THEN** the queue holds 4 tickets and none is an incident
+
+#### Scenario: Queue order
+
+- **WHEN** the queue holds A (due day 3, KPI 6), B (due day 2, KPI 3) and C (due day 3, KPI 10)
+- **THEN** the order is B, C, A
+
+
+<!-- @trace
+source: gh-09-01-core-rules-specs
+updated: 2026-10-09
+code:
+  - docs/DESIGN.md
+  - tools/check.js
+  - tools/fake-dom.js
+-->
+
+---
+### Requirement: Completing a ticket
+
+When a company ticket succeeds (by agent or by hand) it SHALL leave the queue, KPI SHALL rise by its KPI value and the completed count SHALL rise by 1. Completing an incident SHALL also raise trust by 2, capped at 100. Outsourced tickets pay money instead (see `outsource-gigs`).
+
+#### Scenario: Incident fixed
+
+- **WHEN** an incident worth 26 KPI is completed with trust 70 and KPI 40
+- **THEN** KPI is 66, trust is 72 and the ticket is gone from the queue
+
+
+<!-- @trace
+source: gh-09-01-core-rules-specs
+updated: 2026-10-09
+code:
+  - docs/DESIGN.md
+  - tools/check.js
+  - tools/fake-dom.js
+-->
+
+---
+### Requirement: Failed attempts
+
+When an attempt fails without leaving a conflict ticket, the ticket SHALL stay in the queue, its try count SHALL rise by 1, and its base tokens SHALL be multiplied by 0.7 (except a trap stop, see `trap-tickets`). A ticket with at least one try SHALL show 已失敗 N 次 and SHALL use 0.8 × the hours for later agent runs and hand-writing.
+
+#### Scenario: Retry is cheaper
+
+- **WHEN** a ticket with base 350k fails once
+- **THEN** its base is 245k and its card shows 已失敗 1 次
+
+
+<!-- @trace
+source: gh-09-01-core-rules-specs
+updated: 2026-10-09
+code:
+  - docs/DESIGN.md
+  - tools/check.js
+  - tools/fake-dom.js
+-->
+
+---
+### Requirement: Writing it by hand
+
+自己手寫 SHALL cost complexity × 2.2 hours, × 0.8 after a failed try, × 2 for an unfamiliar stack (see `company-tech-stack`), and 0 tokens. It SHALL be disabled when the hours exceed the time left or the local GPU is busy. Complexity 1–3 SHALL always succeed; complexity 4–5 SHALL succeed with probability 70% and otherwise count a failed try with the log 自己手寫卡關. Every hand-writing attempt SHALL add 1 to the hand-written count. In serial mode the hours SHALL be deducted directly; in parallel mode the clock SHALL advance by those hours while background agents keep running.
+
+#### Scenario: Hand-written complexity 2
+
+- **WHEN** the player hand-writes a complexity-2 ticket of a chosen stack with 8 hours left in serial mode
+- **THEN** 4.4 hours are used, the ticket completes, and no tokens are spent
+
+
+<!-- @trace
+source: gh-09-01-core-rules-specs
+updated: 2026-10-09
+code:
+  - docs/DESIGN.md
+  - tools/check.js
+  - tools/fake-dom.js
+-->
+
+---
+### Requirement: Overdue tickets
+
+At the end of each day every company ticket with a deadline on or before today SHALL be removed. Each SHALL lose ceil(KPI × 0.5) from KPI, drop trust by 4 (8 for an incident, see `engineering-investments` for monitoring), add 1 to the overdue count, and log ⌛ 逾期. The next day summary SHALL report `<n> 張工單逾期，主管信任下降。`. The ticket card SHALL show 今天到期 when the deadline is today and 剩 N 天 otherwise.
+
+#### Scenario: Overdue incident
+
+- **WHEN** an incident worth 26 KPI is still in the queue when its day ends with KPI 50 and trust 70
+- **THEN** KPI is 37, trust is 62, and the overdue count rises by 1
+
+<!-- @trace
+source: gh-09-01-core-rules-specs
+updated: 2026-10-09
+code:
+  - docs/DESIGN.md
+  - tools/check.js
+  - tools/fake-dom.js
+-->
