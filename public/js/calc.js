@@ -1,4 +1,4 @@
-import {MD_P,MD_TK,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,kt,model,planOf} from './data.js';
+import {MD_P,MD_TK,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,effModel,efOf,kt,model,planOf} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
 import {PAR,parMul} from './actions.js';
 
@@ -31,10 +31,11 @@ export function stackHint(is){
 /* 本地 GPU 一次只能跑一個 agent，跑的時候電腦被吃滿，也不能自己手寫 */
 export const localBusy=()=>S.jobs.some(j=>j.b==='local');
 export const manualHrs=is=>is.cx*2.2*(is.tries?.8:1)*(unfamiliar(is)?2:1);
-export function est(is,v,mid,rv=sel.rv){
-  const M=model(v,mid), raw=M.cap-is.cx, diff=raw+stackGap(is,M);
+/* 進階模式的推理強度套在模型上；能力超過工單的 token 折扣看原本的模型 */
+export function est(is,v,mid,rv=sel.rv,ef=sel.ef){
+  const M0=model(v,mid), M=effModel(M0,efOf(ef)), raw=M.cap-is.cx, diff=raw+stackGap(is,M);
   const md=!!S.inv.md[is.stack], sdd=S.inv.sdd;
-  const tk=is.base*M.verb*(is.big&&M.ctx?.7:1)*(raw>=1?.85:1)*parMul()*REVIEW[rv].tk*(md?MD_TK:1)*(sdd?SDD_TK:1);
+  const tk=is.base*M.verb*(is.big&&M.ctx?.7:1)*(M0.cap-is.cx>=1?.85:1)*parMul()*REVIEW[rv].tk*(md?MD_TK:1)*(sdd?SDD_TK:1);
   let p=diff>=1?.95:diff===0?.8:diff===-1?.5:diff===-2?.25:.1;
   if(is.big&&M.ctx)p+=.08; if(is.big&&!M.ctx&&M.cap<4)p-=.08;
   if(md)p+=MD_P; if(sdd&&is.cx>=3)p+=SDD_P;
@@ -70,7 +71,7 @@ export function presetBlock(is,p){
   if(p.b==='seat'&&!(S.seat.status==='approved'&&S.seat.vendor===p.v)) return '沒有公司席位';
   const bl=bills(p.v,is).find(b=>b.id===p.b); if(!bl) return '不能用這種付費方式'; if(!bl.ok) return bl.note;
   if(p.b==='local'&&PAR()&&localBusy()) return '本地 GPU 忙';
-  const cl=costLine(p.b,M,p.v,est(is,p.v,p.m,p.rv));
+  const cl=costLine(p.b,M,p.v,est(is,p.v,p.m,p.rv,p.ef));
   if((p.b==='sub'||p.b==='seat')&&cl.hi>quotaLeft(p.b,p.v)) return '額度不夠';
   if(p.b==='api'&&cl.hi>S.wallet) return '錢包不夠';
   return '';

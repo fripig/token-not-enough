@@ -11,7 +11,7 @@
 - `public/index.html`：頁面骨架。`<head>` 有 canonical、Open Graph／Twitter Card、JSON-LD（`VideoGame`）；`#app` 裡放一段靜態遊戲介紹給爬蟲與未啟用 JS 的訪客，`start()` 第一次 `render()` 會整個換掉。分享圖是 `public/img/og.png`（1200×630），改遊戲名稱或介紹時一起更新這些地方。
 - `public/css/style.css`：樣式。開頭補了 `body{margin:0}`、`[hidden]{display:none!important}`，原本由 Artifact 外殼提供；少了後者 `.ov` 的 `display:flex` 會蓋過 `hidden`，彈窗關不掉。
 - `public/js/*.js`：遊戲本體，拆成七個原生 ES modules（見「程式碼地圖」），由 `public/index.html` 以 `<script type="module" src="js/main.js">` 載入；無建置步驟、遊戲邏輯沒有外部 JS 相依。瀏覽器不允許從 `file://` 載入模組，一定要用本機伺服器開。頁面另外從 Google Fonts 載字型，並在 `public/index.html` 載入 Google Analytics（gtag.js）做流量統計。本機用 `python3 -m http.server -d public 8000` 開。
-- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 四家公司 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資，`SIM_COMBOS=1` 改跑六種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 公司」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
+- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 四家公司 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資，`SIM_COMBOS=1` 改跑六種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_EFFORT=1` 開啟進階模式並讓自動玩家挑推理強度，`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 公司」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
 - `tools/check.js`：規則檢查。`node tools/check.js` 把 spec 裡的範例數字逐條斷言（技術線分布、成功率、時間倍率、手寫時數、上架審核、KPI 補償、最高分 key、難度標示、接外包），任何一條不符就以非 0 結束。改規則時同步更新。
 
 部署：push 到 `main` 後 `.github/workflows/pages.yml` 把 `public/` 發佈到 https://token-not-enough.youareright.app/ 。只有 `public/` 會公開。自訂網域設在 repo 的 Pages 設定（用 Actions 部署時 `CNAME` 檔不會生效），DNS 是 Cloudflare 上 `youareright.app` 的 CNAME `token-not-enough` → `fripig.github.io`（DNS only），舊網址 `fripig.github.io/token-not-enough/` 會轉址過來。
@@ -43,6 +43,8 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
    → 做成獨立的「接外包」開關，不佔名額。設計紀錄在 Spectra change `outsource-gigs`。
 11. 「目前玩得有點痛苦 能有何機制能增加趣味但是又符合遊戲精神呢」（痛點：每張單都要重選一輪、整局只有越來越緊）、「投入ＳＤＤ也放上去」
    → 派工方案（一鍵派工）＋工程投資（CLAUDE.md、補測試、skills、MCP 文件、SDD）。設計紀錄在 Spectra change `dispatch-presets-and-investments`。
+13. 「新增可選的進階模式 可以選擇更細的model」、「推里強度也會導致工作變慢」
+   → 開局可勾選「進階模式」，派工台多一個推理強度（低／中／高）旋鈕，模型清單不變；高強度能力 +1 但 token 變多、工作變慢。最高分不分開。設計紀錄在 Spectra change `reasoning-effort`。
 
 介面文字一律繁體中文（台灣用語）。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
@@ -175,7 +177,7 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
   越多越好，但 4 個以後增幅只剩約 0–3%（Rust 在 5 個最高）。6 個是微幅最佳解，評等門檻沒有跟著調。如果要讓多開有明顯代價，可以考慮多開時審 PR 時間加成或評等門檻隨工作槽調整（使用者當初選擇先量測）。
 
 ### 派工方案（`S.presets`、`presetBlock`、`presetFor`、`quick`）
-- 三組方案 A／B／C，各存廠商、模型、付費方式、審核等級。預設 A：DeepSeek Chat＋個人 API＋自審；B：Sonnet＋公司 API＋自審；C：Opus＋公司 API＋嚴格審核。跨 `fresh()` 保留，有任何一組不合法就三組都退回預設（`presetsOf`）。不存 localStorage。
+- 三組方案 A／B／C，各存廠商、模型、付費方式、審核等級、推理強度（`ef`，0／1／2）。預設三組都是中強度；舊方案沒有 `ef` 時補成中，`ef` 不是 0–2 就三組退回預設。一般模式下方案存的強度不生效；進階模式下強度不是中的方案，載入按鈕標籤會顯示「高強度／低強度」。預設 A：DeepSeek Chat＋個人 API＋自審；B：Sonnet＋公司 API＋自審；C：Opus＋公司 API＋嚴格審核。跨 `fresh()` 保留，有任何一組不合法就三組都退回預設（`presetsOf`）。不存 localStorage。
 - 派工台可「載入方案」（`loadPreset`）與「存成方案」（`savePreset`）。
 - 工單卡片下方的「一鍵派工」照 A→B→C 用第一個能用的方案。不能用的原因依序：今日當機、案主禁用（`cnBlock` 文字）、付費方式不能用（帳單註記，或「沒有公司席位」）、本地 GPU 忙、額度不夠（預估上限 × w 超過剩餘額度）、錢包不夠（預估上限超過錢包）。卡片顯示第一個被略過的方案和原因，紀錄寫出所有略過的方案。工作槽滿或剩不到 0.2h 時停用；三組都不能用時顯示「沒有可用方案」。
 - 機敏工單不會因為個人付費而跳過方案，卡片改顯示稽核機率。
@@ -227,6 +229,32 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 
 目標是平行模式 −5%～+15%。報酬 100 時平行有兩格超過 +15%，使用者選了 80，每日張數沒調。總分公式對「8000 − 個人花費」只設下限、沒有上限，外包收入會直接加分，所以靠 `GIG_PAY` 控制。單線模式的自動玩家照佇列順序硬接外包單，排擠公司工單，所以全部變差；單線不設目標，照實記錄。
 
+### 推理強度（進階模式，`S.advanced`、`sel.ef`、`EFFORT`、`effModel`、`efOf`）
+- 開局彈窗有「一般／進階」（`data-adv`），預設一般，跨 `fresh()` 保留，不是布林值就退回一般；週一調整不顯示；只切這個開關不重抽第 1 天工單。最高分 key 不分一般／進階。
+- 進階模式下派工台在自我審核下方多一排「推理強度」（`data-ef`），選擇存在 `sel.ef`，跨 `fresh()` 保留。一般模式不顯示，`efOf()` 一律當中強度。
+- `effModel(M, ef)` 把強度套在選到的模型上，`est` 用調整後的模型算成功率、抓錯率、token 與時數，派工、陷阱硬做判斷、扣款與紀錄名稱都跟著走：
+
+| 強度 | 能力 | token | 執行時間 |
+|---|---|---|---|
+| 低 | −1（下限 1） | ×0.7 | ×0.8（變快） |
+| 中 | 原本的模型 | ×1 | ×1 |
+| 高 | +1（不設上限，Opus 會到 6） | ×1.5 | ×1.4（變慢） |
+
+- 每 1k token 價格與訂閱權重 `w` 不變。強度不是中時，紀錄的模型名稱寫成「Sonnet・高強度」。
+- `est` 裡「能力高於複雜度時 token ×0.85」的折扣看原本模型的能力，所以高強度的 token 剛好是中強度的 1.5 倍。
+- 評估架構（`evalCost`、`revealRate`）與自己手寫不受強度影響。
+
+平衡實測（2026-10-09，`SIM_N=100`，每格 300 局，跑兩次；`SIM_EFFORT=1` 平均分 ÷ 預設平均分，減 1）。自動玩家依選到模型的原始能力減顯示複雜度挑強度：≤ −1 用高、≥ 2 用低，其他用中。
+
+| 公司 | 平行 | 單線 |
+|---|---|---|
+| Laravel | −0.0% / +1.5% | −12.9% / −10.3% |
+| Rails | −1.4% / −2.9% | −12.9% / −15.0% |
+| Rust | +5.7% / +7.8% | +5.0% / +0.8% |
+| App | −2.6% / −1.3% | −9.6% / −11.4% |
+
+目標是平行模式 −5%～+15%，第一版倍率就落在範圍內，沒有調。單線模式完全受工時限制，高強度變慢反而虧（Rust 例外，因為 borrow checker 對能力 <4 的扣分被高強度補回來），不設目標，照實記錄。
+
 ### 自我審核（`REVIEW`、`catchRate`）
 | 等級 | token | 時間 | 抓錯率 |
 |---|---|---|---|
@@ -251,9 +279,9 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 | 模組 | 內容 |
 |---|---|
 | `main.js` | 入口：`app` 上的事件委派（用 `data-*` 屬性分派）、開局，載入時呼叫一次 `start()`：`firstIssues`、`start` |
-| `data.js` | 資料與工具函式，沒有狀態：`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP` |
+| `data.js` | 資料與工具函式，沒有狀態：`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP` |
 | `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`hardStack`、`unfamiliar`、`makeIssue`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs` |
-| `calc.js` | 計算：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log` |
+| `calc.js` | 計算（`est(is, v, mid, rv, ef)` 會套推理強度）：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log` |
 | `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`parMul`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`endDay` |
 | `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`quickBtn`、`invPanel`、`qbox`、`dispatchPanel` |
 | `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showEnd` |

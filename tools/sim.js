@@ -5,6 +5,7 @@
 // SIM_TRAP=<比例> 可覆寫陷阱題比例（例如 SIM_TRAP=0 關掉陷阱）；SIM_SLOTS=2..6 指定平行模式工作槽數。
 // SIM_INVEST=1 讓自動玩家做工程投資：每天開工時依序買 CLAUDE.md（每條主技術線）、補測試、導入 SDD 裡下一項付得起的。
 // SIM_OUTSOURCE=1 開啟接外包：外包單一律走個人 API（能用 DeepSeek 就用，否則 Sonnet）。
+// SIM_EFFORT=1 開啟進階模式：每張單看選到模型的原始能力減顯示複雜度，≤ −1 用高強度、≥ 2 用低強度、其他用中。
 // SIM_COMBOS=1 改跑六種雙選組合（另跑單選 Laravel 當對照）。
 // SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
 import {els} from './fake-dom.js';
@@ -25,6 +26,7 @@ const N=+process.env.SIM_N||100;
 const INV=process.env.SIM_INVEST==='1';
 const COMBOS=process.env.SIM_COMBOS==='1';
 const OUT=process.env.SIM_OUTSOURCE==='1';
+const EFF=process.env.SIM_EFFORT==='1';
 // SIM_SLOTS=2..6 指定平行模式的工作槽數（預設 3）
 const SLOTS=process.env.SIM_SLOTS===undefined?3:Number(process.env.SIM_SLOTS);
 if(![2,3,4,5,6].includes(SLOTS)){ console.error(`SIM_SLOTS 必須是 2–6 的整數，收到「${process.env.SIM_SLOTS}」`); process.exit(1); }
@@ -36,7 +38,7 @@ function sim(){
     const runs=COMBOS?['laravel',...COMPANIES.flatMap((a,i)=>COMPANIES.slice(i+1).map(b=>a+'+'+b))]:COMPANIES;
     for(const company of runs){
       for(let g=0;g<N*3;g++){
-        start(); S.companies=company.split('+'); S.outsource=OUT; firstIssues();
+        start(); S.companies=company.split('+'); S.outsource=OUT; S.advanced=EFF; firstIssues();
         S.mode=mode; if(mode==='parallel')S.slots=SLOTS; S.subs.anthropic='max5'; S.wallet-=3300; S.st.subFee+=3300;
         let guard=0;
         while(S.day<=20&&guard++<2000){
@@ -51,6 +53,7 @@ function sim(){
               sel.issue=free[0].id; sel.rv=g%3;
               const dsOk=!cnBlock(free[0],'deepseek',model('deepseek','chat'));
               sel.v=dsOk?'deepseek':'anthropic'; sel.m=dsOk?'chat':'sonnet'; dispatchPanel();
+              if(EFF){const gap=model(sel.v,sel.m).cap-free[0].cx; sel.ef=gap<=-1?2:gap>=2?0:1;}
               if(dsOk||free[0].out)sel.b='api'; else sel.b=quotaLeft('sub','anthropic')>300?'sub':'corp';
               if(sel.b==='corp'&&S.corp<=0) sel.b='api';
               const before=S.hours; dispatch(); acted=S.hours!==before||PAR();

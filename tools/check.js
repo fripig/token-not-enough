@@ -4,10 +4,10 @@
 import {els,store,resetStore} from './fake-dom.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {start} from '../public/js/main.js';
-import {BASE,CLIENTS,COMPANIES,DEFAULT_PRESETS,KPI,SEAT,STACKS,VENDORS,bestKey,cnBlock,h1,kt,model,presetsOf,rnd} from '../public/js/data.js';
+import {BASE,CLIENTS,COMPANIES,DEFAULT_PRESETS,EFFORT,KPI,SEAT,STACKS,VENDORS,bestKey,cnBlock,effModel,h1,kt,model,presetsOf,rnd} from '../public/js/data.js';
 import * as dataModule from '../public/js/data.js';
 import {GIG_CLIENT,GIG_PAY,S,addGigs,fresh,makeGig,makeIssue,nextId,pickStack,sel,unfamiliar} from '../public/js/state.js';
-import {catchRate,est,manualHrs,presetBlock,presetFor,quotaLeft,stackHint} from '../public/js/calc.js';
+import {catchRate,costLine,est,manualHrs,presetBlock,presetFor,quotaLeft,stackHint} from '../public/js/calc.js';
 import {advance,conflictRate,batch,canEvaluate,charge,dispatch,endDay,evalCost,evaluate,invCount,invest,loadPreset,makeJob,manual,parMul,quick,rescope,reveal,revealRate,savePreset,settle,trueView} from '../public/js/actions.js';
 import {dispatchPanel,render} from '../public/js/view.js';
 import {showEnd,showSetup} from '../public/js/modals.js';
@@ -318,7 +318,7 @@ function tests(){
   start(); ok(same(S.presets,DEFAULT_PRESETS),'第一次開局是預設方案',JSON.stringify(S.presets));
   ok(same(S.presets.map(p=>[p.v,p.m,p.b,p.rv].join('/')),['deepseek/chat/api/1','anthropic/sonnet/corp/1','anthropic/opus/corp/2']),'預設 A/B/C 內容');
   S.presets[0]={v:'anthropic',m:'haiku',b:'sub',rv:0}; start();
-  ok(same(S.presets[0],{v:'anthropic',m:'haiku',b:'sub',rv:0}),'再玩一個月沿用方案 A');
+  ok(same(S.presets[0],{v:'anthropic',m:'haiku',b:'sub',rv:0,ef:1}),'再玩一個月沿用方案 A（沒有推理強度的補成中）');
   S.presets[1]={v:'anthropic',m:'nope',b:'corp',rv:1}; fresh();
   ok(same(S.presets,DEFAULT_PRESETS),'有不存在的模型時三組都退回預設');
   S.presets[0].rv=0; ok(DEFAULT_PRESETS[0].rv===1,'修改方案不會改到預設值');
@@ -363,7 +363,7 @@ function tests(){
   /* 存成／載入方案 */
   newRun('laravel'); S.hours=8; const keep=ticket('fe',2); S.issues=[keep]; sel.issue=keep.id;
   Object.assign(sel,{v:'google',m:'pro',b:'corp',rv:0}); savePreset(1);
-  ok(same(S.presets[1],{v:'google',m:'pro',b:'corp',rv:0})&&S.issues.includes(keep),'存成方案 B 不會派工');
+  ok(same(S.presets[1],{v:'google',m:'pro',b:'corp',rv:0,ef:1})&&S.issues.includes(keep),'存成方案 B 不會派工');
   Object.assign(sel,{v:'anthropic',m:'haiku',b:'api',rv:2}); loadPreset(1);
   ok(sel.v==='google'&&sel.m==='pro'&&sel.b==='corp'&&sel.rv===0&&sel.issue===keep.id,'載入方案 B 回到 google/pro/corp/0，選取的工單不變');
   render(); ok(els.app.innerHTML.includes('data-save="2"')&&els.app.innerHTML.includes('載入方案 C'),'派工台有存成與載入按鈕');
@@ -654,6 +654,77 @@ function tests(){
   ok(rc.includes('<span>你自己掏的錢</span><span>NT$2,044</span>'),'結算：你自己掏的錢 NT$2,044');
   ok(rc.includes('<span>外包收入</span><span>NT$2,400</span>')&&rc.includes('<span>外包違約金</span><span>NT$144</span>')&&rc.includes('<span>外包完成</span><span>4 張</span>')&&rc.includes('<span>外包逾期</span><span>1 張</span>'),'結算列出四行外包資訊');
   newRun('laravel'); S.outsource=false; S.day=20; showEnd(); ok(!els.mo.innerHTML.includes('外包收入'),'沒開外包時結算不顯示外包資訊');
+  }
+
+  {
+  /* reasoning-effort：進階模式開關 */
+  const press=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+  S.advanced=undefined; start();
+  ok(S.advanced===false&&/class="sb sel" data-adv="0"/.test(els.mo.innerHTML),'進階模式預設一般，開局預選一般');
+  const ids=S.issues.map(i=>i.id+i.title).join();
+  press({adv:'1'}); ok(/class="sb sel" data-adv="1"/.test(els.mo.innerHTML),'點進階後預選進階');
+  press({act:'confirm'}); ok(S.advanced===true,'確認後開啟進階模式');
+  ok(S.issues.map(i=>i.id+i.title).join()===ids,'只切進階模式不重抽第 1 天工單');
+  S.day=20; showEnd(); press({act:'again'});
+  ok(S.advanced===true&&/class="sb sel" data-adv="1"/.test(els.mo.innerHTML),'再玩一個月沿用進階並預選');
+  S.advanced=1; fresh(); ok(S.advanced===false,'存的值是數字 1 時退回一般');
+  showSetup(true); ok(!els.mo.innerHTML.includes('data-adv'),'週一調整不顯示進階模式開關');
+  newRun('laravel','parallel'); S.advanced=false; const k0=bestKey(); S.advanced=true; ok(bestKey()===k0,'最高分 key 不分一般／進階',k0);
+  }
+  {
+  /* reasoning-effort：推理強度對模型的影響 */
+  const son=model('anthropic','sonnet'), hai=model('anthropic','haiku'), opu=model('anthropic','opus');
+  ok(effModel(son,1)===son,'中強度回傳原本的模型物件');
+  ok(effModel(hai,0).cap===1&&effModel(opu,2).cap===6,'Haiku 低強度能力 1、Opus 高強度能力 6');
+  const sh=effModel(son,2); ok(sh.price===son.price&&sh.w===son.w&&sh.name==='Sonnet・高強度','高強度不改價格與額度權重，名稱 Sonnet・高強度',sh.name);
+  ok(EFFORT.map(f=>[f.cap,f.tk,f.hrs].join('/')).join()==='-1/0.7/0.8,0/1/1,1/1.5/1.4','EFFORT 倍率');
+  newRun('laravel'); S.advanced=true; const t44=ticket('laravel',4);
+  const [eL,eM,eH]=[0,1,2].map(f=>est(t44,'anthropic','sonnet',0,f));
+  ok(near(eL.p,.5)&&near(eM.p,.8)&&near(eH.p,.95),'Sonnet 對複雜度 4 Laravel 單：低 50%、中 80%、高 95%',[eL.p,eM.p,eH.p].join());
+  ok(near(eL.tk/eM.tk,.7)&&near(eH.tk/eM.tk,1.5),'token 是中強度的 0.7／1.5 倍',[eL.tk/eM.tk,eH.tk/eM.tk].join());
+  ok(near(eL.hrs/eM.hrs,.8)&&near(eH.hrs/eM.hrs,1.4),'時數是中強度的 0.8／1.4 倍（高強度變慢）',[eL.hrs/eM.hrs,eH.hrs/eM.hrs].join());
+  ok(near(est(t44,'anthropic','sonnet',1,2).c,catchRate(1,sh))&&est(t44,'anthropic','sonnet',1,2).c>est(t44,'anthropic','sonnet',1,1).c,'自我審核抓錯率用調整後的能力');
+  S.advanced=false; const g2=est(t44,'anthropic','sonnet',0,2);
+  ok(near(g2.p,eM.p)&&near(g2.tk,eM.tk)&&near(g2.hrs,eM.hrs)&&g2.M===son,'一般模式忽略推理強度');
+  /* 高強度硬做陷阱 */
+  newRun('laravel'); S.advanced=true; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0,ef:2});
+  const tp=ticket('laravel',1,{trap:true,trueCx:5,trueBase:BASE[5],revealed:false,evaluated:false});
+  let jb=makeJob(tp); ok(!jb.stop&&jb.M.cap===5,'高強度 Sonnet 對真實複雜度 5 的陷阱不會停下');
+  const eT=f=>est(trueView(tp),'anthropic','sonnet',0,f), tv5=trueView(tp);
+  ok(tv5.cx===5&&near(eT(2).tk/eT(1).tk,1.5)&&near(eT(2).hrs/eT(1).hrs,1.4)&&near(eT(1).hrs,5*model('anthropic','sonnet').speed),'陷阱照真實複雜度 5 估算，高強度 token ×1.5、時數 ×1.4');
+  ok(jb.tk>=eT(2).tk*.7-1e-9&&jb.tk<=eT(2).tk*1.3+1e-9&&jb.hrs>=eT(2).hrs*.8-1e-9&&jb.hrs<=eT(2).hrs*1.2+1e-9,'高強度硬做陷阱的 token 與時數落在高強度估算的隨機範圍內');
+  sel.ef=1; jb=makeJob(tp); ok(jb.stop,'中強度 Sonnet 對真實複雜度 5 的陷阱會停下');
+  /* 評估架構不受影響 */
+  const evalUse=ef=>{newRun('laravel'); S.advanced=true; S.hours=8; const t=ticket('laravel',2); S.issues=[t]; Object.assign(sel,{issue:t.id,v:'anthropic',m:'sonnet',b:'corp',rv:0,ef}); evaluate(); return [S.st.tk.anthropic,S.hours].join();};
+  ok(evalUse(2)===evalUse(1),'評估架構的 token 與時間跟推理強度無關');
+  /* 紀錄名稱 */
+  newRun('laravel'); S.advanced=true; S.hours=8; const tl=ticket('laravel',1); S.issues=[tl]; Object.assign(sel,{issue:tl.id,v:'anthropic',m:'sonnet',b:'corp',rv:0,ef:2}); dispatch();
+  ok(S.log.some(l=>l.msg.includes('Sonnet・高強度')),'派工紀錄寫 Sonnet・高強度');
+  /* 派工台旋鈕 */
+  newRun('laravel'); S.hours=8; const tv=ticket('laravel',2); S.issues=[tv]; sel.issue=tv.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp'});
+  S.advanced=false; render(); ok(!els.app.innerHTML.includes('data-ef'),'一般模式沒有推理強度旋鈕');
+  S.advanced=true; render(); ok([0,1,2].every(i=>els.app.innerHTML.includes(`data-ef="${i}"`))&&els.app.innerHTML.includes('推理強度'),'進階模式顯示低／中／高');
+  }
+  {
+  /* reasoning-effort：派工方案存推理強度 */
+  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+  ok(DEFAULT_PRESETS.every(p=>p.ef===1),'預設方案都是中強度');
+  S.presets[0]={v:'anthropic',m:'sonnet',b:'corp',rv:1}; fresh(); ok(same(S.presets[0],{v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:1}),'沒有推理強度的方案保留並補成中');
+  S.presets[0]={v:'anthropic',m:'haiku',b:'sub',rv:0,ef:2}; start(); ok(same(S.presets[0],{v:'anthropic',m:'haiku',b:'sub',rv:0,ef:2}),'再玩一個月沿用高強度方案 A');
+  S.presets[0]={v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:7}; fresh(); ok(same(S.presets,DEFAULT_PRESETS),'推理強度不合法時三組退回預設');
+  newRun('laravel'); S.hours=8; const tp=ticket('laravel',4); S.issues=[tp]; sel.issue=tp.id;
+  Object.assign(sel,{v:'google',m:'pro',b:'corp',rv:0,ef:2}); savePreset(1); ok(S.presets[1].ef===2,'存成方案記下推理強度');
+  sel.ef=0; loadPreset(1); ok(sel.ef===2,'載入方案帶回推理強度');
+  S.advanced=true; render(); ok(/載入方案 B<small>Pro・高強度/.test(els.app.innerHTML),'進階模式的載入按鈕顯示高強度');
+  S.advanced=false; render(); ok(!/載入方案 B<small>Pro・高強度/.test(els.app.innerHTML),'一般模式的載入按鈕不顯示強度');
+  const pa={v:'anthropic',m:'opus',b:'api',rv:0,ef:2}, hiMid=costLine('api',model('anthropic','opus'),'anthropic',est(tp,'anthropic','opus',0,1)).hi;
+  S.wallet=hiMid*1.2;
+  S.advanced=false; ok(presetBlock(tp,pa)==='','一般模式下存了高強度的方案照中強度估算');
+  S.advanced=true; ok(presetBlock(tp,pa)==='錢包不夠','進階模式下同一個方案照高強度估算，錢包不夠');
+  newRun('laravel'); S.advanced=false; S.hours=8; const tq=ticket('laravel',1); S.issues=[tq];
+  S.presets=[{v:'anthropic',m:'sonnet',b:'corp',rv:0,ef:2},...DEFAULT_PRESETS.slice(1)].map(p=>({...p}));
+  ok(quick(tq.id)&&S.log.some(l=>l.msg.includes('Sonnet'))&&!S.log.some(l=>l.msg.includes('強度')),'一般模式一鍵派工用存了高強度的方案，照中強度派工');
+  S.advanced=false;
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);

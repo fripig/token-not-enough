@@ -32,7 +32,7 @@ export function toggleCompany(cs,k){
   return cs.length<2?COMPANIES.filter(x=>x===k||cs.includes(x)):cs;
 }
 export function showSetup(adjust){
-  draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],slots:S.slots,outsource:S.outsource};
+  draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],slots:S.slots,outsource:S.outsource,advanced:S.advanced};
   const draw=()=>{
     mo.innerHTML=`<h2>${adjust?'週一：調整訂閱':'月初：決定這個月怎麼付 token'}</h2>
     ${adjust?`<p class="lead">升級只補剩下週數的差價，降級不退費。</p>`:`<p class="lead">你是全端工程師，任職於「${companyName(draft.companies)}」。接下來 20 個工作天，每天都會有新工單進來。你有 ${nt(S.wallet)} 的個人 AI 預算，部門另外有 ${nt(S.corp)} 的公司 API 預算。</p>
@@ -54,6 +54,10 @@ export function showSetup(adjust){
       <button class="sb ${draft.outsource?'':'sel'}" data-out="0"><b>不接外包</b><small>專心做公司的工單。</small></button>
       <button class="sb ${draft.outsource?'sel':''}" data-out="1"><b>接外包</b><small>每天多 0–2 張外包單，只能自己付 token；做完拿現金不拿 KPI，逾期賠違約金。</small></button>
     </div></div>
+    <div class="sec"><label>進階模式</label><div class="modes">
+      <button class="sb ${draft.advanced?'':'sel'}" data-adv="0"><b>一般</b><small>每個模型的能力、token 用量和速度都固定。</small></button>
+      <button class="sb ${draft.advanced?'sel':''}" data-adv="1"><b>進階</b><small>派工時多選推理強度：高強度能力 +1，但 token ×1.5、時間 ×1.4；低強度能力 −1，token ×0.7、時間 ×0.8。</small></button>
+    </div></div>
     <div class="sec"><label>遊戲模式</label><div class="modes">
       <button class="sb ${draft.mode==='parallel'?'sel':''}" data-mode="parallel"><b>平行模式</b><small>最多 ${draft.slots} 個 agent 在背景同時跑，你的時間花在派工和審 PR。同時跑越多，token 用量加成越高，也越容易合併衝突。跑不完的會過夜。</small></button>
       <button class="sb ${draft.mode==='serial'?'sel':''}" data-mode="serial"><b>單線模式</b><small>一次只處理一張，agent 跑多久你就等多久。比較單純，適合先熟悉付費方式的取捨。</small></button>
@@ -71,6 +75,7 @@ export function showSetup(adjust){
     else if(t.dataset.company){draft.companies=toggleCompany(draft.companies,t.dataset.company);draw();}
     else if(t.dataset.slots){draft.slots=+t.dataset.slots;draw();}
     else if(t.dataset.out){draft.outsource=t.dataset.out==='1';draw();}
+    else if(t.dataset.adv){draft.advanced=t.dataset.adv==='1';draw();}
     else if(t.dataset.act==='close'){ov.hidden=true;}
     else if(t.dataset.act==='confirm'){
       const c=planCost(adjust); S.wallet-=c; S.st.subFee+=c;
@@ -78,7 +83,7 @@ export function showSetup(adjust){
         const outChanged=draft.outsource!==S.outsource; S.outsource=draft.outsource;
         if(draft.companies.join()!==S.companies.join()){S.companies=draft.companies;firstIssues();}
         else if(outChanged){S.issues=S.issues.filter(i=>!i.out);const g=addGigs();if(g)log('dim',`· 接外包：第 1 天多 ${g} 張外包單`);}
-        S.mode=draft.mode; S.slots=draft.slots; log('dim',`· ${companyName()}・遊戲模式：${PAR()?`平行（同時 ${S.slots} 個 agent）`:'單線'}`);
+        S.mode=draft.mode; S.slots=draft.slots; S.advanced=draft.advanced; log('dim',`· ${companyName()}・遊戲模式：${PAR()?`平行（同時 ${S.slots} 個 agent）`:'單線'}${S.advanced?'・進階':''}`);
       }
       for(const v in draft.subs) if(draft.subs[v]!==S.subs[v]){ S.subs[v]=draft.subs[v]; }
       if(draft.seat){S.seat={vendor:draft.seat,status:'pending',day:S.day};log('dim',`· 提出 ${VENDORS[draft.seat].name} 團隊席位採購申請`);}

@@ -11,6 +11,7 @@ app.addEventListener('click',e=>{
   else if(t.dataset.v){sel.v=t.dataset.v;sel.m=t.dataset.m;if(sel.v==='local')sel.b='local';else if(sel.b==='local')sel.b='api';render();}
   else if(t.dataset.b){sel.b=t.dataset.b;render();}
   else if(t.dataset.rv){sel.rv=+t.dataset.rv;render();}
+  else if(t.dataset.ef){sel.ef=+t.dataset.ef;render();}
   else if(t.dataset.quick)quick(+t.dataset.quick);
   else if(t.dataset.inv){invest(t.dataset.inv,t.dataset.st);render();}
   else if(t.dataset.act==='batch'){batch();render();}

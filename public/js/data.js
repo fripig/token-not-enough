@@ -102,14 +102,21 @@ export const kt=k=>k>=1000?(k/1000).toFixed(k>=10000?0:1)+'M':Math.round(k)+'k';
 export const h1=x=>(Math.round(x*10)/10).toFixed(1);
 export const vc=v=>`var(${VENDORS[v].vc})`;
 export const model=(v,m)=>VENDORS[v].models.find(x=>x.id===m);
+/* 推理強度（進階模式）：套在選到的模型上，越強越貴也越慢；中＝原本的模型 */
+export const EFFORT=[{id:'low',name:'低',cap:-1,tk:.7,hrs:.8},{id:'mid',name:'中',cap:0,tk:1,hrs:1},{id:'high',name:'高',cap:1,tk:1.5,hrs:1.4}];
+export function effModel(M,ef){
+  if(ef===1) return M; const E=EFFORT[ef];
+  return {...M,cap:Math.max(1,M.cap+E.cap),verb:M.verb*E.tk,speed:M.speed*E.hrs,name:`${M.name}・${E.name}強度`};
+}
+export const efOf=ef=>S.advanced&&EFFORT[ef]?ef:1;
 export const planOf=v=>VENDORS[v].plans.find(p=>p.id===S.subs[v])||{id:'none',price:0,day:0,week:0};
 
-/* 派工方案：三組常用的廠商／模型／付費方式／審核等級，一鍵派工照 A→B→C 用第一個能用的 */
+/* 派工方案：三組常用的廠商／模型／付費方式／審核等級／推理強度，一鍵派工照 A→B→C 用第一個能用的 */
 export const PN=['A','B','C'];
-export const DEFAULT_PRESETS=[{v:'deepseek',m:'chat',b:'api',rv:1},{v:'anthropic',m:'sonnet',b:'corp',rv:1},{v:'anthropic',m:'opus',b:'corp',rv:2}];
+export const DEFAULT_PRESETS=[{v:'deepseek',m:'chat',b:'api',rv:1,ef:1},{v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:1},{v:'anthropic',m:'opus',b:'corp',rv:2,ef:1}];
 export const BILL_LABEL={sub:'個人訂閱',seat:'公司席位',api:'個人 API',corp:'公司 API',local:'本地 GPU'};
-export const validPreset=p=>!!(p&&VENDORS[p.v]&&model(p.v,p.m)&&BILL_LABEL[p.b]&&(p.v==='local')===(p.b==='local')&&[0,1,2].includes(p.rv));
-export const presetsOf=ps=>(Array.isArray(ps)&&ps.length===3&&ps.every(validPreset)?ps:DEFAULT_PRESETS).map(p=>({...p}));
+export const validPreset=p=>!!(p&&VENDORS[p.v]&&model(p.v,p.m)&&BILL_LABEL[p.b]&&(p.v==='local')===(p.b==='local')&&[0,1,2].includes(p.rv)&&(p.ef===undefined||[0,1,2].includes(p.ef)));
+export const presetsOf=ps=>(Array.isArray(ps)&&ps.length===3&&ps.every(validPreset)?ps:DEFAULT_PRESETS).map(p=>({...p,ef:p.ef??1}));
 
 /* 工程投資：花工時和公司預算，效果維持到月底 */
 export const INVEST={

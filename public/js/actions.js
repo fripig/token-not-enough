@@ -1,4 +1,4 @@
-import {APIV,BASE,BILL_LABEL,COMPANIES,INVEST,KPI,MCP_REVEAL,MD_P,MD_TK,PN,R,SDD_P,SDD_TK,SDD_TRAP_STOP,STACKS,SUBV,TEST_CATCH,VENDORS,h1,kt,model,nt,pick,rnd} from './data.js';
+import {APIV,BASE,BILL_LABEL,COMPANIES,INVEST,KPI,MCP_REVEAL,MD_P,MD_TK,PN,R,SDD_P,SDD_TK,SDD_TRAP_STOP,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,pick,rnd} from './data.js';
 import {GIG_LATE,S,addGigs,hardStack,makeIssue,sel} from './state.js';
 import {REVIEW,STORE_REJECT,est,gigBlocked,localBusy,log,manualHrs,presetFor,quotaLeft,useQuota} from './calc.js';
 import {render} from './view.js';
@@ -48,8 +48,8 @@ export function quick(id){
 }
 export const loadPreset=i=>Object.assign(sel,S.presets[i]);
 export function savePreset(i){
-  S.presets[i]={v:sel.v,m:sel.m,b:sel.b,rv:sel.rv};
-  log('dim',`· 存成方案 ${PN[i]}：${VENDORS[sel.v].agent} / ${model(sel.v,sel.m).name}・${BILL_LABEL[sel.b]}・${REVIEW[sel.rv].name}`);
+  S.presets[i]={v:sel.v,m:sel.m,b:sel.b,rv:sel.rv,ef:sel.ef};
+  log('dim',`· 存成方案 ${PN[i]}：${VENDORS[sel.v].agent} / ${effModel(model(sel.v,sel.m),efOf(sel.ef)).name}・${BILL_LABEL[sel.b]}・${REVIEW[sel.rv].name}`);
 }
 /* 平行模式：推進時鐘，背景 agent 跑完就結算，成功的要花時間審 PR */
 /* 合併衝突機率：每個還在跑的 agent +10%，補測試減半 */
