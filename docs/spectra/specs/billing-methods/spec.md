@@ -42,18 +42,8 @@ When an agent finishes or stops, its tokens SHALL be charged by billing method: 
 
 #### Scenario: Subscription quota cost
 
-- **WHEN** 200k tokens of Opus (w 3) are billed to an Anthropic subscription
-- **THEN** 600k is used from both the daily and the weekly quota
-
-
-<!-- @trace
-source: gh-09-01-core-rules-specs
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - tools/check.js
-  - tools/fake-dom.js
--->
+- **WHEN** 200k tokens of Opus (w 2) are billed to an Anthropic subscription
+- **THEN** 400k is used from both the daily and the weekly quota
 
 ---
 ### Requirement: Quota exhaustion

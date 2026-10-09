@@ -106,8 +106,8 @@ When dispatching in 進階 mode the selected effort SHALL modify the chosen mode
 
 #### Scenario: Capability floor and no ceiling
 
-- **WHEN** Claude Haiku (capability 2) is estimated at 低 and Claude Opus (capability 5) at 高
-- **THEN** Haiku uses capability 1 and Opus uses capability 6
+- **WHEN** Gemini Flash (capability 2) is estimated at 低, Claude Opus (capability 5) at 高 and Claude Fable (capability 6) at 高
+- **THEN** Flash uses capability 1, Opus uses capability 6 and Fable uses capability 7
 
 #### Scenario: High effort pushes through a trap
 
@@ -123,20 +123,3 @@ When dispatching in 進階 mode the selected effort SHALL modify the chosen mode
 
 - **WHEN** a Sonnet dispatch at 高 is logged
 - **THEN** the log line names the model Sonnet・高強度
-
-<!-- @trace
-source: reasoning-effort
-updated: 2026-10-09
-code:
-  - public/js/modals.js
-  - CLAUDE.md
-  - public/js/main.js
-  - public/js/state.js
-  - tools/check.js
-  - tools/sim.js
-  - public/js/data.js
-  - docs/DESIGN.md
-  - public/js/actions.js
-  - public/js/view.js
-  - public/js/calc.js
--->

@@ -8,15 +8,16 @@ Lists the code agents and models the player can dispatch to and the fictional nu
 
 ### Requirement: Vendor and model catalog
 
-The game SHALL offer exactly these vendors and models. Each model SHALL have capability `cap` (1–5), price per 1k tokens in NT$, subscription quota weight `w`, hours per complexity point `speed`, and token multiplier `verb`. Models marked ctx SHALL get the large-codebase bonus; vendors marked Chinese SHALL be treated as Chinese cloud; Qwen Coder 32B SHALL be treated as Chinese weights. Only Anthropic and Google SHALL accept company API billing. The OpenAI models SHALL be named after the GPT-6 family without the GPT-6 prefix (Luna, Sol, Astra) while keeping the ids `mini`, `std` and `high`. All numbers SHALL be fictional balance values, and the page footer SHALL keep the notice 價格、額度與模型能力都是遊戲平衡用的虛構數字，不代表各家實際方案。
+The game SHALL offer exactly these vendors and models. Each model SHALL have capability `cap` (1–6), price per 1k tokens in NT$, subscription quota weight `w`, hours per complexity point `speed`, and token multiplier `verb`. Models marked ctx SHALL get the large-codebase bonus; vendors marked Chinese SHALL be treated as Chinese cloud; Qwen Coder 32B SHALL be treated as Chinese weights. Only Anthropic and Google SHALL accept company API billing. The Anthropic models SHALL follow the Claude 5 family: Haiku, Sonnet, Opus and Fable, in that order, with Fable (id `fable`) as the only capability-6 model. The OpenAI models SHALL be named after the GPT-6 family without the GPT-6 prefix (Luna, Sol, Astra) while keeping the ids `mini`, `std` and `high`. All numbers SHALL be fictional balance values, and the page footer SHALL keep the notice 價格、額度與模型能力都是遊戲平衡用的虛構數字，不代表各家實際方案。
 
 ##### Example: models
 
 | Vendor (agent) | Model | cap | price | w | speed | verb | Flags |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Anthropic (Claude Code) | Haiku | 2 | 0.12 | 0.3 | 0.5 | 0.9 | company API |
+| Anthropic (Claude Code) | Haiku | 3 | 0.15 | 0.3 | 0.7 | 0.9 | company API |
 | Anthropic | Sonnet | 4 | 0.45 | 1 | 0.8 | 1 | company API |
-| Anthropic | Opus | 5 | 1.5 | 3 | 1 | 0.85 | company API |
+| Anthropic | Opus | 5 | 0.9 | 2 | 1 | 0.85 | company API |
+| Anthropic | Fable | 6 | 1.8 | 4 | 1.2 | 0.85 | company API |
 | OpenAI (Codex CLI) | Luna (id mini) | 3 | 0.15 | 0.3 | 0.7 | 1 | |
 | OpenAI | Sol (id std) | 4 | 0.4 | 1 | 0.8 | 1.05 | |
 | OpenAI | Astra (id high) | 5 | 1.6 | 3 | 1 | 0.95 | |
@@ -84,7 +85,7 @@ code:
 ---
 ### Requirement: Agent and model selection
 
-With a ticket selected, the dispatch panel SHALL show one row per vendor with a button per model showing its capability as filled and empty dots and its price (免費 for local models, with ・中國權重 for Qwen). A model button SHALL be disabled when its vendor is down today (the vendor row then reads 今日當機) or when the ticket's client bans it. If the current selection is disabled, the panel SHALL switch to the first available model in catalog order. Selecting a local model SHALL switch billing to 本地 GPU; selecting a non-local model while billing is 本地 GPU SHALL switch billing to 個人 API. If the selected billing becomes unavailable, the panel SHALL switch to the first available billing method. The dispatch button SHALL read 派給 <agent> in serial mode and 派到背景 <agent> in parallel mode, and SHALL be disabled when the vendor is down, the model is banned, the local GPU is busy with local billing, or fewer than 0.2 hours remain.
+With a ticket selected, the dispatch panel SHALL show one row per vendor with a button per model showing its capability as one filled dot per capability point followed by empty dots up to five dots in total and its price (免費 for local models, with ・中國權重 for Qwen). A model button SHALL be disabled when its vendor is down today (the vendor row then reads 今日當機) or when the ticket's client bans it. If the current selection is disabled, the panel SHALL switch to the first available model in catalog order. Selecting a local model SHALL switch billing to 本地 GPU; selecting a non-local model while billing is 本地 GPU SHALL switch billing to 個人 API. If the selected billing becomes unavailable, the panel SHALL switch to the first available billing method. The dispatch button SHALL read 派給 <agent> in serial mode and 派到背景 <agent> in parallel mode, and SHALL be disabled when the vendor is down, the model is banned, the local GPU is busy with local billing, or fewer than 0.2 hours remain.
 
 #### Scenario: Local model forces local billing
 
@@ -96,16 +97,12 @@ With a ticket selected, the dispatch panel SHALL show one row per vendor with a 
 - **WHEN** billing is 本地 GPU and the player clicks Sonnet
 - **THEN** billing switches to 個人 API
 
+#### Scenario: Claude Code lists the Claude 5 family
+
+- **WHEN** the dispatch panel lists the Claude Code models
+- **THEN** the buttons read Haiku, Sonnet, Opus and Fable in that order, with 能力 ●●●○○, ●●●●○, ●●●●● and ●●●●●● and prices $0.15/k, $0.45/k, $0.9/k and $1.8/k
+
 #### Scenario: Outage disables a vendor
 
 - **WHEN** Anthropic is down today and Sonnet was selected
 - **THEN** every Anthropic model button is disabled and the selection moves to the first available model of the next vendor
-
-<!-- @trace
-source: gh-09-01-core-rules-specs
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - tools/check.js
-  - tools/fake-dom.js
--->

@@ -16,20 +16,11 @@ The dispatch panel SHALL offer three review levels: 不審核 (tokens ×1, time 
 
 | Model | 自審 | 嚴格審核 |
 | --- | --- | --- |
-| Haiku (2) | 61% | 81% |
+| Gemini Flash (2) | 61% | 81% |
 | DeepSeek Chat (3) | 69% | 89% |
 | Sonnet (4) | 77% | 95% |
 | Opus (5) | 85% | 95% |
-
-
-<!-- @trace
-source: gh-09-01-core-rules-specs
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - tools/check.js
-  - tools/fake-dom.js
--->
+| Fable (6) | 93% | 95% |
 
 ---
 ### Requirement: Catching a failure

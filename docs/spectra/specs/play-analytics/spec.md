@@ -233,16 +233,8 @@ Each time a dispatched job is settled, the game SHALL send one `job_result` even
 
 #### Scenario: Cost and tokens
 
-- **WHEN** a successful job on 個人 API on Claude Opus (NT$1.5 per 1k tokens, no price modifier) used 100k tokens
-- **THEN** its `job_result` has `tokens` 100 and `cost` 150
-
-
-<!-- @trace
-source: gh-14-01-choice-analytics
-updated: 2026-10-09
-code:
-  - tools/check.js
--->
+- **WHEN** a successful job on 個人 API on Claude Opus (NT$0.9 per 1k tokens, no price modifier) used 100k tokens
+- **THEN** its `job_result` has `tokens` 100 and `cost` 90
 
 ---
 ### Requirement: Other ticket action events

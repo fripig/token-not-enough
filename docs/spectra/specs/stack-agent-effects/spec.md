@@ -12,12 +12,12 @@ For tickets with stack laravel or rails and complexity 3 or lower, the capabilit
 
 #### Scenario: Cheap model on conventional ticket
 
-- **WHEN** Haiku (capability 2) is estimated for a complexity 3 rails ticket without review, client restrictions, or big-codebase flag
+- **WHEN** Gemini Flash (capability 2) is estimated for a complexity 3 rails ticket without review, client restrictions, or big-codebase flag
 - **THEN** the shown success rate is 80% instead of 50%
 
 #### Scenario: Bonus does not apply to complex tickets
 
-- **WHEN** Haiku is estimated for a complexity 4 laravel ticket
+- **WHEN** Gemini Flash is estimated for a complexity 4 laravel ticket
 - **THEN** the shown success rate equals the rate for a fe ticket of the same complexity
 
 ---

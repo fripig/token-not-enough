@@ -18,22 +18,14 @@ The success rate SHALL come from diff = model capability − ticket complexity +
 | --- | --- | --- | --- |
 | Sonnet (4) | 2 | no | 95% |
 | Sonnet (4) | 4 | no | 80% |
-| Haiku (2) | 3 | no | 50% |
-| Haiku (2) | 4 | no | 25% |
-| Haiku (2) | 5 | no | 10% |
+| Gemini Flash (2, ctx) | 3 | no | 50% |
+| Gemini Flash (2, ctx) | 4 | no | 25% |
+| Gemini Flash (2, ctx) | 5 | no | 10% |
 | Gemini Pro (4, ctx) | 4 | yes | 88% |
 | DeepSeek Chat (3) | 3 | yes | 72% |
 | Opus (5) | 3 | yes | 95% |
-
-
-<!-- @trace
-source: gh-09-01-core-rules-specs
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - tools/check.js
-  - tools/fake-dom.js
--->
+| Opus (5) | 5 | no | 80% |
+| Fable (6) | 5 | no | 95% |
 
 ---
 ### Requirement: Token estimate and usage
