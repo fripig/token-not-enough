@@ -4,14 +4,14 @@
 
 ## 專案是什麼
 
-純靜態網頁遊戲：玩家扮演一位全端工程師，開局選一家公司（Laravel、Rails、Rust、App 四條主技術線），在 20 個工作天內用有限的錢和額度，把每天進來的工單交給不同廠商的 code agent 處理。核心是 token 預算的取捨：選哪家、哪個模型、誰付錢（個人訂閱／個人 API／公司 API／公司團隊席位／本地 GPU）、要不要審核，還要顧到案主合約和資安稽核。
+純靜態網頁遊戲：玩家扮演一位工程師，開局選一到兩項工作內容（Laravel 後端、Rails 後端、Rust 基礎設施、App 開發、SRE、DevOps 六條主技術線），在 20 個工作天內用有限的錢和額度，把每天進來的工單交給不同廠商的 code agent 處理。核心是 token 預算的取捨：選哪家、哪個模型、誰付錢（個人訂閱／個人 API／公司 API／公司團隊席位／本地 GPU）、要不要審核，還要顧到案主合約和資安稽核。
 
 原本是 claude.ai Artifact 上的單一 `index.html`（原檔封存在 `docs/token-game.zip`），搬進 repo 時拆成 HTML、CSS、JS 三個檔案，之後的改版都記在下面。目前的檔案：
 
 - `public/index.html`：頁面骨架。`<head>` 有含關鍵字的 `<title>`、canonical、`theme-color`、Open Graph／Twitter Card、JSON-LD（`VideoGame`）、favicon 與 manifest；`#app` 裡只有載入中的佔位，`start()` 第一次 `render()` 會換掉。遊戲介紹與怎麼玩放在 `#app` 外面的 `<footer class="about">`，一直留在頁面上，Googlebot 執行 JS 後也索引得到。分享圖是 `public/img/og.png`（1200×630），圖示是 `public/favicon.ico`、`public/apple-touch-icon.png`、`public/img/icon-192.png`／`icon-512.png`；另有 `robots.txt`、`sitemap.xml`、`manifest.webmanifest`。改遊戲名稱或介紹時一起更新這些地方（`sitemap.xml` 的 `lastmod` 在介紹內容改動時更新）。
 - `public/css/style.css`：樣式。開頭補了 `body{margin:0}`、`[hidden]{display:none!important}`，原本由 Artifact 外殼提供；少了後者 `.ov` 的 `display:flex` 會蓋過 `hidden`，彈窗關不掉。
 - `public/js/*.js`：遊戲本體，拆成七個原生 ES modules（見「程式碼地圖」），由 `public/index.html` 以 `<script type="module" src="js/main.js">` 載入；無建置步驟、遊戲邏輯沒有外部 JS 相依。瀏覽器不允許從 `file://` 載入模組，一定要用本機伺服器開。頁面另外從 Google Fonts 載字型，並在 `public/index.html` 載入 Google Analytics（gtag.js）做流量統計。遊戲事件由 `state.js` 的 `track()` 送出（沒有 `gtag` 時不動作，node 工具不受影響）：`game_start`（開局確認，週一調整不送）、`day_reached`（開局送第 1 天，之後每天開工送一次）、`game_end`（月底結算，多帶 `score`、`grade`）。每個事件都帶 `game_version`（`data.js` 的 `GAME_VERSION`，部署時 `pages.yml` 把 `'dev'` 換成短 commit hash，sed 沒換到就讓部署失敗）、`game_mode`、`companies`（如 `laravel+rust`）、`slots`（單線為 1）、`advanced`、`outsource`、`day`。看玩家玩到第幾天：GA4 依 `day` 統計 `day_reached` 的使用者數；`day`、`game_mode` 等參數要先在 GA 管理後台註冊成事件範圍的自訂維度才看得到。事件規則以 `docs/spectra/specs/play-analytics/` 為準（Spectra change `gh-10-01-play-analytics`），`tools/check.js` 有對應斷言。訂閱與解決工單的選擇另外送（Spectra change `gh-14-01-choice-analytics`，#14）：`subscription`（開局每家有訂閱的送一筆 `vendor`、`plan`，都沒有送一筆 `none`；週一只送有改的那幾家，開局順序是 `game_start`→`subscription`→`day_reached`）、`dispatch`（agent 開跑時：`vendor`、`model`、`bill`、`review`、`effort`、`via`＝panel／quick／batch、`preset`、工單的 `cx`、`stack`、`incident`、`sensitive`、`gig`、`merge`）、`job_result`（`settle` 時：同樣的選擇參數加 `cx`、`stack`、`gig`、`outcome`＝aborted／quota／conflict／rejected／caught／success／trap_stop／fail、`tokens`（k）、`cost`（NT$）、`hours`）、`manual_fix`（`outcome`＝success／fail／trap、`unfamiliar`、`hours`）、`evaluate`（`cx` 送評估前看到的原估，Spectra change `gh-15-01-evaluate-shown-cx`；`outcome`＝found／clear／quota）、`rescope`（approved／refused）、`invest`（`investment`、`stack`；申請採購電腦也送，`investment` 是 `pc`／`spark`／`mac`）。被擋下的動作不送。GA 後台要把 `vendor`、`plan`、`model`、`bill`、`review`、`effort`、`via`、`preset`、`cx`、`stack`、`incident`、`sensitive`、`gig`、`merge`、`outcome`、`unfamiliar`、`investment` 註冊成事件範圍自訂維度，`tokens`、`cost`、`hours` 註冊成自訂指標。本機用 `python3 -m http.server -d public 8000` 開。
-- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 四家公司 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資（`SIM_INVEST=2` 再加買三項新投資，`SIM_INV_EXTRA=monitor,scan` 之類可只加買指定幾項），`SIM_COMBOS=1` 改跑六種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_EFFORT=1` 開啟進階模式並讓自動玩家挑推理強度，`SIM_SEATS=1..3` 在第 6、11、16 天直接給團隊席位（量上限用，不經信任審核）並讓自動玩家優先刷席位，`SIM_HW=1` 讓自動玩家照真實信任審核採購電腦（信任達門檻才申請，DeepSeek 被禁時改派解鎖的本地模型），`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 公司」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
+- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 六種工作內容 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資（`SIM_INVEST=2` 再加買三項新投資，`SIM_INV_EXTRA=monitor,scan` 之類可只加買指定幾項），`SIM_COMBOS=1` 改跑十五種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_EFFORT=1` 開啟進階模式並讓自動玩家挑推理強度，`SIM_SEATS=1..3` 在第 6、11、16 天直接給團隊席位（量上限用，不經信任審核）並讓自動玩家優先刷席位，`SIM_HW=1` 讓自動玩家照真實信任審核採購電腦（信任達門檻才申請，DeepSeek 被禁時改派解鎖的本地模型），`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 工作內容」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
 - `tools/check.js`：規則檢查。`node tools/check.js` 把 spec 裡的範例數字逐條斷言（技術線分布、成功率、時間倍率、手寫時數、上架審核、KPI 補償、最高分 key、難度標示、接外包、GA 遊戲事件、存檔，以及十份核心規則 spec 的情境），任何一條不符就以非 0 結束。改規則時同步更新。
 
 部署：push 到 `main` 後 `.github/workflows/pages.yml` 把 `public/` 發佈到 https://token-not-enough.youareright.app/ 。只有 `public/` 會公開。自訂網域設在 repo 的 Pages 設定（用 Actions 部署時 `CNAME` 檔不會生效），DNS 是 Cloudflare 上 `youareright.app` 的 CNAME `token-not-enough` → `fripig.github.io`（DNS only），舊網址 `fripig.github.io/token-not-enough/` 會轉址過來。
@@ -63,6 +63,8 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
    → Claude 照 Claude 5 家族調整：Haiku 跟 Luna 同一套（能力 3、0.15、速度 0.7），Opus 降到 Sonnet 的 2 倍價，新增能力 6 的 Fable（都是使用者從選項裡選的）。設計紀錄在 Spectra change `gh-16-02-claude-5-models`（#16）。
 21. 「投資可以買電腦 有顯卡的pc mac 或者 nvidai spark 買了以後地端不會卡手寫 另外也能跑更高等級的模型」、「金額可能要相對調整 現在的金額太不現實了」、「買了沒用每天降信任」、「是否有更強力的本地model可以選擇」、「寫程式還是要用 gemma吧 用gpt-oss沒有新資料」、「基本款也順便改」
    → 工程投資面板加「採購電腦」：三台可全買、效果疊加，走公司採購申請（不扣 API 預算、信任審核），買了本地跑 agent 時能手寫、本地仍一次一個，閒置每台每天信任 −2；Spark 解鎖 Qwen3-Coder-Next 與 Gemma 4 31B、Mac 解鎖 GLM-5.3；基本款本地模型換成 Qwen3.6 35B-A3B、Gemma 4 26B A4B、Gemma 4 E4B 並把 MoE 調快（都是使用者從選項裡選的）。設計紀錄在 Spectra change `gh-17-01-local-hardware`（#17）。
+22. 「把公司選項改成工作內容 且加上 sre跟devops」
+   → 開局「公司」改成「工作內容」，只改介面文字（`S.companies`、GA 的 `companies`、最高分 key、存檔都不動）；新增 SRE（選了時每張新工單多擲一次事故）與 DevOps（等 CI 與 terraform，執行時間 ×1.25，期限 +1 天、KPI ×1.3），都是 ★★，維持可選 1–2 條（都是使用者從選項裡選的）。設計紀錄在 Spectra change `gh-18-01-work-roles-sre-devops`（#18）。
 
 介面文字一律繁體中文（台灣用語）。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
@@ -140,13 +142,13 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
 - 複雜度 1–5，越後期越難；`BASE[cx]` 為基準 token，`KPI[cx]` 為獎勵。
 - 屬性：技術線 `stack`、事故（當天到期、KPI ×1.6）、機敏、大型 codebase、案主、到期日、上架審核 `store`。
 - 逾期：扣 KPI 一半、信任 −4（事故 −8，有監控告警時 −4）。
-- 每日進件：第 1 天 4 張一般工單；之後每張新工單是事故單的機率 `incRate(day) = min(INC_RATE, INC_RAMP × (day − 1))`（`INC_RATE = 0.12`、`INC_RAMP = 0.03`），也就是第 2 天 3%、第 3 天 6%、第 4 天 9%，第 5 天起 12%。讓玩家第一週有時間存預算、買監控告警；少掉的事故單不在後面補回。
+- 每日進件：第 1 天 4 張一般工單；之後每張新工單（`intakeIssue`）是事故單的機率 `incRate(day) = min(INC_RATE, INC_RAMP × (day − 1))`（`INC_RATE = 0.12`、`INC_RAMP = 0.03`），也就是第 2 天 3%、第 3 天 6%、第 4 天 9%，第 5 天起 12%。讓玩家第一週有時間存預算、買監控告警；少掉的事故單不在後面補回。選了 SRE 時，沒中事故的新工單再擲一次 `incRate(day)`，中了就是 SRE 事故單（第 5 天起單選 SRE 約 22.6%、Laravel＋SRE 約 6% laravel＋16.6% sre），流量暴增事件不多擲。
 
   實測（2026-10-09，`SIM_N=100`，每格 300 局，跑兩次；改動前一律 12%、流量暴增不限天數）：平行 Laravel 8,376／8,289 → 8,417／8,150（−0.6%）、Rails −0.9%、Rust +0.1%、App −0.2%，都在雜訊內；單線 Laravel 2,720／2,830 → 2,930／2,934（+5.7%）、Rails +3.2%、Rust +9.0%、App +3.3%。不設目標、沒有調數值，照實記錄。
 
-### 公司與技術線（`STACKS`、`COMPANIES`、`pickStack`）
-- 開局在 `showSetup` 選 1–2 家公司（主技術線），存在 `S.companies`，固定照 laravel、rails、rust、app 的順序（`normCompanies`；跨 `fresh()` 保留；舊版存的單一字串視為只選一條；不合法退回 `['laravel']`）。選滿兩條時其他按鈕停用，最後一條不能取消（`toggleCompany`）。週一調整訂閱時不能換公司。開局換選擇會用 `firstIssues()` 重抽第 1 天的工單。公司名稱用 `companyName()` 以「＋」串起來（標頭、開局說明、紀錄、結算標題）。
-- 一般工單：75% 平分給選到的主技術線、15% 前端（`fe`）、10% 平分給沒選的公司技術線。事故單從選到的主技術線平均抽。
+### 工作內容與技術線（`STACKS`、`COMPANIES`、`pickStack`）
+- 開局在 `showSetup` 的「工作內容（可選 1–2 項）」選 1–2 項（主技術線；程式識別子沿用 companies，畫面上叫工作內容），存在 `S.companies`，固定照 laravel、rails、rust、app、sre、devops 的順序（`normCompanies`；跨 `fresh()` 保留；舊版存的單一字串視為只選一條；不合法退回 `['laravel']`）。選滿兩條時其他按鈕停用，最後一條不能取消（`toggleCompany`）。週一調整訂閱時不能換工作內容。開局換選擇會用 `firstIssues()` 重抽第 1 天的工單。名稱（`STACKS[k].company`：Laravel 後端、Rails 後端、Rust 基礎設施、App 開發、SRE、DevOps）用 `companyName()` 以「＋」串起來（標頭、開局說明「你是工程師，負責「…」」、紀錄、結算標題）。
+- 一般工單：75% 平分給選到的主技術線、15% 前端（`fe`）、10% 平分給沒選的工作內容技術線（單選時其他五條各約 2%）。事故單從選到的主技術線平均抽；SRE 另見「工單」的每日進件。
 - 不熟的技術線（沒選到也不是 `fe`）：自己手寫時數 ×2（`manualHrs`），卡片顯示「不熟」。
 - 技術線效果只看技術線本身的特性（`stackGap`、`stackHrs`），不替各家模型設「誰比較會 Rust」的分數：
 
@@ -155,10 +157,21 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
 | laravel、rails | 複雜度 ≤3 時能力差 +1（框架慣例） | — | — |
 | rust | 能力 <4 的模型能力差 −1（borrow checker） | ×1.2 | 期限 +1 天、KPI ×1.3 |
 | app | — | ×1.15 | 期限 +1 天、KPI ×1.3；複雜度 ≥2 的工單 40% 需上架審核，agent 成功後仍有 20% 被退件（有上架自動化 10%），自我審核救不回來 |
+| sre | — | — | 選了 SRE 時每張新工單多擲一次事故（見「工單」） |
+| devops | — | ×1.25（等 CI 與 terraform） | 期限 +1 天、KPI ×1.3 |
 | fe | — | — | — |
 
 - token 用量不受技術線影響。派工台顯示的成功率已含技術線效果（需上架審核的工單 ×0.8），並在下方顯示技術線提示（`stackHint`）。
-- 公司按鈕的難度標示（`STACKS[k].level`）：Laravel、Rails ★，App ★★，Rust ★★★。雙選不另外標組合難度。
+- 工作內容按鈕的難度標示（`STACKS[k].level`）：Laravel、Rails ★，App、SRE、DevOps ★★，Rust ★★★。雙選不另外標組合難度。
+
+SRE、DevOps 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；相對同模式 Laravel 的平均分）：
+
+| 模式 | SRE | DevOps |
+|---|---|---|
+| 平行 | −2.0% / −2.3% | +7.8% / +8.6% |
+| 單線 | −9.2% / −8.6% | −32.1% / −32.7% |
+
+平行模式在目標 ±25% 內，數值沒調。單線模式 DevOps 跟 App（−28%）差不多，SRE 介於 Laravel 與 App 之間，不設目標。雙選組合沒有重測（下面那張表只有原本四條的組合）。
 
 雙選組合實測（2026-10-09，`SIM_COMBOS=1 SIM_N=100`，每格 300 局，跑兩次；相對同模式單選 Laravel 的平均分）：
 
@@ -404,7 +417,7 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 | `data.js` | 資料與工具函式，沒有狀態：`GAME_VERSION`、`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP`、`INV_KEYS`、`HOOK_PR`、`SCAN_AUDIT`、`FASTLANE_REJECT`、`MONITOR_LATE`、`MONITOR_KPI`、`HW`、`HW_KEYS`、`PC_SPEED`、`HW_REQ_HRS`、`HW_SETUP_HRS`、`HW_IDLE` |
 | `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件、存檔：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`SAVE_KEY`、`SAVE_VER`、`saveGame`、`clearSave`、`readSave`、`loadGame`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`hardStack`、`unfamiliar`、`makeIssue`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs` |
 | `calc.js` | 計算（`est(is, v, mid, rv, ef)` 會套推理強度）：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`hasHw`、`manualBlocked`、`hwBlock`、`localSpeed`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log` |
-| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`RV_ID`、`jobChoice`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`hwReqBlock`、`requestHw`、`useHw`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`endDay` |
+| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`RV_ID`、`jobChoice`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`hwReqBlock`、`requestHw`、`useHw`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`intakeIssue`、`endDay` |
 | `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`quickBtn`、`invPanel`、`hwRow`、`qbox`、`dispatchPanel` |
 | `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showResume`、`showBadSave`、`showEnd` |
 
@@ -433,8 +446,13 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 
 使用者的決定：等遊戲功能完整後，再判斷要不要導入前端框架或建置步驟。在那之前沿用現在的寫法（`render()` 整頁重繪成字串、`data-*` 事件委派、無建置步驟）。
 
-到時候看這些訊號（記錄當下的實際數字再判斷）：
-- `public/js/game.js` 的大小：加入技術線後約 580 行、加入陷阱題後約 645 行（2026-10-07 量測）、加入派工方案與工程投資後 776 行（2026-10-09 量測）、加入雙選公司與 OpenAI 席位後 791 行／62.8KB（2026-10-09 量測，平均每行約 79 字元，46 行超過 200 字元，行數低估了實際份量）。2026-10-09 依 Spectra change `split-game-modules` 拆成七個 ES modules（main 39, data 122, state 51, calc 81, actions 263, view 143, modals 139 行，共 838 行，含 import 行）；之後看最大的單一模組（目前 `actions.js`）。超過約 1,000 行、或常常要跨很遠的區塊改同一個功能時，拆模組的價值會浮現。
+**每次評估新任務都要判斷一次要不要重構**（2026-10-10 使用者要求）。開新 issue、`/spectra-discuss`、`/spectra-propose` 或直接動手做一個新功能之前：
+1. 量下面的訊號（`wc -l`、`wc -c`、超過 200 字元的行數，看這次會改到的模組），對照上一筆量測。
+2. 判斷這個任務要不要先重構，結論只有三種：不用（照現在寫法做）、先做局部整理（例如把這次要改的功能從 `actions.js` 抽成自己的模組，另開 change 或列在 tasks 最前面）、該導入框架或建置步驟（停下來用 AskUserQuestion 問使用者，不自行決定）。
+3. 把量到的數字與結論寫進 proposal（Spectra change）或 issue 內文，一兩行就好；需要重構時也在下面的量測紀錄補一筆。
+
+訊號（記錄當下的實際數字再判斷）：
+- 程式大小（原本是單檔 `public/js/game.js`）：加入技術線後約 580 行、加入陷阱題後約 645 行（2026-10-07 量測）、加入派工方案與工程投資後 776 行（2026-10-09 量測）、加入雙選公司與 OpenAI 席位後 791 行／62.8KB（2026-10-09 量測，平均每行約 79 字元，46 行超過 200 字元，行數低估了實際份量）。2026-10-09 依 Spectra change `split-game-modules` 拆成七個 ES modules（main 39, data 122, state 51, calc 81, actions 263, view 143, modals 139 行，共 838 行，含 import 行）；之後看最大的單一模組（目前 `actions.js`）。加入採購電腦後（2026-10-10 量測）共 1,052 行／83.6KB：actions 331 行／22.3KB、view 151 行／16.3KB（21 行超過 200 字元）、modals 181 行／15.6KB（17 行）、data 149 行／15.5KB、state 100、calc 93、main 47。單一模組超過約 1,000 行、或常常要跨很遠的區塊改同一個功能時，拆模組的價值會浮現。
 - `render()` 整頁重繪的成本：目前畫面量很小，沒有可察覺的延遲。如果加入動畫、拖拉或大量列表後出現卡頓或輸入框失焦，才是換成元件化渲染的理由。
 - 狀態相關的 bug：`S`／`sel` 是全域可變物件。如果開始出現「畫面跟狀態不同步」「某個動作忘了 `render()`」這類 bug，代表需要更明確的狀態管理。
 - 測試需求：目前用 `tools/check.js` 以假 DOM 驗規則就夠。若需要測 UI 互動、或規則檢查越來越難寫，就是導入測試框架與模組化的時機。

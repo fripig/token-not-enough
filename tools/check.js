@@ -4,12 +4,12 @@
 import {readFileSync} from 'node:fs';
 import {els,store,resetStore} from './fake-dom.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
-import {boot,start} from '../public/js/main.js';
+import {boot,firstIssues,start} from '../public/js/main.js';
 import {BASE,CLIENTS,COMPANIES,DEFAULT_PRESETS,EFFORT,KPI,SEAT,STACKS,VENDORS,bestKey,cnBlock,effModel,h1,kt,model,presetsOf,rnd} from '../public/js/data.js';
 import * as dataModule from '../public/js/data.js';
 import {GIG_CLIENT,GIG_PAY,S,addGigs,hardStack,fresh,makeGig,makeIssue,nextId,pickStack,sel,unfamiliar} from '../public/js/state.js';
 import {catchRate,costLine,storeReject,est,manualHrs,presetBlock,presetFor,quotaLeft,stackHint} from '../public/js/calc.js';
-import {EVENTS,advance,auditOdds,auditRoll,conflictRate,prHrs,batch,canEvaluate,charge,dispatch,endDay,evalCost,evaluate,invCount,invest,loadPreset,makeJob,manual,quick,rescope,reveal,revealRate,savePreset,settle,trueView} from '../public/js/actions.js';
+import {EVENTS,advance,intakeIssue,auditOdds,auditRoll,conflictRate,prHrs,batch,canEvaluate,charge,dispatch,endDay,evalCost,evaluate,invCount,invest,loadPreset,makeJob,manual,quick,rescope,reveal,revealRate,savePreset,settle,trueView} from '../public/js/actions.js';
 import {dispatchPanel,render} from '../public/js/view.js';
 import {showEnd,showSetup} from '../public/js/modals.js';
 // 核心規則（gh-09-01-core-rules-specs）用命名空間取用，避免和上面的具名 import 重複
@@ -44,7 +44,7 @@ function tests(){
   for(let i=0;i<N;i++){const is=makeIssue(false);cnt[is.stack]=(cnt[is.stack]||0)+1;}
   ok(Math.abs(cnt.rails/N-.75)<=.02,'rails 佔 0.75±0.02',cnt.rails/N);
   ok(Math.abs(cnt.fe/N-.15)<=.02,'fe 佔 0.15±0.02',cnt.fe/N);
-  ok(['laravel','rust','app'].every(k=>cnt[k]>0),'其他三條技術線都有出現',JSON.stringify(cnt));
+  ok(['laravel','rust','app','sre','devops'].every(k=>Math.abs(cnt[k]/N-.02)<=.008),'其他五條工作內容各約 0.02',JSON.stringify(cnt));
   newRun('app');
   const incs=[...Array(200)].map(()=>makeIssue(true));
   ok(incs.every(i=>i.stack==='app'&&STACKS.app.pool.inc.includes(i.title)),'App 公司的事故單全是 app 技術線');
@@ -68,17 +68,23 @@ function tests(){
     const [v,m]=capModel[cap]; ok(near(pOf(v,m,ticket('rust',cx)).p,exp),`Rust 表：能力 ${cap} × 複雜度 ${cx} → ${exp*100}%`);
   }
   ok(near(pOf('anthropic','sonnet',ticket('app',3)).hrs,pOf('anthropic','sonnet',ticket('fe',3)).hrs*1.15),'app 執行時間 ×1.15');
+  { const dv=est(ticket('devops',2),'anthropic','sonnet',0,1), fe2=est(ticket('fe',2),'anthropic','sonnet',0,1);
+    ok(near(dv.hrs,fe2.hrs*1.25)&&near(dv.p,fe2.p)&&near(dv.tk,fe2.tk),'devops 執行時間 ×1.25，成功率與 token 跟 fe 相同',`${dv.hrs} ${fe2.hrs}`);
+    ok(near(manualHrs(ticket('devops',2)),manualHrs(ticket('fe',2))*2),'devops 手寫時數不變（沒選時只有不熟 ×2）'); }
+  newRun('devops'); S.day=6;
+  const dv2=[...Array(3000)].map(()=>makeIssue(false)).filter(i=>i.stack==='devops'&&i.cx===2);
+  ok([...new Set(dv2.map(i=>i.due))].sort().join()==='10,8,9','複雜度 2 devops 工單期限多一天：偏移 1–3 天對應到期 8、9、10，沒有 7',[...new Set(dv2.map(i=>i.due))].join());
 
   const sOn=est(ticket('app',3,{store:true}),'anthropic','sonnet',0), sOff=est(ticket('app',3),'anthropic','sonnet',0);
   ok(near(sOn.pe,sOff.pe*.8)&&near(sOn.p,sOff.p),'需上架審核：顯示成功率含 20% 退件，原始機率不變');
 
   /* 2.3 不熟技術線手寫時間（spec 範例表） */
-  for(const [co,st,cx,tries,exp] of [['laravel','laravel',2,0,'4.4'],['laravel','fe',2,0,'4.4'],['laravel','rust',2,0,'8.8'],['app','rails',3,1,'10.6']]){
+  for(const [co,st,cx,tries,exp] of [['laravel','laravel',2,0,'4.4'],['laravel','fe',2,0,'4.4'],['laravel','rust',2,0,'8.8'],['app','rails',3,1,'10.6'],['laravel','sre',2,0,'8.8'],[['sre','devops'],'devops',2,0,'4.4']]){
     newRun(co); ok(h1(manualHrs(ticket(st,cx,{tries})))===exp,`手寫：${co} 公司 ${st} 複雜度 ${cx} tries ${tries} → ${exp}h`,h1(manualHrs(ticket(st,cx,{tries}))));
   }
 
   /* 5.1 Rust／App 補償：KPI ×1.3、期限 +1 天（上限第 20 天） */
-  for(const [st,cx,inc,exp] of [['laravel',3,false,10],['rust',3,false,13],['app',2,false,8],['app',4,true,33],['fe',4,false,16]]){
+  for(const [st,cx,inc,exp] of [['laravel',3,false,10],['rust',3,false,13],['app',2,false,8],['app',4,true,33],['fe',4,false,16],['devops',3,false,13],['devops',4,true,33],['sre',3,false,10],['sre',4,true,26]]){
     newRun(st==='fe'?'laravel':st); S.day=1;
     const got=[...Array(4000)].map(()=>makeIssue(inc)).filter(i=>i.stack===st&&i.cx===cx);
     ok(got.length>0&&got.every(i=>i.kpi===exp),`KPI：${st} 複雜度 ${cx}${inc?' 事故':''} → ${exp}`,[...new Set(got.map(i=>i.kpi))].join(','));
@@ -98,9 +104,10 @@ function tests(){
 
   /* 5.2 公司按鈕的難度標示 */
   newRun('laravel'); showSetup(false);
-  for(const [k,stars] of [['laravel','★'],['rails','★'],['app','★★'],['rust','★★★']]){
+  ok(COMPANIES.join()==='laravel,rails,rust,app,sre,devops'&&COMPANIES.every(k=>els.mo.innerHTML.includes(`data-company="${k}"`)),'開局有六個工作內容按鈕，照固定順序');
+  for(const [k,stars,name] of [['laravel','★','Laravel 後端'],['rails','★','Rails 後端'],['rust','★★★','Rust 基礎設施'],['app','★★','App 開發'],['sre','★★','SRE'],['devops','★★','DevOps']]){
     const btn=els.mo.innerHTML.match(new RegExp(`data-company="${k}"[^>]*>([\\s\\S]*?)</button>`))?.[1]||'';
-    ok(btn.includes(`難度 ${stars}・`),`${STACKS[k].company} 標示難度 ${stars}`,btn);
+    ok(btn.includes(`<b>${name}</b>`)&&btn.includes(`難度 ${stars}・`),`${name} 標示難度 ${stars}`,btn);
   }
 
   /* 派工台提示（Stack effect visibility） */
@@ -108,6 +115,9 @@ function tests(){
   const hRust=stackHint(ticket('rust',2));
   ok(hRust.includes('×1.2')&&hRust.includes('borrow checker'),'Rust 提示含 ×1.2 與 borrow checker',hRust);
   ok(stackHint(ticket('fe',2))==='','前端工單沒有提示');
+  { const hd=stackHint(ticket('devops',2)), hs=stackHint(ticket('sre',2));
+    ok(hd.includes('×1.25')&&hd.includes('terraform'),'DevOps 提示含 ×1.25 與 terraform',hd);
+    ok(hs.includes('事故'),'SRE 提示提到事故',hs); }
   ok(stackHint(ticket('laravel',4))==='','複雜度 4 的 laravel 工單沒有提示');
   ok(stackHint(ticket('rails',3)).includes('慣例多'),'複雜度 3 的 rails 工單有慣例提示');
   ok(stackHint(ticket('app',3,{store:true})).includes('20%')&&!stackHint(ticket('app',3)).includes('20%'),'只有需上架審核的 app 工單提到 20% 退件');
@@ -116,7 +126,7 @@ function tests(){
   newRun('laravel'); showSetup(true);
   ok(!els.mo.innerHTML.includes('data-company'),'週一調整訂閱不顯示公司選擇');
   newRun('laravel'); const rt=ticket('rust',2), st=ticket('app',3,{store:true}); S.issues=[rt,st]; sel.issue=rt.id; render();
-  ok(els.app.innerHTML.includes('Laravel 新聞站・全端工程師'),'標頭顯示公司名稱');
+  ok(els.app.innerHTML.includes('Laravel 後端・工程師'),'標頭顯示工作內容名稱');
   ok(els.app.innerHTML.includes('chip unfam">不熟')&&els.app.innerHTML.includes('chip store">需上架審核'),'卡片顯示不熟與需上架審核標籤');
   ok(els.app.innerHTML.includes('自己手寫（8.8h'),'不熟的 rust 工單手寫按鈕顯示 8.8h');
 
@@ -143,7 +153,7 @@ function tests(){
   const endWith=(company,mode,seed)=>{newRun(company,mode);resetStore(seed);S.day=20;showEnd();return els.mo.innerHTML;};
   let html=endWith('laravel','parallel',{'tokgame-best-parallel':'4200'});
   ok(html.includes('4,200'),'Laravel 沿用舊 key 的最高分（spec：4200 → 4,200）');
-  ok(html.includes('月底結算・Laravel 新聞站'),'結算標題有公司名稱');
+  ok(html.includes('月底結算・Laravel 後端'),'結算標題有工作內容名稱');
   ok(!('tokgame-best-parallel-laravel' in store),'沒破紀錄時不寫新 key');
   html=endWith('rails','parallel',{'tokgame-best-parallel':'999999'});
   ok(!html.includes('999,999'),'其他公司不讀舊 key');
@@ -305,8 +315,8 @@ function tests(){
   ok(/data-act="go" disabled/.test(els.app.innerHTML)&&els.app.innerHTML.includes('工作槽都滿了，先等一個 agent 跑完。'),'工作槽滿了：派工按鈕停用並顯示警告');
   for(const [n,exp] of [[2,1.25],[4,1.75],[6,2.25]]){newRun('laravel','parallel'); S.slots=n; S.jobs=Array(n-1).fill({left:1}); ok(near(A.reviewLoad(),exp),`${n} 個工作槽、其他 ${n-1} 個還在跑 → 審 PR ×${exp}`);}
   newRun('laravel','parallel'); S.slots=4; S.day=20; showEnd();
-  ok(els.mo.innerHTML.includes('月底結算・Laravel 新聞站・平行模式（4 個 agent）'),'結算標題顯示 4 個 agent');
-  newRun('laravel','serial'); S.day=20; showEnd(); ok(els.mo.innerHTML.includes('月底結算・Laravel 新聞站・單線模式</h2>'),'單線模式標題不變');
+  ok(els.mo.innerHTML.includes('月底結算・Laravel 後端・平行模式（4 個 agent）'),'結算標題顯示 4 個 agent');
+  newRun('laravel','serial'); S.day=20; showEnd(); ok(els.mo.innerHTML.includes('月底結算・Laravel 後端・單線模式</h2>'),'單線模式標題不變');
 
   /* 團隊席位：OpenAI 也能申請，核准後 Codex 可用公司席位付款 */
   newRun('laravel'); showSetup(false); ok(els.mo.innerHTML.includes('data-seat="openai"'),'開局可申請 OpenAI 團隊席位');
@@ -624,7 +634,7 @@ function tests(){
   /* 投資面板、結算、開局說明 */
   newRun('rails'); render();
   const order=[...els.app.innerHTML.matchAll(/data-inv="md" data-st="(\w+)"/g)].map(m=>m[1]).join(',');
-  ok(order==='rails,laravel,rust,app,fe','CLAUDE.md 按鈕：主技術線優先，再其他公司，最後 fe',order);
+  ok(order==='rails,laravel,rust,app,sre,devops,fe','CLAUDE.md 按鈕：主技術線優先，再其他工作內容，最後 fe',order);
   newRun('laravel'); S.hours=8; invest('md','laravel'); S.hours=8; invest('tests'); S.hours=8; invest('ci'); S.day=20; showEnd();
   ok(els.mo.innerHTML.includes('<span>工程投資</span><span>3 項</span>'),'結算顯示工程投資 3 項（CLAUDE.md＋單元測試＋CI）');
   start(); ok(els.mo.innerHTML.includes('派工方案與工程投資')&&els.mo.innerHTML.includes('監控告警')&&!els.mo.innerHTML.includes('補測試'),'開局說明提到派工方案與工程投資（含新項目，沒有補測試）');
@@ -634,6 +644,8 @@ function tests(){
   /* multi-stack-company：狀態、沿用、退回 */
   start(); ok(S.companies.join()==='laravel','預設只選 Laravel');
   S.companies='rust'; fresh(); ok(S.companies.join()==='rust','舊版字串 rust 讀成只選 rust');
+  S.companies='sre'; fresh(); ok(S.companies.join()==='sre','字串 sre 讀成只選 sre');
+  S.companies=['devops','sre']; fresh(); ok(S.companies.join()==='sre,devops','sre、devops 照固定順序存');
   S.companies=['laravel','rails','rust']; fresh(); ok(S.companies.join()==='laravel','三條退回 Laravel');
   S.companies=['laravel','go']; fresh(); ok(S.companies.join()==='laravel','未知技術線退回 Laravel');
   S.companies=['app','laravel']; fresh(); ok(S.companies.join()==='laravel,app','照固定順序存');
@@ -643,27 +655,49 @@ function tests(){
   const press=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
   const picked=()=>COMPANIES.filter(k=>new RegExp(`class="sb sel" data-company="${k}"`).test(els.mo.innerHTML)).join();
   start(); S.companies=['laravel']; showSetup(false);
-  ok(els.mo.innerHTML.includes('公司（可選 1–2 條主技術線）'),'標籤寫出可選 1–2 條');
+  ok(els.mo.innerHTML.includes('工作內容（可選 1–2 項）'),'標籤寫出工作內容可選 1–2 項');
   press({company:'app'}); ok(picked()==='laravel,app','laravel + 點 app → laravel, app');
   ok(/data-company="rust" disabled/.test(els.mo.innerHTML)&&/data-company="rails" disabled/.test(els.mo.innerHTML),'選滿兩條時其他按鈕停用');
   press({company:'rust'}); ok(picked()==='laravel,app','選滿時點 rust 不變');
   press({company:'laravel'}); ok(picked()==='app','再點 laravel → 只剩 app');
   press({company:'app'}); ok(picked()==='app','最後一條不能取消');
   press({company:'laravel'}); ok(picked()==='laravel,app','先 app 再 laravel → 固定順序 laravel, app');
-  ok(els.mo.innerHTML.includes('任職於「Laravel 新聞站＋App 團隊」'),'開局說明用合併的公司名稱');
+  ok(els.mo.innerHTML.includes('你是工程師，負責「Laravel 後端＋App 開發」。'),'開局說明用合併的工作內容名稱');
   press({act:'confirm'});
   ok(S.companies.join()==='laravel,app'&&S.issues.length===4,'確認後存成 laravel, app 並重抽第 1 天工單');
-  ok(els.app.innerHTML.includes('Laravel 新聞站＋App 團隊・全端工程師')&&S.log.some(l=>l.msg.includes('Laravel 新聞站＋App 團隊・遊戲模式')),'標頭與紀錄顯示 Laravel 新聞站＋App 團隊');
-  showSetup(true); ok(!els.mo.innerHTML.includes('data-company'),'週一調整仍不顯示公司');
+  ok(els.app.innerHTML.includes('Laravel 後端＋App 開發・工程師')&&S.log.some(l=>l.msg.includes('Laravel 後端＋App 開發・遊戲模式')),'標頭與紀錄顯示 Laravel 後端＋App 開發');
+  showSetup(true); ok(!els.mo.innerHTML.includes('data-company'),'週一調整仍不顯示工作內容');
+  /* gh-18-01：SRE、DevOps 的 toggle、固定順序、開局說明 */
+  start(); S.companies=['laravel']; showSetup(false);
+  press({company:'devops'}); ok(picked()==='laravel,devops','laravel + 點 devops → laravel, devops');
+  start(); S.companies=['laravel','app']; showSetup(false);
+  ok(/data-company="sre" disabled/.test(els.mo.innerHTML),'選滿兩條時 sre 按鈕停用');
+  press({company:'sre'}); ok(picked()==='laravel,app','選滿時點 sre 不變');
+  start(); S.companies=['sre']; showSetup(false); press({company:'sre'}); ok(picked()==='sre','只剩 sre 不能取消');
+  start(); S.companies=['devops']; showSetup(false); press({company:'app'});
+  ok(picked()==='app,devops'&&els.mo.innerHTML.includes('負責「App 開發＋DevOps」'),'先 devops 再 app → 固定順序 app, devops');
+  start(); S.companies=['laravel']; showSetup(false); press({company:'sre'});
+  ok(els.mo.innerHTML.includes('你是工程師，負責「Laravel 後端＋SRE」。'),'Laravel 後端＋SRE 的開局說明');
+  press({act:'confirm'}); ok(S.companies.join()==='laravel,sre'&&els.app.innerHTML.includes('Laravel 後端＋SRE・工程師'),'確認後存成 laravel, sre，標頭顯示 Laravel 後端＋SRE');
 
   /* 工單分布與不熟 */
-  newRun(['laravel','app']); const M2=10000, cnt2={laravel:0,rails:0,rust:0,app:0,fe:0};
+  newRun(['laravel','app']); const M2=10000, cnt2={laravel:0,rails:0,rust:0,app:0,sre:0,devops:0,fe:0};
   for(let i=0;i<M2;i++)cnt2[pickStack()]++;
   ok(Math.abs(cnt2.laravel/M2-.375)<=.02&&Math.abs(cnt2.app/M2-.375)<=.02,'雙選：laravel、app 各約 0.375',JSON.stringify(cnt2));
   ok(Math.abs(cnt2.fe/M2-.15)<=.02,'雙選：fe 約 0.15',cnt2.fe/M2);
-  ok(Math.abs(cnt2.rails/M2-.05)<=.01&&Math.abs(cnt2.rust/M2-.05)<=.01,'雙選：rails、rust 各約 0.05',`${cnt2.rails/M2} ${cnt2.rust/M2}`);
+  ok(['rails','rust','sre','devops'].every(k=>Math.abs(cnt2[k]/M2-.025)<=.008),'雙選：rails、rust、sre、devops 各約 0.025',JSON.stringify(cnt2));
   const incs2=[...Array(1000)].map(()=>makeIssue(true));
   ok(incs2.every(i=>i.stack==='laravel'||i.stack==='app')&&incs2.some(i=>i.stack==='laravel')&&incs2.some(i=>i.stack==='app'),'雙選：事故單只出 laravel 或 app，兩條都有');
+  /* gh-18-01：SRE 每張新工單多擲一次事故（spec 表） */
+  for(const [cs,day,all,sre] of [[['laravel'],12,.12,0],[['sre'],12,.2256,.2256],[['sre'],2,.0591,.0591],[['laravel','sre'],12,.2256,.1656]]){
+    newRun(cs); S.day=day; const T=10000, got=[...Array(T)].map(intakeIssue);
+    const a=got.filter(i=>i.inc).length/T, r=got.filter(i=>i.inc&&i.stack==='sre').length/T;
+    ok(Math.abs(a-all)<=.01&&Math.abs(r-sre)<=.01,`進件：${cs.join('+')} 第 ${day} 天事故 ${all}、sre 事故 ${sre}`,`${a} ${r}`);
+  }
+  newRun('laravel'); S.day=8; let sreInc=makeIssue(true,'sre');
+  ok(sreInc.cx===4&&sreInc.due===8&&STACKS.sre.pool.inc.includes(sreInc.title)&&sreInc.kpi===26,'SRE 事故單：複雜度 4、當天到期、sre 事故標題、KPI 26',JSON.stringify(sreInc));
+  S.inv.monitor=true; sreInc=makeIssue(true,'sre'); ok(sreInc.due===9,'有監控告警時 SRE 事故單隔天到期');
+  newRun('sre'); S.day=1; firstIssues(); ok(S.issues.length===4&&S.issues.every(i=>!i.inc),'選 SRE 第 1 天仍是 4 張一般工單');
   newRun(['laravel','rust']);
   ok(h1(manualHrs(ticket('rust',2)))==='4.4'&&!unfamiliar(ticket('rust',2)),'laravel+rust：rust 不算不熟，手寫 4.4h');
   ok(h1(manualHrs(ticket('app',2)))==='8.8'&&unfamiliar(ticket('app',2)),'laravel+rust：app 不熟，手寫 8.8h');
@@ -671,15 +705,16 @@ function tests(){
   /* 公司名稱與最高分 key */
   const endPair=(cs,seed)=>{newRun(cs,'parallel');resetStore(seed);S.day=20;S.kpi=900;showEnd();return els.mo.innerHTML;};
   let h2=endPair(['laravel','app'],{'tokgame-best-parallel':'999999'});
-  ok(h2.includes('月底結算・Laravel 新聞站＋App 團隊・'),'結算標題顯示 Laravel 新聞站＋App 團隊');
+  ok(h2.includes('月底結算・Laravel 後端＋App 開發・'),'結算標題顯示 Laravel 後端＋App 開發');
   ok('tokgame-best-parallel-laravel+app' in store&&!h2.includes('999,999'),'雙選寫入 tokgame-best-parallel-laravel+app，不讀舊 key');
   h2=endPair(['laravel'],{'tokgame-best-parallel':'4200'}); ok(h2.includes('4,200'),'只選 Laravel 仍讀舊 key');
   newRun('rails','serial'); ok(bestKey()==='tokgame-best-serial-rails','單選 key 不變');
+  newRun(['sre','devops'],'parallel'); ok(bestKey()==='tokgame-best-parallel-sre+devops','SRE＋DevOps 的最高分 key');
 
   /* 投資按鈕順序 */
   newRun(['rails','app']); render();
   const ord2=[...els.app.innerHTML.matchAll(/data-inv="md" data-st="(\w+)"/g)].map(m=>m[1]).join(',');
-  ok(ord2==='rails,app,laravel,rust,fe','rails+app：CLAUDE.md 按鈕順序 rails, app, laravel, rust, fe',ord2);
+  ok(ord2==='rails,app,laravel,rust,sre,devops,fe','rails+app：CLAUDE.md 按鈕順序 rails, app, laravel, rust, sre, devops, fe',ord2);
   newRun(['rust','app']); S.day=20; showEnd(); press({act:'again'});
   ok(S.companies.join()==='rust,app'&&/class="sb sel" data-company="rust"/.test(els.mo.innerHTML)&&/class="sb sel" data-company="app"/.test(els.mo.innerHTML),'結算按「再玩一個月」沿用 Rust＋App 並預選');
   }
@@ -698,11 +733,11 @@ function tests(){
   {
   /* outsource-gigs：外包單產生 */
   const gig=(stack,cx,extra={})=>ticket(stack,cx,{out:true,client:GIG_CLIENT,pay:(extra.kpi??KPI[cx])*GIG_PAY,...extra});
-  newRun('laravel'); const G=5000, gc={laravel:0,rails:0,rust:0,app:0,fe:0}; const gigs=[...Array(G)].map(makeGig);
+  newRun('laravel'); const G=5000, gc={laravel:0,rails:0,rust:0,app:0,sre:0,devops:0,fe:0}; const gigs=[...Array(G)].map(makeGig);
   gigs.forEach(g=>gc[g.stack]++);
-  ok(Object.values(gc).every(c=>Math.abs(c/G-.2)<=.02),'外包單五條技術線各約 0.2',JSON.stringify(gc));
+  ok(Object.values(gc).every(c=>Math.abs(c/G-1/7)<=.02),'外包單七條技術線各約 0.143',JSON.stringify(gc));
   ok(gigs.every(g=>g.out&&!g.inc&&!g.sens&&g.client===GIG_CLIENT&&g.pay===g.kpi*80),'外包單不是事故、不機敏、案主是外包案主、報酬 = KPI × 80');
-  ok(gigs.filter(g=>g.stack==='rust').every(unfamiliar)&&gigs.filter(g=>g.stack==='fe').every(g=>!unfamiliar(g)),'只選 Laravel 時 rust 外包單算不熟、fe 不算');
+  ok(['rust','sre','devops'].every(k=>gigs.some(g=>g.stack===k)&&gigs.filter(g=>g.stack===k).every(unfamiliar))&&gigs.filter(g=>g.stack==='fe').every(g=>!unfamiliar(g)),'只選 Laravel 時 rust、sre、devops 外包單算不熟、fe 不算');
   S.issues=[gigs.find(g=>g.stack==='rust')]; sel.issue=null; render();
   ok(els.app.innerHTML.includes('<span class="chip unfam">不熟</span>'),'rust 外包單卡片顯示不熟標籤');
   ok(gigs.filter(g=>g.stack==='rust'&&!g.trap).every(g=>g.kpi===Math.round(KPI[g.cx]*1.3)),'rust 外包單有 KPI ×1.3 補償');
@@ -1319,6 +1354,9 @@ function tests(){
   const days=ev.filter(e=>e.name==='day_reached').map(e=>e.p.day).join();
   ok(days===Array.from({length:20},(_,i)=>i+1).join(),'play-analytics：第 1–20 天各送一次 day_reached',days);
   ok(ev.filter(e=>e.name==='game_end').length===1&&ev.at(-1).name==='game_end'&&ev.at(-1).p.day===20,'play-analytics：月底送一次 game_end');
+  /* gh-18-01：識別子不變，SRE＋DevOps 送 sre+devops */
+  newRun('sre','parallel'); showSetup(false); clickMo({company:'devops'}); ev.length=0; clickMo({act:'confirm'});
+  ok(ev[0]?.name==='game_start'&&ev[0].p.companies==='sre+devops','play-analytics：SRE＋DevOps 的 companies 是 sre+devops',JSON.stringify(ev[0]?.p));
   /* 週一調整訂閱沒改就不送事件 */
   newRun('laravel'); S.day=6; showSetup(true); ev.length=0; clickMo({act:'confirm'}); showSetup(true); clickMo({act:'close'});
   ok(ev.length===0,'play-analytics：週一調整訂閱沒改、或關掉都不送事件',names());

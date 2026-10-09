@@ -1,7 +1,7 @@
 // 平衡模擬器（非遊戲本體）
 // 用法：node tools/sim.js
-// 載入遊戲模組，用假的 DOM 跑自動玩家：兩種模式 × 四家公司 × 三種審核等級各跑 N 個月（預設 100，可用 SIM_N 調整），
-// 印出抽樣結果，最後每個模式 × 公司印一行平均分、對照同模式 Laravel 的差距與評等分布。
+// 載入遊戲模組，用假的 DOM 跑自動玩家：兩種模式 × 六種工作內容 × 三種審核等級各跑 N 個月（預設 100，可用 SIM_N 調整），
+// 印出抽樣結果，最後每個模式 × 工作內容印一行平均分、對照同模式 Laravel 的差距與評等分布。
 // SIM_TRAP=<比例> 可覆寫陷阱題比例（例如 SIM_TRAP=0 關掉陷阱）；SIM_SLOTS=2..6 指定平行模式工作槽數。
 // SIM_INVEST=1 讓自動玩家做工程投資：每天開工時依序買 CLAUDE.md（每條主技術線）、單元測試、CI 流水線與 pre-commit hook（只在平行模式）、導入 SDD 裡下一項付得起的。
 // SIM_INVEST=2 再加買上架自動化（有選 App 才買）、監控告警、secret scanning，量新投資的效果；SIM_INV_EXTRA=monitor,scan 之類可只加買指定的幾項（fastlane、monitor、scan），拿來逐項量。
@@ -13,7 +13,7 @@
 // SIM_HAIKU=1 讓自動玩家在 DeepSeek 被禁、又沒用席位時改派 Claude Haiku 不派 Sonnet，付費方式照 Sonnet 的規則（訂閱額度夠用訂閱，否則公司 API），量 Haiku 的影響。
 // SIM_HW=1 讓自動玩家採購電腦（照真實的信任審核）：每天開工時沒有待審申請、且信任已達門檻，就依序申請 DGX Spark、PC、Mac Studio；DeepSeek 被禁、又沒用席位時，本地 GPU 有空（或單線模式）就改派解鎖的本地模型：
 // 複雜度 ≥4 且案主允許時用 GLM-5.3，否則 Qwen3-Coder-Next，政府標案用 Gemma 4 31B；跑不完（單線超過今天工時、平行今天到期跑不完）的模型略過，沒有能用的才照舊。買了沒用照樣每台每天扣信任。
-// SIM_COMBOS=1 改跑六種雙選組合（另跑單選 Laravel 當對照）。
+// SIM_COMBOS=1 改跑十五種雙選組合（另跑單選 Laravel 當對照）。
 // SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
 import {els} from './fake-dom.js';
 import './seed.js';

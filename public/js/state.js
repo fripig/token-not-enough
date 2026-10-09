@@ -65,8 +65,8 @@ export function pickStack(){
 export let TRAP_RATE=.1;
 /* 模擬器用來調整陷阱比例 */
 export const setTrapRate=r=>{TRAP_RATE=r;};
-/* Rust、App 比較慢：期限多一天、KPI ×1.3 作為補償 */
-export const hardStack=st=>st==='rust'||st==='app';
+/* Rust、App、DevOps 比較慢：期限多一天、KPI ×1.3 作為補償 */
+export const hardStack=st=>st==='rust'||st==='app'||st==='devops';
 export const unfamiliar=is=>!S.companies.includes(is.stack)&&is.stack!=='fe';
 export function makeIssue(inc,st){
   let cx;
@@ -85,7 +85,7 @@ export function makeIssue(inc,st){
 }
 
 
-/* 外包單：五條技術線平均抽，只能自己付 token，做完拿現金（KPI × GIG_PAY）不拿 KPI */
+/* 外包單：每種工作內容加前端平均抽，只能自己付 token，做完拿現金（KPI × GIG_PAY）不拿 KPI */
 export const GIG_PAY=80, GIG_LATE=.3, GIG_STACKS=[...COMPANIES,'fe'];
 export const GIG_CLIENT={name:'外包案主',ban:null};
 export function makeGig(){

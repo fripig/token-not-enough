@@ -44,9 +44,9 @@ export function cnBlock(is,v,M){
 export const SEAT={day:2500,week:10000,name:'公司團隊席位',vendors:['anthropic','openai','google'],trust:[55,65,75]};
 export const BASE=[0,60,180,350,550,850];
 export const KPI=[0,3,6,10,16,24];
-/* 技術線：前四個是可選的公司（主技術線），fe 是每家公司都會有的前端工單 */
+/* 技術線：前六個是可選的工作內容（主技術線），fe 是每種工作內容都會有的前端工單 */
 export const STACKS={
-  laravel:{name:'Laravel',company:'Laravel 新聞站',level:1,desc:'框架慣例多，簡單工單便宜模型就夠用。',pool:{
+  laravel:{name:'Laravel',company:'Laravel 後端',level:1,desc:'框架慣例多，簡單工單便宜模型就夠用。',pool:{
     1:['跑馬燈文字錯字','RSS 日期時區差 8 小時','按鈕 hover 顏色不對','後台列表少一個排序欄位','修正 404 頁的返回連結','Footer 年份寫死成去年'],
     2:['文章 API 補 og:image 欄位','補齊標籤服務的單元測試','表單驗證訊息中文化','排程任務加上重試機制','搜尋結果分頁錯亂','後台匯入 CSV 編碼錯誤'],
     3:['文章列表 N+1 查詢拖慢 3 秒','播放器元件重構成 Composition API','Queue worker 記憶體洩漏','多語系 hreflang 全面修正','匯出報表改成非同步','圖片上傳改走 S3 預簽網址'],
@@ -54,7 +54,7 @@ export const STACKS={
     5:['舊資料庫拆分遷移','從單體拆出搜尋服務','整站改 SSR 還要保住 SEO'],
     trap:['文章網址只要改一下格式','順便把作者欄位改成可以多選','時區改成跟著使用者設定，應該很快','後台列表加一個「全部匯出」按鈕就好'],
     inc:['正式站 502：worker 不停重啟','WAF 誤擋編輯後台','首頁快取被打穿，RDS CPU 99%','排程重複發送推播']}},
-  rails:{name:'Rails',company:'Rails SaaS',level:1,desc:'Convention over configuration，簡單工單便宜模型就夠用。',pool:{
+  rails:{name:'Rails',company:'Rails 後端',level:1,desc:'Convention over configuration，簡單工單便宜模型就夠用。',pool:{
     1:['帳單 Email 主旨少了公司名稱','後台 flash 訊息沒有翻譯','價目表頁連結指到舊方案','註冊頁密碼提示文字錯誤'],
     2:['Devise 登入加上 rate limit','補齊訂閱模型的 RSpec','Sidekiq 失敗任務加通知','CSV 匯出漏掉時區轉換','API 回應改用 serializer 統一格式'],
     3:['Dashboard 頁 N+1 拖慢到 4 秒','多租戶資料改用 scope 隔離','Stripe webhook 冪等處理','Active Storage 改傳到 S3 直傳','把 callbacks 抽成 service object'],
@@ -70,7 +70,7 @@ export const STACKS={
     5:['把 C 函式庫的 FFI 包成安全介面','單機服務改成分散式共識','核心路徑改寫成 lock-free'],
     trap:['這個 struct 只要多存一個 reference','順便把同步函式改成 async','設定改成可以熱重載，應該很快','錯誤型別統一一下，改幾行就好'],
     inc:['proxy 在高流量下 panic 重啟','記憶體洩漏讓節點被 OOM kill','憑證輪替後 TLS 握手全失敗','新版 binary 在 ARM 機器啟動就 segfault']}},
-  app:{name:'App',company:'App 團隊',level:2,desc:'要跑模擬器所以比較慢；部分工單要過 App Store 審核。',pool:{
+  app:{name:'App',company:'App 開發',level:2,desc:'要跑模擬器所以比較慢；部分工單要過 App Store 審核。',pool:{
     1:['設定頁版本號沒更新','深色模式下按鈕文字看不到','推播文案錯字','啟動畫面 logo 被裁切'],
     2:['補上下拉重新整理','列表頁加上空狀態畫面','登入頁支援密碼自動填入','補齊 ViewModel 的單元測試','iPad 橫向排版跑掉'],
     3:['離線時文章快取同步','推播點開要導到正確頁面','圖片列表捲動卡頓','Android 13 通知權限流程','App 內購買恢復購買失敗'],
@@ -78,6 +78,22 @@ export const STACKS={
     5:['iOS 與 Android 共用核心改成 Kotlin Multiplatform','整個 App 改成離線優先架構','從 WebView 包殼改成原生 App'],
     trap:['登入狀態只要改成多帳號切換','順便支援橫向模式','字體大小跟著系統設定，應該很快','底部選單加一個分頁就好'],
     inc:['新版上架後啟動就閃退','推播憑證過期，全部收不到通知','API 改版讓舊版 App 全部登不進去','付款頁在特定機型白畫面']}},
+  sre:{name:'SRE',company:'SRE',level:2,desc:'選了 SRE 事故單比較多，常常當天就要處理完。',pool:{
+    1:['告警訊息少了服務名稱','值班表下週排錯人','狀態頁連結指到舊網址','Grafana 面板時區顯示 UTC'],
+    2:['告警門檻太敏感半夜一直叫','補上 SLO 儀表板','慢查詢 log 接進集中式日誌','健康檢查端點補上相依服務狀態','值班手冊補上重啟步驟'],
+    3:['資料庫連線數容量規劃','告警改成依錯誤預算燒速觸發','備份還原演練自動化','分散式追蹤接上所有服務','Redis 記憶體用量預估與擴容'],
+    4:['監控從自架 Prometheus 搬到託管服務','導入混沌工程演練','多可用區容錯切換','全站限流與熔斷策略'],
+    5:['單一區域改成多區域主備','建立完整的錯誤預算政策與發版閘門','整個值班與事故流程重新設計'],
+    trap:['只要把告警閾值調高一點','順便把 log 保存期限拉長','健康檢查加一個資料庫檢查，應該很快','Pod 加一個 readiness probe 就好'],
+    inc:['磁碟滿了 log 寫不進去','憑證過期，全站 HTTPS 失效','DNS 設定被改壞，服務全斷','資料庫主節點掛掉沒有自動切換']}},
+  devops:{name:'DevOps',company:'DevOps',level:2,desc:'要等 CI 與 terraform，執行時間比較長。',pool:{
+    1:['CI 徽章連結失效','Dockerfile 註解過期','部署通知少了版本號','.gitignore 漏掉建置產物'],
+    2:['CI 快取失效每次都重抓套件','映像檔改用多階段建置','PR 自動加上預覽環境連結','部署腳本補上回滾指令','排程清理舊的映像檔'],
+    3:['Terraform state 拆成模組','CI 改成平行跑測試','秘密改用 Secrets Manager 注入','staging 環境改成依分支自動建立','建置時間從 20 分鐘壓到 8 分鐘'],
+    4:['Kubernetes 大版本升級','部署改成 GitOps（Argo CD）','CI 從 Jenkins 搬到 GitHub Actions','導入藍綠部署'],
+    5:['整套基礎設施改寫成 IaC','單一叢集拆成多叢集','自建內部開發者平台'],
+    trap:['只要在 pipeline 多加一個步驟','順便把 Node 版本升上去','環境變數改一下名稱，應該很快','Terraform 改一個參數就好'],
+    inc:['部署 pipeline 卡住，全部門無法上線','Runner 額度用完，CI 全部排隊','映像檔倉庫認證過期，部署全失敗','Terraform apply 誤刪正式環境安全群組']}},
   fe:{name:'前端',company:'前端',desc:'',pool:{
     1:['首頁 banner 在手機版被切掉','表單 placeholder 顏色太淡','favicon 換新版','行事曆元件週日顯示錯位'],
     2:['補上 loading skeleton','表格欄位支援排序','把 moment 換成 date-fns','元件補 Storybook 範例','圖片改成 lazy load'],
@@ -87,7 +103,7 @@ export const STACKS={
     trap:['表單只要多一個欄位','順便讓整站支援深色模式','日期顯示改成跟著語系，應該很快','把這個彈窗改成可以拖拉，改一下就好'],
     inc:[]}}
 };
-export const COMPANIES=['laravel','rails','rust','app'];
+export const COMPANIES=['laravel','rails','rust','app','sre','devops'];
 /* 主技術線可選 1–2 條，固定照 COMPANIES 的順序存；舊版存的單一字串視為只選一條 */
 export function normCompanies(c){
   const a=typeof c==='string'?[c]:c;

@@ -22,11 +22,13 @@ export function stackGap(is,M){
   if(is.stack==='rust'&&M.cap<4) return -1;                            // borrow checker
   return 0;
 }
-export const stackHrs=is=>is.stack==='rust'?1.2:is.stack==='app'?1.15:1;     // 編譯測試、模擬器
+export const stackHrs=is=>is.stack==='rust'?1.2:is.stack==='app'?1.15:is.stack==='devops'?1.25:1;     // 編譯測試、模擬器、CI 與 terraform
 export function stackHint(is){
   if(conventional(is)) return `${STACKS[is.stack].name} 慣例多：複雜度 3 以下的工單，成功率視同簡單一級。`;
   if(is.stack==='rust') return `Rust：編譯測試比較慢，執行時間 ×${stackHrs(is)}；能力 4 以下的模型容易卡在 borrow checker，成功率視同難一級。`;
   if(is.stack==='app') return `App：要跑模擬器，執行時間 ×${stackHrs(is)}${is.store?`；這張要過 App Store 審核，agent 做完仍有 ${Math.round(storeReject()*100)}% 機率被退件，自我審核救不回來`:''}。`;
+  if(is.stack==='devops') return `DevOps：要等 CI 與 terraform，執行時間 ×${stackHrs(is)}。`;
+  if(is.stack==='sre') return 'SRE：選了 SRE 時事故單比較多（每張新工單多擲一次事故）。';
   return '';
 }
 /* 本地 GPU 一次只能跑一個 agent，跑的時候電腦被吃滿，也不能自己手寫；買了電腦之後手寫不受影響 */

@@ -26,7 +26,7 @@ export function planCost(adjust){
   }
   return c;
 }
-/* 開局的公司按鈕：選滿兩條不能再加、最後一條不能取消，結果照固定順序 */
+/* 開局的工作內容按鈕：選滿兩條不能再加、最後一條不能取消，結果照固定順序 */
 export function toggleCompany(cs,k){
   if(cs.includes(k)) return cs.length>1?cs.filter(x=>x!==k):cs;
   return cs.length<2?COMPANIES.filter(x=>x===k||cs.includes(x)):cs;
@@ -35,7 +35,7 @@ export function showSetup(adjust){
   draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],slots:S.slots,outsource:S.outsource,advanced:S.advanced};
   const draw=()=>{
     mo.innerHTML=`<h2>${adjust?'週一：調整訂閱':'月初：決定這個月怎麼付 token'}</h2>
-    ${adjust?`<p class="lead">升級只補剩下週數的差價，降級不退費。</p>`:`<p class="lead">你是全端工程師，任職於「${companyName(draft.companies)}」。接下來 20 個工作天，每天都會有新工單進來。你有 ${nt(S.wallet)} 的個人 AI 預算，部門另外有 ${nt(S.corp)} 的公司 API 預算。</p>
+    ${adjust?`<p class="lead">升級只補剩下週數的差價，降級不退費。</p>`:`<p class="lead">你是工程師，負責「${companyName(draft.companies)}」。接下來 20 個工作天，每天都會有新工單進來。你有 ${nt(S.wallet)} 的個人 AI 預算，部門另外有 ${nt(S.corp)} 的公司 API 預算。</p>
     <ul class="rules">
       <li><b>個人訂閱</b>月費固定，有每日與每週額度，越強的模型吃額度越快。額度用完 agent 會停在一半。</li>
       <li><b>個人 API</b> 用多少付多少，沒有上限，錢從你口袋出。</li>
@@ -47,7 +47,7 @@ export function showSetup(adjust){
       <li><b>派工方案與工程投資</b>：存三組常用組合，工單卡片上一鍵派工；花工時和公司預算寫 CLAUDE.md、單元測試、CI、hook、資安掃描、上架自動化、監控告警、做 skills、接 MCP 文件、導入 SDD，越早做越划算。</li>
       <li>工單逾期扣 KPI 和信任。月底結算看 KPI、信任，還有你自己花了多少錢。</li>
     </ul>
-    <div class="sec"><label>公司（可選 1–2 條主技術線）</label><div class="modes">
+    <div class="sec"><label>工作內容（可選 1–2 項）</label><div class="modes">
       ${COMPANIES.map(k=>{const on=draft.companies.includes(k);return `<button class="sb ${on?'sel':''}" data-company="${k}" ${!on&&draft.companies.length>=2?'disabled':''}><b>${STACKS[k].company}</b><small>難度 ${'★'.repeat(STACKS[k].level)}・${STACKS[k].desc}</small></button>`;}).join('')}
     </div></div>
     <div class="sec"><label>外包（不佔主技術線名額）</label><div class="modes">

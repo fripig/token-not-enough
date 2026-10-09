@@ -283,6 +283,12 @@ export const EVENTS=[
 /* 事故單機率逐日遞增：第 2 天 3%、第 3 天 6%、第 4 天 9%，第 5 天起 12% */
 export const INC_RATE=.12, INC_RAMP=.03;
 export const incRate=day=>Math.min(INC_RATE,INC_RAMP*(day-1));
+/* 每日進件的一張工單；選了 SRE 時沒中事故的再擲一次，中了就是 SRE 事故單 */
+export function intakeIssue(){
+  if(Math.random()<incRate(S.day)) return makeIssue(true);
+  if(S.companies.includes('sre')&&Math.random()<incRate(S.day)) return makeIssue(true,'sre');
+  return makeIssue(false);
+}
 
 export function endDay(){
   const rep=[];
@@ -320,7 +326,7 @@ export function endDay(){
   let ev=null; if(Math.random()<.55) ev=pick(EVENTS)();
   if(S.outage){const n=cancelJobs(j=>j.v===S.outage,'廠商當機，session 斷了');if(n)rep.push(`${n} 個跑在 ${VENDORS[S.outage].name} 的 agent 因為當機斷線。`);}
   if(S.jobs.length){ S.jobs.forEach(j=>j.left=Math.max(.05,j.left-3)); rep.push(`${S.jobs.length} 個 agent 跑了一整晚，一早會陸續有結果。`); }
-  const n=PAR()?3+rnd(4):2+rnd(3); for(let i=0;i<n;i++)S.issues.push(makeIssue(Math.random()<incRate(S.day)));
+  const n=PAR()?3+rnd(4):2+rnd(3); for(let i=0;i<n;i++)S.issues.push(intakeIssue());
   const g=addGigs();
   log('dim',`— 第 ${S.day} 天開工，新進 ${n} 張工單${g?`，外包 ${g} 張`:''} —`);
   sel.issue=null;
