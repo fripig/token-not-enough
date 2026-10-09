@@ -11,7 +11,7 @@
 - `public/index.html`：頁面骨架。`<head>` 有 canonical、Open Graph／Twitter Card、JSON-LD（`VideoGame`）；`#app` 裡放一段靜態遊戲介紹給爬蟲與未啟用 JS 的訪客，`start()` 第一次 `render()` 會整個換掉。分享圖是 `public/img/og.png`（1200×630），改遊戲名稱或介紹時一起更新這些地方。
 - `public/css/style.css`：樣式。開頭補了 `body{margin:0}`、`[hidden]{display:none!important}`，原本由 Artifact 外殼提供；少了後者 `.ov` 的 `display:flex` 會蓋過 `hidden`，彈窗關不掉。
 - `public/js/*.js`：遊戲本體，拆成七個原生 ES modules（見「程式碼地圖」），由 `public/index.html` 以 `<script type="module" src="js/main.js">` 載入；無建置步驟、遊戲邏輯沒有外部 JS 相依。瀏覽器不允許從 `file://` 載入模組，一定要用本機伺服器開。頁面另外從 Google Fonts 載字型，並在 `public/index.html` 載入 Google Analytics（gtag.js）做流量統計。本機用 `python3 -m http.server -d public 8000` 開。
-- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 四家公司 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資，`SIM_COMBOS=1` 改跑六種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_EFFORT=1` 開啟進階模式並讓自動玩家挑推理強度，`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 公司」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
+- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 四家公司 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資，`SIM_COMBOS=1` 改跑六種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_EFFORT=1` 開啟進階模式並讓自動玩家挑推理強度，`SIM_SEATS=1..3` 在第 6、11、16 天直接給團隊席位（量上限用，不經信任審核）並讓自動玩家優先刷席位，`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 公司」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
 - `tools/check.js`：規則檢查。`node tools/check.js` 把 spec 裡的範例數字逐條斷言（技術線分布、成功率、時間倍率、手寫時數、上架審核、KPI 補償、最高分 key、難度標示、接外包），任何一條不符就以非 0 結束。改規則時同步更新。
 
 部署：push 到 `main` 後 `.github/workflows/pages.yml` 把 `public/` 發佈到 https://token-not-enough.youareright.app/ 。只有 `public/` 會公開。自訂網域設在 repo 的 Pages 設定（用 Actions 部署時 `CNAME` 檔不會生效），DNS 是 Cloudflare 上 `youareright.app` 的 CNAME `token-not-enough` → `fripig.github.io`（DNS only），舊網址 `fripig.github.io/token-not-enough/` 會轉址過來。
@@ -74,6 +74,21 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 
 - 訂閱方案在各廠商的 `plans`，有 `day`/`week` 額度（單位 k token × 模型 `w`）。
 - 團隊席位 `SEAT`：最多三個，Anthropic、OpenAI、Google（`SEAT.vendors`）每家最多一個。月初或週一申請，5 天後審核，同時只能有一個申請在審（`S.seatReq`）。核准的廠商依序存在 `S.seats`。第 1／2／3 個席位的信任門檻是 55／65／75（`SEAT.trust`），看審核當天已經核准幾個席位、當天的信任。退件不扣分，之後的週一可以再申請，被退的廠商也能再選。審核在週一調整訂閱之前跑，所以審核當天的週一就能送下一個申請，最快第 6、11、16 天各拿到一個。申請選單只列還沒有席位的廠商，標題寫「第 N 個團隊席位，信任需 X 以上」。每個席位各自有每日 2.5M／每週 10M 的額度，額度區每個席位一個方塊。
+
+席位上限實測（2026-10-09，`SIM_SEATS=N SIM_N=100`，每格 300 局，跑兩次；開席位平均分 ÷ 同一輪不開席位，減 1）。自動玩家的信任幾乎都在第 11 天前歸零，照真實規則量不到東西，所以模擬器在第 6、11、16 天依序直接給 Anthropic、OpenAI、Google 席位（當作信任一直夠），自動玩家把公司工單刷到第一個今日額度還超過 300k 的席位，用該家能力 4 的模型（Sonnet、Codex 標準、Gemini Pro）；外包單照舊走個人 API。
+
+| 模式 × 公司 | 1 個席位 | 2 個席位 | 3 個席位 |
+|---|---|---|---|
+| 平行 Laravel | −0.7% / −0.8% | −0.8% / −2.2% | −2.1% / −1.1% |
+| 平行 Rails | −2.4% / −0.8% | −1.0% / −1.0% | −1.9% / −0.6% |
+| 平行 Rust | +1.1% / +5.0% | +2.9% / +5.5% | +6.0% / +5.3% |
+| 平行 App | −4.3% / −2.7% | −3.0% / −1.4% | −2.6% / −0.9% |
+| 單線 Laravel | +17.0% / +22.9% | +15.7% / +23.4% | +17.1% / +21.9% |
+| 單線 Rails | +19.5% / +17.0% | +20.8% / +15.6% | +21.9% / +14.6% |
+| 單線 Rust | +47.7% / +44.0% | +39.5% / +49.8% | +47.9% / +50.0% |
+| 單線 App | +28.9% / +21.5% | +27.7% / +16.8% | +25.2% / +24.4% |
+
+平行模式全部落在 −5%～+15%，沒有調數值。第 2、3 個席位幾乎沒有額外增幅：這個自動玩家每天用不完第一個席位的 2.5M，後面的席位很少輪到，所以這是它的上限，重度使用者（例如全刷 Opus）可能更高。單線模式的增幅主要來自把 DeepSeek Chat（能力 3）換成能力 4 的模型、失敗變少；單線不設目標，照實記錄。
 
 ### 工單（`makeIssue`）
 - 複雜度 1–5，越後期越難；`BASE[cx]` 為基準 token，`KPI[cx]` 為獎勵。
@@ -305,7 +320,7 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 - 平行模式下「嚴格審核＋便宜的中國模型」明顯偏強。可以考慮讓嚴格審核佔用工作槽，或加重時間成本。
 - `tools/sim.js` 的自動玩家很粗糙，不理會稽核和信任，所以模擬結果裡信任常常歸零。它只適合拿來確認不會壞、看大致趨勢；需要時可以改寫成更聰明的策略。
 - 「消耗的 Token 可能加成」目前實作為平行用量加成。如果使用者原意是其他意思（例如某方案有 token 倍數優惠），需要再確認。
-- 多團隊席位的平衡沒有量過：`tools/sim.js` 的自動玩家從不申請席位，所以三個公司付費席位會讓高信任的局變簡單多少還不知道。量測追蹤在 GitHub issue #7。
+- 多團隊席位只量了上限（見「時間與資源」的席位實測）：平行模式 −4.3%～+6.0%，在目標內；單線模式 +14.6%～+50.0%。第 2、3 個席位對這個自動玩家幾乎沒有額外效果，重度使用 Opus 的玩家還沒量。照真實規則（要顧信任）的增幅也沒量，因為自動玩家不顧信任。
 - 單線模式下 Rust、App 公司明顯較難（見上方平衡實測），目前用難度星等交代；如果要拉近，可以考慮單線模式下這兩家每天少一張工單。
 - 可能的擴充：Cursor／Copilot 這類多模型訂閱、prompt caching 折扣、用 Sonnet 寫再用 Opus 審的交叉審核、多人比分、存檔與繼續、更多技術線（例如 Go、Python 資料管線）。
 
