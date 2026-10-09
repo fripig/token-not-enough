@@ -18,6 +18,7 @@
 // SIM_FLOOR=<NT$> 換掉月底總分的個人花費下限（遊戲是 20000）：每局結束時用遊戲的 monthScore(SIM_FLOOR) 重算總分與評等，只是 (8000 − 個人花費) ÷ 8 的下限改成 (8000 − SIM_FLOOR) ÷ 8，遊戲本身的下限不變。
 // SIM_COMBOS=1 改跑十五種雙選組合（另跑單選 Laravel 當對照）。
 // SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
+// SIM_LOG=1 每種模式額外印出月底執行紀錄的筆數（平均、最多）與存檔 JSON 的字元數（平均、最多），量紀錄整月保留後的大小。
 import {els} from './fake-dom.js';
 import './seed.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
@@ -64,6 +65,8 @@ const SUB_PRICE=SUB&&VENDORS.openai.plans.find(p=>p.id===SUB).price;
 // SIM_FLOOR=<NT$> 個人花費下限（預設不重算總分）
 const FLOOR=process.env.SIM_FLOOR===undefined?undefined:Number(process.env.SIM_FLOOR);
 if(FLOOR!==undefined&&(process.env.SIM_FLOOR.trim()===''||!Number.isFinite(FLOOR)||FLOOR<0)){ console.error(`SIM_FLOOR 必須是不小於 0 的數字，收到「${process.env.SIM_FLOOR}」`); process.exit(1); }
+
+const LOG=process.env.SIM_LOG==='1', logs={};
 
 function sim(){
   if(TRAP!==undefined) setTrapRate(TRAP);
@@ -114,6 +117,7 @@ function sim(){
         if(FLOOR!==undefined) ({score,grade}=monthScore(FLOOR));
         const k=mode+' '+company; sum[k]??={n:0,tot:0,g:{}};
         sum[k].n++; sum[k].tot+=score; sum[k].g[grade]=(sum[k].g[grade]||0)+1;
+        if(LOG)(logs[mode]??=[]).push([S.log.length,JSON.stringify({S,sel}).length]);
         if(g<3){const self=S.st.subFee+S.st.api;console.log(mode,company,'rv',g%3,'caught',S.st.caught,'cnBan',S.cnBan,'ds',Math.round(S.st.tk.deepseek),'ant',Math.round(S.st.tk.anthropic),'kpi',S.kpi,'done',S.st.done,'late',S.st.late,'trust',Math.round(S.trust),'self',Math.round(self),'corp',Math.round(S.st.corp),'conf',S.st.conflicts,'out',S.st.outDone+'/'+S.st.outLate,'outIncome',S.st.outIncome,...(LUNA||SUB?['oai',Math.round(S.st.tk.openai)]:[]),...(HWSIM?['hw',HW_KEYS.filter(k=>S.hw[k]).join('+')||'none','local',Math.round(S.st.tk.local)]:[]),...(SEATS?['seats',S.seats.join('+'),'oai',Math.round(S.st.tk.openai),'goog',Math.round(S.st.tk.google)]:[]),'grade',grade);}
       }
     }
@@ -122,6 +126,11 @@ function sim(){
   for(const k in sum){
     const mode=k.split(' ')[0], m=sum[k].tot/sum[k].n, base=sum[mode+' laravel'].tot/sum[mode+' laravel'].n;
     console.log(k.padEnd(22),'mean',String(Math.round(m)).padStart(6),'vs laravel',((m/base-1)*100).toFixed(1).padStart(6)+'%','grades','SABCD'.split('').map(x=>x+':'+(sum[k].g[x]||0)).join(' '));
+  }
+  if(LOG){
+    console.log('\n=== 月底執行紀錄（SIM_LOG）===');
+    for(const mode in logs){const r=logs[mode], avg=i=>Math.round(r.reduce((t,x)=>t+x[i],0)/r.length), max=i=>Math.max(...r.map(x=>x[i]));
+      console.log(mode.padEnd(9),'局數',r.length,'紀錄筆數 平均',avg(0),'最多',max(0),'存檔字元 平均',avg(1),'最多',max(1));}
   }
 }
 

@@ -20,7 +20,10 @@ export function fresh(){
     outage:null,corpDay:0,issues:[],log:[],
     st:{subFee:0,api:0,corp:0,done:0,late:0,audits:0,manual:0,conflicts:0,caught:0,tk:objOf(Object.keys(VENDORS),()=>0),byBill:{sub:0,seat:0,api:0,corp:0,local:0},kpiLost:0,trapHit:0,trapFound:0,outIncome:0,outPenalty:0,outDone:0,outLate:0}};
   sel={issue:null,v:'anthropic',m:'sonnet',b:'api',rv:sel?.rv??1,ef:sel?.ef??1};
+  S.dayStart=daySnap();
 }
+/* 下班總結的基準：當天開工時的 KPI、信任、錢包、公司預算 */
+export const daySnap=()=>({kpi:S.kpi,trust:S.trust,wallet:S.wallet,corp:S.corp});
 
 /* GA 事件：每個事件都帶這局的設定，方便分組看玩到第幾天；沒載入 gtag（本機、node 工具、被擋）時不動作 */
 export function track(name,extra={}){
@@ -54,6 +57,7 @@ export function readSave(){
 export function loadGame(d){
   S=d.S; sel=d.sel; uid=d.uid;
   S.hw??=objOf(HW_KEYS,()=>false); S.hwReq??=null; S.hwUsed??=objOf(HW_KEYS,()=>false);
+  S.dayStart??=daySnap();
 }
 
 /* 一般工單：75% 平分給選到的主技術線、15% 前端、10% 平分給沒選的技術線 */

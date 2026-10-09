@@ -93,5 +93,6 @@ export function presetFor(is){
   return {i:-1,skip};
 }
 
-export function log(cls,msg){S.log.unshift({cls,msg:`D${String(S.day).padStart(2,'0')} ${msg}`}); if(S.log.length>80)S.log.pop();}
+/* 整個月都保留，月底可以拿來復盤；開新局時 start() 清空 */
+export function log(cls,msg){S.log.unshift({cls,msg:`D${String(S.day).padStart(2,'0')} ${msg}`});}
 
