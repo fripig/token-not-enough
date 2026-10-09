@@ -250,7 +250,7 @@ code:
 The game SHALL send one event per other ticket-solving action, after the action's result is known:
 
 - `manual_fix` when manual work finishes on a ticket still in the queue, with the ticket's `cx` shown before the work, `stack`, `unfamiliar`, `gig`, `hours` (one decimal) and `outcome` (`success`, `fail`, or `trap` when a hidden trap was revealed).
-- `evaluate` when an architecture evaluation is charged, with `vendor`, `model`, `bill`, the ticket's `cx`, `stack`, `gig` and `outcome` (`found` when a trap was revealed, `clear` otherwise, `quota` when the quota ran out).
+- `evaluate` when an architecture evaluation is charged, with `vendor`, `model`, `bill`, the ticket's `cx` shown before the evaluation, `stack`, `gig` and `outcome` (`found` when a trap was revealed, `clear` otherwise, `quota` when the quota ran out).
 - `rescope` when the player asks the manager to re-estimate, with the ticket's `cx`, `stack` and `outcome` (`approved` or `refused`).
 - `invest` when an investment is bought, with `investment` (the investment key) and `stack` (the stack for CLAUDE.md, `none` otherwise).
 
@@ -263,8 +263,8 @@ An action that is refused (not enough hours, local GPU busy, investment already 
 
 #### Scenario: Evaluate finds a trap
 
-- **WHEN** the player evaluates a hidden-trap ticket and the trap is revealed
-- **THEN** one `evaluate` event is sent with `outcome` `found`
+- **WHEN** the player evaluates a hidden-trap ticket shown as complexity 1 with true complexity 4 and the trap is revealed
+- **THEN** one `evaluate` event is sent with `outcome` `found` and `cx` 1
 
 #### Scenario: Rescope
 
@@ -277,8 +277,11 @@ An action that is refused (not enough hours, local GPU busy, investment already 
 - **THEN** one `invest` event is sent with `investment` `md` and `stack` `rust`, and the second attempt sends nothing
 
 <!-- @trace
-source: gh-14-01-choice-analytics
+source: gh-15-01-evaluate-shown-cx
 updated: 2026-10-09
 code:
-  - tools/check.js
+  - public/apple-touch-icon.png
+  - public/favicon.ico
+  - public/img/icon-192.png
+  - public/img/icon-512.png
 -->
