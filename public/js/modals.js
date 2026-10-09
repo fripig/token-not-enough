@@ -135,12 +135,18 @@ export function showBadSave(){
   ov.hidden=false;
   mo.onclick=e=>{const t=e.target.closest('button');if(!t)return;if(t.dataset.act==='new')start();};
 }
-/* 總分權重與評等門檻（平行模式門檻 ×PAR_GRADE） */
-export const SCORE={kpi:10,trust:4,spendBase:8000,spendDiv:8,spendFloor:-4000,audit:80}, GRADES=[4600,3800,3000,2200], PAR_GRADE=1.6;
-export function showEnd(){
+/* 總分權重與評等門檻（平行模式門檻 ×PAR_GRADE）；個人花費超過 SPEND_FLOOR 就不再多扣 */
+export const SCORE={kpi:10,trust:4,spendBase:8000,spendDiv:8,spendFloor:-12000,audit:80}, GRADES=[4600,3800,3000,2200], PAR_GRADE=1.6;
+export const SPEND_FLOOR=SCORE.spendBase-SCORE.spendFloor;
+/* 月底總分與評等（tools/sim.js 的 SIM_FLOOR 傳別的 floor 重算） */
+export function monthScore(floor=SPEND_FLOOR){
   const self=S.st.subFee+S.st.api+S.st.outPenalty-S.st.outIncome;
-  const score=Math.round(S.kpi*SCORE.kpi+S.trust*SCORE.trust+Math.max(SCORE.spendFloor,SCORE.spendBase-self)/SCORE.spendDiv-S.st.audits*SCORE.audit);
-  const gm=PAR()?PAR_GRADE:1; const gi=GRADES.findIndex(t=>score>=t*gm); const g=gi<0?'D':'SABC'[gi];
+  const score=Math.round(S.kpi*SCORE.kpi+S.trust*SCORE.trust+Math.max(SCORE.spendBase-floor,SCORE.spendBase-self)/SCORE.spendDiv-S.st.audits*SCORE.audit);
+  const gm=PAR()?PAR_GRADE:1; const gi=GRADES.findIndex(t=>score>=t*gm);
+  return {self,score,grade:gi<0?'D':'SABC'[gi]};
+}
+export function showEnd(){
+  const {self,score,grade:g}=monthScore();
   const tot=Object.values(S.st.tk).reduce((a,b)=>a+b,0)||1;
   let title,desc;
   if(S.st.audits>=2){title='資安部門的常客';desc='機敏程式碼進了個人帳號太多次。'}

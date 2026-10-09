@@ -8,7 +8,7 @@ export const VENDORS={
     plans:[{id:'none',name:'不訂閱',price:0},{id:'pro',name:'Pro',price:650,day:450,week:1800},{id:'max5',name:'Max 5×',price:3300,day:2200,week:9000},{id:'max20',name:'Max 20×',price:6500,day:9000,week:36000}],
     models:[{id:'haiku',name:'Haiku',cap:3,price:.15,w:.3,speed:.7,verb:.9},{id:'sonnet',name:'Sonnet',cap:4,price:.45,w:1,speed:.8,verb:1},{id:'opus',name:'Opus',cap:5,price:.9,w:2,speed:1,verb:.85},{id:'fable',name:'Fable',cap:6,price:1.8,w:4,speed:1.2,verb:.85}]},
   openai:{name:'OpenAI',agent:'Codex CLI',vc:'--oai',corp:false,
-    plans:[{id:'none',name:'不訂閱',price:0},{id:'plus',name:'Plus',price:650,day:500,week:2000},{id:'pro',name:'Pro',price:6500,day:8000,week:30000}],
+    plans:[{id:'none',name:'不訂閱',price:0},{id:'plus',name:'Plus',price:650,day:500,week:2000},{id:'pro',name:'Pro 200',price:6500,day:8000,week:30000},{id:'pro500',name:'Pro 500',price:16250,day:12500,week:50000}],
     models:[{id:'mini',name:'Luna',cap:3,price:.15,w:.3,speed:.7,verb:1},{id:'std',name:'Sol',cap:4,price:.4,w:1,speed:.8,verb:1.05},{id:'high',name:'Astra',cap:5,price:1.6,w:3,speed:1,verb:.95}]},
   google:{name:'Google',agent:'Gemini CLI',vc:'--goog',corp:true,
     plans:[{id:'none',name:'不訂閱',price:0},{id:'aipro',name:'AI Pro',price:650,day:700,week:2800},{id:'ultra',name:'Ultra',price:8000,day:10000,week:40000}],
@@ -118,7 +118,7 @@ export const R=(a,b)=>a+Math.random()*(b-a);
 export const rnd=n=>Math.floor(Math.random()*n);
 export const pick=a=>a[rnd(a.length)];
 export const nt=n=>(n<0?'-':'')+'NT$'+Math.round(Math.abs(n)).toLocaleString('en-US');
-export const kt=k=>k>=1000?(k/1000).toFixed(k>=10000?0:1)+'M':Math.round(k)+'k';
+export const kt=k=>{if(k<1000)return Math.round(k)+'k'; const m=(k/1000).toFixed(1); return (+m>=10?m.replace(/\.0$/,''):m)+'M';}; // 留一位小數；四捨五入後 10M 以上結尾 .0 拿掉
 export const h1=x=>(Math.round(x*10)/10).toFixed(1);
 export const vc=v=>`var(${VENDORS[v].vc})`;
 export const model=(v,m)=>VENDORS[v].models.find(x=>x.id===m);
