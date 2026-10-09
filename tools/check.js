@@ -6,9 +6,9 @@ import {els,store,resetStore} from './fake-dom.js';
 import {start} from '../public/js/main.js';
 import {BASE,CLIENTS,COMPANIES,DEFAULT_PRESETS,EFFORT,KPI,SEAT,STACKS,VENDORS,bestKey,cnBlock,effModel,h1,kt,model,presetsOf,rnd} from '../public/js/data.js';
 import * as dataModule from '../public/js/data.js';
-import {GIG_CLIENT,GIG_PAY,S,addGigs,fresh,makeGig,makeIssue,nextId,pickStack,sel,unfamiliar} from '../public/js/state.js';
-import {catchRate,costLine,est,manualHrs,presetBlock,presetFor,quotaLeft,stackHint} from '../public/js/calc.js';
-import {advance,conflictRate,batch,canEvaluate,charge,dispatch,endDay,evalCost,evaluate,invCount,invest,loadPreset,makeJob,manual,parMul,quick,rescope,reveal,revealRate,savePreset,settle,trueView} from '../public/js/actions.js';
+import {GIG_CLIENT,GIG_PAY,S,addGigs,hardStack,fresh,makeGig,makeIssue,nextId,pickStack,sel,unfamiliar} from '../public/js/state.js';
+import {catchRate,costLine,storeReject,est,manualHrs,presetBlock,presetFor,quotaLeft,stackHint} from '../public/js/calc.js';
+import {EVENTS,advance,auditOdds,auditRoll,conflictRate,prHrs,batch,canEvaluate,charge,dispatch,endDay,evalCost,evaluate,invCount,invest,loadPreset,makeJob,manual,parMul,quick,rescope,reveal,revealRate,savePreset,settle,trueView} from '../public/js/actions.js';
 import {dispatchPanel,render} from '../public/js/view.js';
 import {showEnd,showSetup} from '../public/js/modals.js';
 
@@ -425,9 +425,13 @@ function tests(){
   /* engineering-investments：購買與拒絕 */
   const snap=()=>JSON.stringify([S.hours,S.corp,S.inv]);
   newRun('laravel'); S.hours=8;
-  ok(invest('tests')&&near(S.hours,2)&&S.corp===11400&&S.st.corp===600&&S.corpDay===600&&S.inv.tests,'單線買補測試：剩 2h、公司預算 11,400、計入公司帳單');
-  render(); ok(/data-inv="tests"\s+disabled><b>補測試<\/b><small>已完成/.test(els.app.innerHTML),'買過的投資顯示已完成');
+  ok(invest('tests')&&near(S.hours,4)&&S.corp===11600&&S.st.corp===400&&S.corpDay===400&&S.inv.tests,'單線買單元測試：剩 4h、公司預算 11,600、計入公司帳單');
+  render(); ok(/data-inv="tests"\s+disabled><b>單元測試<\/b><small>已完成/.test(els.app.innerHTML),'買過的投資顯示已完成');
+  ok(!els.app.innerHTML.includes('補測試'),'畫面上沒有補測試');
+  const invRows=[...els.app.innerHTML.matchAll(/data-inv="(\w+)"(?! data-st)/g)].map(m=>m[1]).join(',');
+  ok(invRows==='tests,ci,hook,scan,fastlane,monitor,skills,mcp,sdd','投資面板順序：單元測試、CI、hook、scan、fastlane、監控、skills、MCP、SDD',invRows);
   let before=snap(); ok(!invest('tests')&&snap()===before,'已買過不能再買');
+  newRun('laravel'); S.hours=8; ok(invest('monitor')&&near(S.hours,5)&&S.corp===11600&&S.inv.monitor,'單線買監控告警：剩 5h、公司預算 11,600');
   newRun('laravel'); S.hours=5; before=snap(); ok(!invest('sdd')&&snap()===before,'剩 5h 買不了導入 SDD');
   newRun('laravel'); S.corp=200; before=snap(); ok(!invest('md','laravel')&&snap()===before,'公司預算 200 買不了 CLAUDE.md');
   newRun('laravel'); ok(!invest('md','nope')&&!invest('nope'),'不存在的技術線或投資不動作');
@@ -446,13 +450,85 @@ function tests(){
   ok(near(f1.tk,f0.tk)&&near(f1.p,f0.p),'Laravel CLAUDE.md 不影響 fe 工單');
   sel.issue=l4.id; S.issues=[l4]; render(); ok(els.app.innerHTML.includes('Laravel 有 CLAUDE.md：token ×0.85、成功率 +6%'),'派工台提示生效的投資（數字四捨五入）');
 
-  /* 補測試效果 */
+  /* 單元測試與 CI 流水線效果 */
   newRun('laravel','parallel'); S.inv.tests=true;
-  ok(near(catchRate(1,model('anthropic','sonnet')),.87)&&catchRate(0,model('anthropic','sonnet'))===0,'補測試：Sonnet 自審抓錯率 0.77 → 0.87，不審核仍是 0');
+  ok(near(catchRate(1,model('anthropic','sonnet')),.87)&&catchRate(0,model('anthropic','sonnet'))===0,'單元測試：Sonnet 自審抓錯率 0.77 → 0.87，不審核仍是 0');
   ok(near(catchRate(2,model('anthropic','opus')),.95),'抓錯率上限 0.95');
   const mk=left=>({v:'anthropic',b:'api',M:model('anthropic','sonnet'),issue:ticket('fe',1),left,hrs:5});
-  S.jobs=[mk(5),mk(5)]; const seen=conflictRate(); S.inv.tests=false; const plain=conflictRate(); S.inv.tests=true; S.jobs=[];
-  ok(near(seen,.1)&&near(plain,.2),'補測試：另外 2 個在跑時合併衝突 0.2 → 0.1',`${plain} → ${seen}`);
+  S.jobs=[mk(5),mk(5)];
+  ok(near(conflictRate(),.2),'只買單元測試：另外 2 個在跑時合併衝突仍是 0.2',conflictRate());
+  S.inv.tests=false; S.inv.ci=true;
+  ok(near(conflictRate(),.1)&&near(catchRate(1,model('anthropic','sonnet')),.77),'只買 CI 流水線：合併衝突 0.2 → 0.1，抓錯率不變',conflictRate());
+  S.jobs=[];
+
+  /* pre-commit／lint hook 效果 */
+  newRun('laravel','parallel');
+  ok(near(prHrs(3,0),.6)&&near(prHrs(3,1),.3),'沒有 hook：複雜度 3 審 PR 0.6h／自審 0.3h');
+  S.inv.hook=true;
+  ok(near(prHrs(3,0),.3)&&near(prHrs(3,1),.15),'有 hook：複雜度 3 審 PR 0.3h／自審 0.15h');
+  {
+    const realRand=Math.random; S.hours=8;
+    const hk=ticket('laravel',3); S.issues=[hk];
+    S.jobs=[{v:'anthropic',b:'corp',M:model('anthropic','sonnet'),issue:hk,left:.1,hrs:1,tk:50,ok:true,caught:false,rv:0,hidden:false,stop:false}];
+    Math.random=()=>.99; advance(.1); Math.random=realRand;
+    ok(near(S.hours,8-.1-.3)&&S.log.some(l=>l.msg.includes('審 PR 花了 0.3h')),'有 hook：平行模式完成時審 PR 只花 0.3h',S.hours);
+  }
+
+  /* secret scanning／脫敏效果 */
+  newRun('laravel','parallel');
+  ok(near(auditOdds('anthropic'),.35)&&near(auditOdds('deepseek'),.6),'沒有 secret scanning：稽核機率 0.35／0.60');
+  S.inv.scan=true;
+  ok(near(auditOdds('anthropic'),.175)&&near(auditOdds('deepseek'),.3),'有 secret scanning：稽核機率 0.175／0.30');
+  {
+    S.hours=8; S.presets=DEFAULT_PRESETS.map(p=>({...p,v:'anthropic',m:'sonnet',b:'api'}));
+    const sn=ticket('laravel',2,{sens:true}); S.issues=[sn]; render();
+    ok(els.app.innerHTML.includes('18% 機率被資安稽核'),'一鍵派工的稽核警告顯示減半後的 18%');
+    const realRand=Math.random, t0=S.trust;
+    Math.random=()=>.2; sel.issue=sn.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'api',rv:0});
+    auditRoll(sn,'api','anthropic'); Math.random=realRand;
+    ok(S.trust===t0,'有 secret scanning：擲到 0.2 不會被稽核（原本 0.35 會）');
+  }
+
+  /* 上架自動化（fastlane）效果 */
+  {
+    newRun('app'); const fs=ticket('app',3,{store:true}), e0=est(fs,'anthropic','sonnet',1);
+    ok(near(e0.pe,(e0.p+(1-e0.p)*e0.c)*.8)&&stackHint(fs).includes('20%'),'沒有 fastlane：顯示成功率 ×0.8、提示 20%');
+    S.inv.fastlane=true; const e1=est(fs,'anthropic','sonnet',1);
+    ok(near(storeReject(),.1)&&near(e1.pe,(e1.p+(1-e1.p)*e1.c)*.9)&&stackHint(fs).includes('10%'),'有 fastlane：退件 0.1、顯示成功率 ×0.9、提示 10%');
+    const realRand=Math.random; S.issues=[fs]; sel.issue=fs.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'api',rv:0});
+    const j=makeJob(fs); j.ok=true; j.caught=false; Math.random=()=>.15; const r=settle(j); Math.random=realRand;
+    ok(r.ok&&!r.rejected,'有 fastlane：擲到 0.15 不會被退件（原本 0.2 會）');
+  }
+
+  /* 監控告警效果 */
+  {
+    const realRand=Math.random;
+    newRun('laravel'); S.day=5; const q=makeIssue(true);
+    ok(q.due===5,'沒有監控：第 5 天的事故單當天到期');
+    S.inv.monitor=true; const m5=makeIssue(true); S.day=20; const m20=makeIssue(true);
+    ok(q.kpi===Math.round(KPI[4]*1.6*(hardStack('laravel')?1.3:1))&&m5.kpi===Math.round(KPI[4]*1.2),'有監控：之後的事故單 KPI 加成 ×1.6 → ×1.2',`${q.kpi} ${m5.kpi}`);
+    ok(m5.due===6&&m20.due===20&&q.due===5,'有監控：第 5 天的事故單第 6 天到期、第 20 天仍是 20，已在佇列的不變',`${m5.due} ${m20.due}`);
+    const spike=EVENTS.find(f=>String(f).includes('流量暴增'));
+    newRun('laravel'); S.issues=[]; let txt=spike(); ok(txt[1].includes('今天下班前'),'沒有監控：流量暴增寫今天');
+    S.inv.monitor=true; S.issues=[]; txt=spike(); ok(txt[1].includes('明天下班前')&&S.issues.every(i=>i.due===S.day+1),'有監控：流量暴增寫明天、事故單隔天到期');
+    const lateInc=withMon=>{newRun('laravel'); S.hours=0; S.trust=70; S.inv.monitor=withMon; S.issues=[ticket('laravel',4,{inc:true,due:S.day})];
+      Math.random=()=>.99; endDay(); Math.random=realRand; return 70-S.trust;};
+    ok(lateInc(false)===8&&lateInc(true)===4,'事故單逾期：沒有監控扣信任 8、有監控扣 4');
+    newRun('laravel'); S.hours=0; S.trust=70; S.inv.monitor=true; S.issues=[ticket('laravel',2,{due:S.day})];
+    Math.random=()=>.99; endDay(); Math.random=realRand; ok(S.trust===66,'有監控：一般工單逾期仍扣信任 4',S.trust);
+  }
+
+  /* 新投資的派工台提示只在相關工單出現 */
+  {
+    newRun('laravel'); S.inv.scan=S.inv.fastlane=S.inv.monitor=true;
+    const sh=ticket('laravel',2,{sens:true}); S.issues=[sh]; sel.issue=sh.id; render();
+    const h=els.app.innerHTML;
+    ok(h.includes('secret scanning：個人帳號稽核機率減半')&&!h.includes('fastlane：')&&!h.includes('監控告警：'),'機敏 laravel 工單只提示 secret scanning');
+    const ap=ticket('app',3,{store:true,inc:true}); S.issues=[ap]; sel.issue=ap.id; render();
+    ok(els.app.innerHTML.includes('fastlane：退件機率 10%')&&els.app.innerHTML.includes('監控告警：逾期扣信任 4'),'需上架的 app 事故單提示 fastlane 與監控告警');
+    S.inv.hook=S.inv.ci=true; render(); ok(!els.app.innerHTML.includes('pre-commit hook：')&&!els.app.innerHTML.includes('CI 流水線：合併'),'單線模式不提示 hook 與 CI');
+    S.mode='parallel'; render(); ok(els.app.innerHTML.includes('pre-commit hook：審 PR 時間減半')&&els.app.innerHTML.includes('CI 流水線：合併衝突減半'),'平行模式提示 hook 與 CI');
+  }
 
   /* 合併衝突留下「解決衝突」工單 */
   {
@@ -534,9 +610,9 @@ function tests(){
   newRun('rails'); render();
   const order=[...els.app.innerHTML.matchAll(/data-inv="md" data-st="(\w+)"/g)].map(m=>m[1]).join(',');
   ok(order==='rails,laravel,rust,app,fe','CLAUDE.md 按鈕：主技術線優先，再其他公司，最後 fe',order);
-  newRun('laravel'); S.hours=8; invest('md','laravel'); S.hours=8; invest('tests'); S.day=20; showEnd();
-  ok(els.mo.innerHTML.includes('<span>工程投資</span><span>2 項</span>'),'結算顯示工程投資 2 項');
-  start(); ok(els.mo.innerHTML.includes('派工方案與工程投資'),'開局說明提到派工方案與工程投資');
+  newRun('laravel'); S.hours=8; invest('md','laravel'); S.hours=8; invest('tests'); S.hours=8; invest('ci'); S.day=20; showEnd();
+  ok(els.mo.innerHTML.includes('<span>工程投資</span><span>3 項</span>'),'結算顯示工程投資 3 項（CLAUDE.md＋單元測試＋CI）');
+  start(); ok(els.mo.innerHTML.includes('派工方案與工程投資')&&els.mo.innerHTML.includes('監控告警')&&!els.mo.innerHTML.includes('補測試'),'開局說明提到派工方案與工程投資（含新項目，沒有補測試）');
 
   }
   {

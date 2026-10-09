@@ -1,10 +1,4 @@
-# engineering-investments Specification
-
-## Purpose
-
-Lets the player spend working hours and company API budget on engineering investments — CLAUDE.md per stack, tests, skills, MCP docs and spec-driven development — whose effects last until month end. It gives a run a sense of getting stronger and rewards early planning over pure ticket throughput.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Investment purchase
 
@@ -48,49 +42,6 @@ The hours and budget in this table are the initial values; the implementation SH
 - **WHEN** the player buys 監控告警 with 8 hours left and NT$12,000 company budget in serial mode
 - **THEN** 5 hours remain, company budget is NT$11,600 and 監控告警 shows 已完成
 
-
-<!-- @trace
-source: gh-08-01-more-investments
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - public/js/state.js
-  - public/js/actions.js
-  - public/js/view.js
-  - tools/sim.js
-  - tools/check.js
-  - public/js/calc.js
-  - public/js/data.js
-  - public/js/modals.js
--->
-
----
-### Requirement: CLAUDE.md effect
-
-For a ticket whose stack has CLAUDE.md, agent token estimates SHALL be multiplied by 0.85 and the base success chance SHALL increase by 0.06 before clamping to 0.05–0.97.
-
-#### Scenario: Laravel CLAUDE.md
-
-- **WHEN** CLAUDE.md is bought for laravel and a complexity 4 laravel ticket is estimated with Sonnet without review
-- **THEN** tokens are 0.85 × the estimate without the investment and success is 0.86 instead of 0.80
-
-#### Scenario: Other stack unaffected
-
-- **WHEN** CLAUDE.md is bought for laravel and a fe ticket is estimated
-- **THEN** the estimate equals the estimate without the investment
-
-
-<!-- @trace
-source: dispatch-presets-and-investments
-updated: 2026-10-09
-code:
-  - public/css/style.css
-  - public/js/game.js
-  - tools/check.js
-  - tools/sim.js
--->
-
----
 ### Requirement: Tests effect
 
 With 單元測試, the self-review catch rate SHALL increase by 0.10 (capped at 0.95) for review levels above 0. 單元測試 SHALL NOT change the merge conflict probability.
@@ -100,96 +51,6 @@ With 單元測試, the self-review catch rate SHALL increase by 0.10 (capped at 
 - **WHEN** 單元測試 is bought and CI 流水線 is not, Sonnet (capability 4) uses 自審, and two other agents are running at completion
 - **THEN** catch rate is 0.87 and conflict probability is 0.2
 
-
-<!-- @trace
-source: gh-08-01-more-investments
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - public/js/state.js
-  - public/js/actions.js
-  - public/js/view.js
-  - tools/sim.js
-  - tools/check.js
-  - public/js/calc.js
-  - public/js/data.js
-  - public/js/modals.js
--->
-
----
-### Requirement: MCP docs effect
-
-With 接 MCP 文件, the architecture evaluation reveal rate SHALL increase by 0.2 (capped at 0.95) and evaluation hours SHALL be halved; evaluation tokens SHALL be unchanged.
-
-#### Scenario: Evaluation with Sonnet
-
-- **WHEN** 接 MCP 文件 is bought and Sonnet evaluates a ticket
-- **THEN** reveal rate is 0.95 and evaluation takes 0.2 hours
-
-
-<!-- @trace
-source: dispatch-presets-and-investments
-updated: 2026-10-09
-code:
-  - public/css/style.css
-  - public/js/game.js
-  - tools/check.js
-  - tools/sim.js
--->
-
----
-### Requirement: SDD effect
-
-With 導入 SDD, every agent dispatch token estimate SHALL be multiplied by 1.1; tickets whose complexity used for the run is 3 or higher SHALL gain 0.08 base success before clamping; and an unrevealed trap dispatched to a model whose capability is below its true complexity SHALL stop after 0.15 of the true token and time cost instead of 0.4, with the log stating it was found while writing the spec. Architecture evaluation SHALL NOT be affected.
-
-#### Scenario: Small ticket costs more
-
-- **WHEN** SDD is bought and a complexity 2 ticket is estimated
-- **THEN** tokens are 1.1 × the estimate without SDD and success is unchanged
-
-#### Scenario: Large ticket succeeds more
-
-- **WHEN** SDD is bought and a complexity 4 fe ticket is estimated with Sonnet without review
-- **THEN** success is 0.88
-
-#### Scenario: Trap stops earlier
-
-- **WHEN** SDD is bought and an unrevealed trap with true complexity 5 is dispatched to DeepSeek Chat
-- **THEN** the run uses 0.15 of the true-complexity token and time estimate, fails, and the trap is revealed
-
-
-<!-- @trace
-source: dispatch-presets-and-investments
-updated: 2026-10-09
-code:
-  - public/css/style.css
-  - public/js/game.js
-  - tools/check.js
-  - tools/sim.js
--->
-
----
-### Requirement: Batch dispatch unlocked by skills
-
-With 做 skills, the queue SHALL show a batch dispatch button that one-click dispatches every non-running ticket with shown complexity 2 or lower, in queue order (earliest due first, then higher KPI), using each ticket's first usable preset. It SHALL skip tickets with no usable preset, SHALL stop when no work slot is free or fewer than 0.2 hours remain in parallel mode, and in serial mode SHALL stop when the next ticket's estimated hours exceed remaining hours. It SHALL log one summary line with dispatched and skipped counts. Without 做 skills the button SHALL NOT appear.
-
-#### Scenario: Batch in parallel mode
-
-- **WHEN** skills are bought, 3 slots are free and the queue holds complexity 1, 2, 3 and 2 tickets
-- **THEN** the three complexity ≤2 tickets are dispatched and the complexity 3 ticket stays in the queue
-
-
-<!-- @trace
-source: dispatch-presets-and-investments
-updated: 2026-10-09
-code:
-  - public/css/style.css
-  - public/js/game.js
-  - tools/check.js
-  - tools/sim.js
--->
-
----
 ### Requirement: Investment panel and summary
 
 The main screen SHALL show an investment panel listing each investment with its hour and budget cost, its effect, and either a buy button or 已完成; 寫 CLAUDE.md SHALL list the selected stacks first (in the fixed order laravel, rails, rust, app), then the unselected company stacks, then fe. The other investments SHALL be listed in the order 單元測試, CI 流水線, pre-commit／lint hook, secret scanning／脫敏, 上架自動化（fastlane）, 監控告警, 做 skills, 接 MCP 文件, 導入 SDD. The dispatch panel SHALL show a hint line naming investment effects active for the selected ticket. The month-end summary SHALL show the number of investments made. The setup rules list SHALL describe presets and investments in one bullet.
@@ -209,23 +70,8 @@ The main screen SHALL show an investment panel listing each investment with its 
 - **WHEN** secret scanning, fastlane and 監控告警 are bought and the selected ticket is a sensitive laravel ticket that is not an incident and needs no store review
 - **THEN** the hint line names secret scanning and does not name fastlane or 監控告警
 
+## ADDED Requirements
 
-<!-- @trace
-source: gh-08-01-more-investments
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - public/js/state.js
-  - public/js/actions.js
-  - public/js/view.js
-  - tools/sim.js
-  - tools/check.js
-  - public/js/calc.js
-  - public/js/data.js
-  - public/js/modals.js
--->
-
----
 ### Requirement: CI pipeline effect
 
 With CI 流水線, the merge conflict probability on completion in parallel mode SHALL be halved. CI 流水線 SHALL NOT change the self-review catch rate.
@@ -235,23 +81,6 @@ With CI 流水線, the merge conflict probability on completion in parallel mode
 - **WHEN** CI 流水線 is bought and two other agents are running when an agent completes
 - **THEN** conflict probability is 0.1
 
-
-<!-- @trace
-source: gh-08-01-more-investments
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - public/js/state.js
-  - public/js/actions.js
-  - public/js/view.js
-  - tools/sim.js
-  - tools/check.js
-  - public/js/calc.js
-  - public/js/data.js
-  - public/js/modals.js
--->
-
----
 ### Requirement: Pre-commit hook effect
 
 With pre-commit／lint hook, the PR review hours charged when an agent finishes in parallel mode SHALL be multiplied by 0.5, on top of the halving for self-review levels above 0. The investment description SHALL state that it only works in parallel mode.
@@ -268,23 +97,6 @@ With pre-commit／lint hook, the PR review hours charged when an agent finishes 
 | 不審核 | 0.6 | 0.3 |
 | 自審 | 0.3 | 0.15 |
 
-
-<!-- @trace
-source: gh-08-01-more-investments
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - public/js/state.js
-  - public/js/actions.js
-  - public/js/view.js
-  - tools/sim.js
-  - tools/check.js
-  - public/js/calc.js
-  - public/js/data.js
-  - public/js/modals.js
--->
-
----
 ### Requirement: Secret scanning effect
 
 With secret scanning／脫敏, the security audit probability for a sensitive ticket dispatched or evaluated with personal subscription or personal API SHALL be halved: 0.30 for Chinese vendors and 0.175 for other vendors. The dispatch panel warning and the quick-dispatch warning SHALL show the halved percentage. Audit risk for company API, team seats and local SHALL remain zero.
@@ -294,23 +106,6 @@ With secret scanning／脫敏, the security audit probability for a sensitive ti
 - **WHEN** secret scanning is bought and a sensitive ticket is dispatched with personal API
 - **THEN** audit odds are 0.175 for Claude Code and 0.30 for DeepSeek
 
-
-<!-- @trace
-source: gh-08-01-more-investments
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - public/js/state.js
-  - public/js/actions.js
-  - public/js/view.js
-  - tools/sim.js
-  - tools/check.js
-  - public/js/calc.js
-  - public/js/data.js
-  - public/js/modals.js
--->
-
----
 ### Requirement: Fastlane effect
 
 With 上架自動化（fastlane）, the App Store rejection probability after a successful agent run on a store-review ticket SHALL be 0.1 instead of 0.2. The success rate shown in the dispatch panel and the App stack hint text SHALL use the same probability.
@@ -320,23 +115,6 @@ With 上架自動化（fastlane）, the App Store rejection probability after a 
 - **WHEN** fastlane is bought and a store-review app ticket has raw success p and catch rate c
 - **THEN** the shown success is (p + (1 − p) × c) × 0.9 and the hint says 10%
 
-
-<!-- @trace
-source: gh-08-01-more-investments
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - public/js/state.js
-  - public/js/actions.js
-  - public/js/view.js
-  - tools/sim.js
-  - tools/check.js
-  - public/js/calc.js
-  - public/js/data.js
-  - public/js/modals.js
--->
-
----
 ### Requirement: Monitoring effect
 
 With 監控告警, an incident ticket created after the purchase SHALL be due the day after it is created, capped at day 20, and its KPI SHALL use an incident multiplier of 1.2 instead of 1.6 (the stack multiplier still applies); incidents already in the queue SHALL keep their due day and KPI. While 監控告警 is owned, each overdue incident ticket SHALL reduce trust by 4 instead of 8; overdue non-incident tickets SHALL still reduce trust by 4, and KPI loss SHALL be unchanged. The 流量暴增 event text SHALL say the incidents are due tomorrow when 監控告警 is owned.
@@ -357,18 +135,3 @@ With 監控告警, an incident ticket created after the purchase SHALL be due th
 
 - **WHEN** an incident due today is in the queue and 監控告警 is bought later that day
 - **THEN** the incident is still due today, and if it becomes overdue trust drops by 4
-
-<!-- @trace
-source: gh-08-01-more-investments
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - public/js/state.js
-  - public/js/actions.js
-  - public/js/view.js
-  - tools/sim.js
-  - tools/check.js
-  - public/js/calc.js
-  - public/js/data.js
-  - public/js/modals.js
--->

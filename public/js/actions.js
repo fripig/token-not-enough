@@ -1,6 +1,6 @@
-import {APIV,BASE,BILL_LABEL,COMPANIES,INVEST,KPI,MCP_REVEAL,MD_P,MD_TK,PN,R,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,pick,rnd} from './data.js';
+import {APIV,BASE,BILL_LABEL,COMPANIES,FASTLANE_REJECT,HOOK_PR,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,pick,rnd} from './data.js';
 import {GIG_LATE,S,addGigs,hardStack,makeIssue,sel} from './state.js';
-import {REVIEW,STORE_REJECT,est,gigBlocked,localBusy,log,manualHrs,presetFor,quotaLeft,useQuota} from './calc.js';
+import {REVIEW,est,gigBlocked,localBusy,log,manualHrs,presetFor,quotaLeft,storeReject,useQuota} from './calc.js';
 import {render} from './view.js';
 import {showDay,showEnd} from './modals.js';
 
@@ -52,8 +52,10 @@ export function savePreset(i){
   log('dim',`· 存成方案 ${PN[i]}：${VENDORS[sel.v].agent} / ${effModel(model(sel.v,sel.m),efOf(sel.ef)).name}・${BILL_LABEL[sel.b]}・${REVIEW[sel.rv].name}`);
 }
 /* 平行模式：推進時鐘，背景 agent 跑完就結算，成功的要花時間審 PR */
-/* 合併衝突機率：每個還在跑的 agent +10%，補測試減半 */
-export const conflictRate=()=>.1*S.jobs.length*(S.inv.tests?.5:1);
+/* 合併衝突機率：每個還在跑的 agent +10%，CI 流水線減半 */
+export const conflictRate=()=>.1*S.jobs.length*(S.inv.ci?.5:1);
+/* 審 PR 時數：有自我審核減半，有 pre-commit hook 再減半 */
+export const prHrs=(cx,rv)=>cx*.2*(rv?.5:1)*(S.inv.hook?HOOK_PR:1);
 export function advance(dt){
   while(dt>1e-9&&S.hours>1e-9){
     const next=S.jobs.length?Math.min(...S.jobs.map(j=>j.left)):Infinity;
@@ -63,7 +65,7 @@ export function advance(dt){
     for(const j of fin){
       j.issue.running=false;
       const r=settle(j,{conflict:conflictRate()});
-      if(r.ok||r.rejected){const rv=j.issue.cx*.2*(j.rv?.5:1);dt+=rv;log('dim',`  ↳ 審 PR 花了 ${h1(rv)}h`);}
+      if(r.ok||r.rejected){const rv=prHrs(j.issue.cx,j.rv);dt+=rv;log('dim',`  ↳ 審 PR 花了 ${h1(rv)}h`);}
     }
   }
   S.hours=Math.max(0,S.hours);
@@ -86,7 +88,7 @@ export function charge(b,v,M,tk){
 }
 /* 機敏程式碼送進個人帳號的稽核風險；派工與評估共用 */
 export const auditRisk=(is,b)=>is.sens&&(b==='sub'||b==='api');
-export const auditOdds=v=>VENDORS[v].cn?.6:.35;
+export const auditOdds=v=>(VENDORS[v].cn?.6:.35)*(S.inv.scan?SCAN_AUDIT:1);
 export function auditRoll(is,b,v){
   if(auditRisk(is,b)&&Math.random()<auditOdds(v)){
     S.trust=Math.max(0,S.trust-12); S.st.audits++;
@@ -111,7 +113,7 @@ export function settle(j,o={}){
   /* 解決衝突工單本身不會再衝突 */
   if(ok&&!is.merge&&o.conflict&&Math.random()<o.conflict){ok=false;conflict=true;}
   /* App 上架審核在 agent 做完之後才發生，自我審核救不回來 */
-  if(ok&&is.store&&Math.random()<STORE_REJECT){ok=false;rejected=true;note='卡在 App Store 審核被退件';}
+  if(ok&&is.store&&Math.random()<storeReject()){ok=false;rejected=true;note='卡在 App Store 審核被退件';}
   S.st.tk[v]+=tk; S.st.byBill[b]+=tk;
   const who=`${VENDORS[v].agent} / ${M.name}`;
   if(ok){
@@ -187,7 +189,7 @@ export function rescope(){
 }
 
 /* 工程投資：花自己的工時和公司預算，平行模式下背景 agent 照樣跑 */
-export const invCount=()=>Object.keys(S.inv.md).length+['tests','skills','mcp','sdd'].filter(k=>S.inv[k]).length;
+export const invCount=()=>Object.keys(S.inv.md).length+INV_KEYS.filter(k=>S.inv[k]).length;
 export function investBlock(k,st){
   const I=INVEST[k];
   if(k==='md'?S.inv.md[st]:S.inv[k]) return '已完成';
@@ -222,7 +224,12 @@ export function invHint(is){
   const out=[];
   if(S.inv.md[is.stack]) out.push(`${STACKS[is.stack].name} 有 CLAUDE.md：token ×${MD_TK}、成功率 +${Math.round(MD_P*100)}%`);
   if(S.inv.sdd) out.push(`SDD：token ×${SDD_TK}${is.cx>=3?`、成功率 +${Math.round(SDD_P*100)}%`:''}`);
-  if(S.inv.tests) out.push(`有測試：抓錯率 +${Math.round(TEST_CATCH*100)}%、合併衝突減半`);
+  if(S.inv.tests) out.push(`單元測試：抓錯率 +${Math.round(TEST_CATCH*100)}%`);
+  if(S.inv.ci&&PAR()) out.push('CI 流水線：合併衝突減半');
+  if(S.inv.hook&&PAR()) out.push('pre-commit hook：審 PR 時間減半');
+  if(S.inv.scan&&is.sens) out.push('secret scanning：個人帳號稽核機率減半');
+  if(S.inv.fastlane&&is.store) out.push(`fastlane：退件機率 ${Math.round(FASTLANE_REJECT*100)}%`);
+  if(S.inv.monitor&&is.inc) out.push(`監控告警：逾期扣信任 ${MONITOR_LATE}`);
   if(S.inv.mcp) out.push(`MCP 文件：識破率 +${Math.round(MCP_REVEAL*100)}%、評估時間減半`);
   return out.length?`工程投資：${out.join('；')}。`:'';
 }
@@ -233,7 +240,7 @@ export const EVENTS=[
   ()=>{if(S.cnBan||S.day<8)return ['主管在週會上提醒','「用 AI 前先看清楚案主合約。」沒有其他變化。'];if(0)return ['資安部門發布新版 AI 使用規範','內容跟上次一樣，大家已讀不回。'];S.cnBan=true;return ['主管宣布：全公司暫停把程式碼送到中國雲端模型','從今天起所有工單都不能用 DeepSeek、GLM、Kimi 的雲端服務，本地跑的開源權重不受影響。'];},
   ()=>{S.corp*=.7;return ['年度預算凍結','公司 API 剩餘預算砍 30%。'];},
   ()=>{const v=pick(SUBV);S.capMod[v]*=.8;return [`${VENDORS[v].name} 調整訂閱用量政策`,'這家訂閱的每日與每週額度縮水 20%。'];},
-  ()=>{S.issues.push(makeIssue(true));S.issues.push(makeIssue(true));return ['大新聞爆發，流量暴增','一次進來兩張事故單，今天下班前要處理。'];},
+  ()=>{S.issues.push(makeIssue(true));S.issues.push(makeIssue(true));return ['大新聞爆發，流量暴增',`一次進來兩張事故單，${S.inv.monitor?'監控提早告警，明天':'今天'}下班前要處理。`];},
   ()=>{const g=S.kpi>S.day*7;S.trust=Math.max(0,Math.min(100,S.trust+(g?6:-4)));return g?['主管在週會上點名稱讚','「AI 工具用得很有效率。」信任 +6。']:['主管問進度怎麼這麼慢','「不是有買 AI 嗎？」信任 -4。'];},
   ()=>{S.wallet+=1500;return ['外包案尾款入帳','個人錢包 +NT$1,500，可以拿來養 token。'];},
 ];
@@ -248,7 +255,7 @@ export function endDay(){
   gigLate.forEach(i=>{const pen=Math.round(i.pay*GIG_LATE);S.wallet-=pen;S.st.outPenalty+=pen;S.st.outLate++;log('bad',`⌛ 外包逾期：${i.title}｜違約金 ${nt(pen)}`);});
   if(gigLate.length) rep.push(`${gigLate.length} 張外包單逾期，賠了 ${nt(gigLate.reduce((a,i)=>a+Math.round(i.pay*GIG_LATE),0))} 違約金。`);
   const late=S.issues.filter(i=>!i.out&&i.due<=S.day);
-  late.forEach(i=>{const pen=Math.ceil(i.kpi*.5);S.kpi-=pen;S.st.kpiLost+=pen;S.trust=Math.max(0,S.trust-(i.inc?8:4));S.st.late++;log('bad',`⌛ 逾期：${i.title}｜KPI -${pen}`);});
+  late.forEach(i=>{const pen=Math.ceil(i.kpi*.5);S.kpi-=pen;S.st.kpiLost+=pen;S.trust=Math.max(0,S.trust-(i.inc?(S.inv.monitor?MONITOR_LATE:8):4));S.st.late++;log('bad',`⌛ 逾期：${i.title}｜KPI -${pen}`);});
   S.issues=S.issues.filter(i=>i.due>S.day);
   if(late.length) rep.push(`${late.length} 張工單逾期，主管信任下降。`);
   if(S.corpDay>1500){S.trust=Math.max(0,S.trust-6);rep.push(`今天公司 API 刷了 ${nt(S.corpDay)}，主管在 Slack 問你在幹嘛（信任 -6）。`);log('warn',`! 公司單日花費 ${nt(S.corpDay)} 太高，信任 -6`);}

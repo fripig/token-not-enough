@@ -1,4 +1,4 @@
-import {APIV,BASE,CLIENTS,COMPANIES,KPI,R,SEAT,STACKS,VENDORS,normCompanies,objOf,pick,pickClient,presetsOf,rnd} from './data.js';
+import {APIV,BASE,CLIENTS,COMPANIES,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,normCompanies,objOf,pick,pickClient,presetsOf,rnd} from './data.js';
 import {SLOT_CHOICES} from './actions.js';
 
 /* ===== 狀態 ===== */
@@ -9,7 +9,7 @@ export const resetIds=()=>{uid=0;};
 export function fresh(){
   uid=0;
   S={day:1,hours:8,wallet:8000,corp:12000,trust:70,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,outsource:S?.outsource===true,advanced:S?.advanced===true,presets:presetsOf(S?.presets),jobs:[],
-    inv:{md:{},tests:false,skills:false,mcp:false,sdd:false},
+    inv:{md:{},...objOf(INV_KEYS,()=>false)},
     subs:objOf(APIV,()=>'none'),
     used:{sub:objOf(APIV,()=>({d:0,w:0})),seat:objOf(SEAT.vendors,()=>({d:0,w:0}))},
     capMod:objOf(APIV,()=>1),priceMod:objOf(Object.keys(VENDORS),()=>1),cnBan:false,
@@ -37,7 +37,7 @@ export function makeIssue(inc,st){
   let cx;
   if(inc) cx=4; else { const r=Math.random()+S.day/20*.38; cx=r<.28?1:r<.6?2:r<.9?3:r<1.12?4:5; }
   const base=BASE[cx]*R(.85,1.15);
-  let due=inc?S.day:S.day+(cx<=2?1+rnd(3):2+rnd(4));
+  let due=inc?Math.min(20,S.day+(S.inv.monitor?1:0)):S.day+(cx<=2?1+rnd(3):2+rnd(4));
   const stack=st||(inc?pick(S.companies):pickStack());
   const trap=!inc&&cx<=2&&Math.random()<TRAP_RATE, trueCx=Math.random()<.6?4:5;
   const title=trap&&Math.random()<.5?pick(STACKS[stack].pool.trap):pick(STACKS[stack].pool[inc?'inc':cx]);
@@ -46,7 +46,7 @@ export function makeIssue(inc,st){
     store:stack==='app'&&cx>=2&&Math.random()<.4,
     sens:Math.random()<(inc?.55:.25),big:cx>=3&&Math.random()<.45,
     client:inc?CLIENTS[0]:pickClient(),
-    due:Math.min(20,due+(!inc&&hardStack(stack)?1:0)),kpi:Math.round(KPI[cx]*(inc?1.6:1)*(hardStack(stack)?1.3:1)),tries:0};
+    due:Math.min(20,due+(!inc&&hardStack(stack)?1:0)),kpi:Math.round(KPI[cx]*(inc?(S.inv.monitor?MONITOR_KPI:1.6):1)*(hardStack(stack)?1.3:1)),tries:0};
 }
 
 

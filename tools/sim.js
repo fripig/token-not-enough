@@ -3,7 +3,8 @@
 // 載入遊戲模組，用假的 DOM 跑自動玩家：兩種模式 × 四家公司 × 三種審核等級各跑 N 個月（預設 100，可用 SIM_N 調整），
 // 印出抽樣結果，最後每個模式 × 公司印一行平均分、對照同模式 Laravel 的差距與評等分布。
 // SIM_TRAP=<比例> 可覆寫陷阱題比例（例如 SIM_TRAP=0 關掉陷阱）；SIM_SLOTS=2..6 指定平行模式工作槽數。
-// SIM_INVEST=1 讓自動玩家做工程投資：每天開工時依序買 CLAUDE.md（每條主技術線）、補測試、導入 SDD 裡下一項付得起的。
+// SIM_INVEST=1 讓自動玩家做工程投資：每天開工時依序買 CLAUDE.md（每條主技術線）、單元測試、CI 流水線與 pre-commit hook（只在平行模式）、導入 SDD 裡下一項付得起的。
+// SIM_INVEST=2 再加買上架自動化（有選 App 才買）、監控告警、secret scanning，量新投資的效果；SIM_INV_EXTRA=monitor,scan 之類可只加買指定的幾項（fastlane、monitor、scan），拿來逐項量。
 // SIM_OUTSOURCE=1 開啟接外包：外包單一律走個人 API（能用 DeepSeek 就用，否則 Sonnet）。
 // SIM_EFFORT=1 開啟進階模式：每張單看選到模型的原始能力減顯示複雜度，≤ −1 用高強度、≥ 2 用低強度、其他用中。
 // SIM_SEATS=1..3 量團隊席位的上限：在第 6、11、16 天依序直接給 Anthropic、OpenAI、Google 席位（不經申請與信任審核，當作信任一直夠），給到指定個數；
@@ -25,7 +26,9 @@ globalThis.localStorage={getItem(){return null},setItem(){}};
 const TRAP=process.env.SIM_TRAP===undefined?undefined:Number(process.env.SIM_TRAP);
 if(TRAP!==undefined&&(process.env.SIM_TRAP.trim()===''||!Number.isFinite(TRAP))){ console.error(`SIM_TRAP 必須是數字，收到「${process.env.SIM_TRAP}」`); process.exit(1); }
 const N=+process.env.SIM_N||100;
-const INV=process.env.SIM_INVEST==='1';
+const INV=['1','2'].includes(process.env.SIM_INVEST)?+process.env.SIM_INVEST:0;
+const EXTRA=(process.env.SIM_INV_EXTRA||'fastlane,monitor,scan').split(',');
+if(!EXTRA.every(k=>['fastlane','monitor','scan'].includes(k))){ console.error(`SIM_INV_EXTRA 只能是 fastlane、monitor、scan，收到「${process.env.SIM_INV_EXTRA}」`); process.exit(1); }
 const COMBOS=process.env.SIM_COMBOS==='1';
 const OUT=process.env.SIM_OUTSOURCE==='1';
 const EFF=process.env.SIM_EFFORT==='1';
@@ -50,7 +53,9 @@ function sim(){
         while(S.day<=20&&guard++<2000){
           const sk=SEAT_DAYS.indexOf(S.day); if(sk>=0&&sk<SEATS&&!S.seats.includes(SEAT.vendors[sk])) S.seats.push(SEAT.vendors[sk]);
           if(INV){
-            const next=[...S.companies.map(k=>['md',k]),['tests'],['sdd']].find(([k,st])=>!(k==='md'?S.inv.md[st]:S.inv[k]));
+            const list=[...S.companies.map(k=>['md',k]),['tests'],...(PAR()?[['ci'],['hook']]:[]),['sdd'],
+              ...(INV===2?EXTRA.filter(k=>k!=='fastlane'||S.companies.includes('app')).map(k=>[k]):[])];
+            const next=list.find(([k,st])=>!(k==='md'?S.inv.md[st]:S.inv[k]));
             if(next) invest(...next);
           }
           let acted=true;

@@ -121,10 +121,18 @@ export const presetsOf=ps=>(Array.isArray(ps)&&ps.length===3&&ps.every(validPres
 /* 工程投資：花工時和公司預算，效果維持到月底 */
 export const INVEST={
   md:{name:'寫 CLAUDE.md',hrs:3,cost:300,desc:'這條技術線的工單 token ×0.85、成功率 +6%'},
-  tests:{name:'補測試',hrs:6,cost:600,desc:'自我審核抓錯率 +10%、合併衝突機率減半'},
+  tests:{name:'單元測試',hrs:4,cost:400,desc:'自我審核抓錯率 +10%'},
+  ci:{name:'CI 流水線',hrs:3,cost:300,desc:'平行模式合併衝突機率減半'},
+  hook:{name:'pre-commit／lint hook',hrs:2,cost:200,desc:'平行模式審 PR 時間減半（單線模式沒有審 PR 時間）'},
+  scan:{name:'secret scanning／脫敏',hrs:3,cost:300,desc:'機敏工單用個人帳號時，被資安稽核的機率減半'},
+  fastlane:{name:'上架自動化（fastlane）',hrs:3,cost:400,desc:'App Store 退件機率 20% → 10%'},
+  monitor:{name:'監控告警',hrs:3,cost:400,desc:'之後的事故單提早告警：期限延到隔天，但 KPI 加成 ×1.6 → ×1.2；事故單逾期扣信任 8 → 4'},
   skills:{name:'做 skills',hrs:3,cost:400,desc:'解鎖批次派工：一次派出所有複雜度 ≤2 的工單'},
   mcp:{name:'接 MCP 文件',hrs:3,cost:400,desc:'評估架構識破率 +20%、評估時間減半'},
   sdd:{name:'導入 SDD',hrs:6,cost:500,desc:'先寫規格再派工：每次派工 token ×1.1；複雜度 3 以上成功率 +8%；陷阱在寫規格時就會發現，只燒 15%'},
 };
+/* CLAUDE.md 以外的投資，面板照這個順序 */
+export const INV_KEYS=['tests','ci','hook','scan','fastlane','monitor','skills','mcp','sdd'];
 export const MD_TK=.85, MD_P=.06, TEST_CATCH=.1, MCP_REVEAL=.2, SDD_TK=1.1, SDD_P=.08, SDD_TRAP_STOP=.15;
+export const HOOK_PR=.5, SCAN_AUDIT=.5, FASTLANE_REJECT=.1, MONITOR_LATE=4, MONITOR_KPI=1.2;
 

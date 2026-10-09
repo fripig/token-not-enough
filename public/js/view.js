@@ -1,4 +1,4 @@
-import {BILL_LABEL,EFFORT,INVEST,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc} from './data.js';
+import {BILL_LABEL,EFFORT,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
 import {REVIEW,bills,catchRate,costLine,est,localBusy,manualHrs,presetFor,quotaLeft,stackHint} from './calc.js';
 import {INV_STACKS,PAR,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,invCount,invHint,investBlock,parMul,queueOrder} from './actions.js';
@@ -80,7 +80,7 @@ export function invPanel(){
     return `<button class="sb" data-inv="${k}" ${st?`data-st="${st}"`:''} ${why?'disabled':''}><b>${k==='md'?STACKS[st].name:I.name}</b><small>${why||`${I.hrs}h・公司 ${nt(I.cost)}`}</small></button>`;};
   const row=(k,body)=>`<div class="inv"><div><b>${INVEST[k].name}</b><span>${INVEST[k].desc}${k==='md'?`・每條技術線 ${INVEST.md.hrs}h、公司 ${nt(INVEST.md.cost)}`:''}</span></div><div class="seg">${body}</div></div>`;
   return `<section class="panel"><div class="ph"><h2>工程投資</h2><span>效果維持到月底・已做 ${invCount()} 項</span></div>
-    <div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${['tests','skills','mcp','sdd'].map(k=>row(k,btn(k))).join('')}</div></section>`;
+    <div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${INV_KEYS.map(k=>row(k,btn(k))).join('')}</div></section>`;
 }
 export function qbox(name,sub,dl,dc,wl,wc){
   const dp=dc?dl/dc*100:0, wp=wc?wl/wc*100:0;

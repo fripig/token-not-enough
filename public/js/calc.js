@@ -1,4 +1,4 @@
-import {MD_P,MD_TK,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,effModel,efOf,kt,model,planOf} from './data.js';
+import {FASTLANE_REJECT,MD_P,MD_TK,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,effModel,efOf,kt,model,planOf} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
 import {PAR,parMul} from './actions.js';
 
@@ -16,6 +16,7 @@ export const catchRate=(rv,M)=>rv===0?0:Math.min(.95,.45+.08*M.cap+(rv===2?.2:0)
 /* 技術線效果：只看技術線本身的特性，不替各家模型設「誰比較會」的分數 */
 export const conventional=is=>(is.stack==='laravel'||is.stack==='rails')&&is.cx<=3; // 框架慣例多
 export const STORE_REJECT=.2;                                                       // App Store 退件機率
+export const storeReject=()=>S.inv.fastlane?FASTLANE_REJECT:STORE_REJECT;          // 有上架自動化時降低
 export function stackGap(is,M){
   if(conventional(is)) return 1;
   if(is.stack==='rust'&&M.cap<4) return -1;                            // borrow checker
@@ -25,7 +26,7 @@ export const stackHrs=is=>is.stack==='rust'?1.2:is.stack==='app'?1.15:1;     // 
 export function stackHint(is){
   if(conventional(is)) return `${STACKS[is.stack].name} 慣例多：複雜度 3 以下的工單，成功率視同簡單一級。`;
   if(is.stack==='rust') return `Rust：編譯測試比較慢，執行時間 ×${stackHrs(is)}；能力 4 以下的模型容易卡在 borrow checker，成功率視同難一級。`;
-  if(is.stack==='app') return `App：要跑模擬器，執行時間 ×${stackHrs(is)}${is.store?`；這張要過 App Store 審核，agent 做完仍有 ${STORE_REJECT*100}% 機率被退件，自我審核救不回來`:''}。`;
+  if(is.stack==='app') return `App：要跑模擬器，執行時間 ×${stackHrs(is)}${is.store?`；這張要過 App Store 審核，agent 做完仍有 ${Math.round(storeReject()*100)}% 機率被退件，自我審核救不回來`:''}。`;
   return '';
 }
 /* 本地 GPU 一次只能跑一個 agent，跑的時候電腦被吃滿，也不能自己手寫 */
@@ -41,7 +42,7 @@ export function est(is,v,mid,rv=sel.rv,ef=sel.ef){
   if(md)p+=MD_P; if(sdd&&is.cx>=3)p+=SDD_P;
   p=Math.max(.05,Math.min(.97,p));
   const c=catchRate(rv,M);
-  return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:(p+(1-p)*c)*(is.store?1-STORE_REJECT:1),hrs:is.cx*M.speed*(is.tries?.8:1)*REVIEW[rv].hrs*stackHrs(is)};
+  return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:(p+(1-p)*c)*(is.store?1-storeReject():1),hrs:is.cx*M.speed*(is.tries?.8:1)*REVIEW[rv].hrs*stackHrs(is)};
 }
 
 /* 外包單只能自己付：公司 API 與公司席位都不能用 */

@@ -11,7 +11,7 @@
 - `public/index.html`：頁面骨架。`<head>` 有 canonical、Open Graph／Twitter Card、JSON-LD（`VideoGame`）；`#app` 裡放一段靜態遊戲介紹給爬蟲與未啟用 JS 的訪客，`start()` 第一次 `render()` 會整個換掉。分享圖是 `public/img/og.png`（1200×630），改遊戲名稱或介紹時一起更新這些地方。
 - `public/css/style.css`：樣式。開頭補了 `body{margin:0}`、`[hidden]{display:none!important}`，原本由 Artifact 外殼提供；少了後者 `.ov` 的 `display:flex` 會蓋過 `hidden`，彈窗關不掉。
 - `public/js/*.js`：遊戲本體，拆成七個原生 ES modules（見「程式碼地圖」），由 `public/index.html` 以 `<script type="module" src="js/main.js">` 載入；無建置步驟、遊戲邏輯沒有外部 JS 相依。瀏覽器不允許從 `file://` 載入模組，一定要用本機伺服器開。頁面另外從 Google Fonts 載字型，並在 `public/index.html` 載入 Google Analytics（gtag.js）做流量統計。本機用 `python3 -m http.server -d public 8000` 開。
-- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 四家公司 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資，`SIM_COMBOS=1` 改跑六種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_EFFORT=1` 開啟進階模式並讓自動玩家挑推理強度，`SIM_SEATS=1..3` 在第 6、11、16 天直接給團隊席位（量上限用，不經信任審核）並讓自動玩家優先刷席位，`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 公司」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
+- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 四家公司 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資（`SIM_INVEST=2` 再加買三項新投資，`SIM_INV_EXTRA=monitor,scan` 之類可只加買指定幾項），`SIM_COMBOS=1` 改跑六種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_EFFORT=1` 開啟進階模式並讓自動玩家挑推理強度，`SIM_SEATS=1..3` 在第 6、11、16 天直接給團隊席位（量上限用，不經信任審核）並讓自動玩家優先刷席位，`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 公司」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
 - `tools/check.js`：規則檢查。`node tools/check.js` 把 spec 裡的範例數字逐條斷言（技術線分布、成功率、時間倍率、手寫時數、上架審核、KPI 補償、最高分 key、難度標示、接外包），任何一條不符就以非 0 結束。改規則時同步更新。
 
 部署：push 到 `main` 後 `.github/workflows/pages.yml` 把 `public/` 發佈到 https://token-not-enough.youareright.app/ 。只有 `public/` 會公開。自訂網域設在 repo 的 Pages 設定（用 Actions 部署時 `CNAME` 檔不會生效），DNS 是 Cloudflare 上 `youareright.app` 的 CNAME `token-not-enough` → `fripig.github.io`（DNS only），舊網址 `fripig.github.io/token-not-enough/` 會轉址過來。
@@ -47,6 +47,8 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
    → 開局可勾選「進階模式」，派工台多一個推理強度（低／中／高）旋鈕，模型清單不變；高強度能力 +1 但 token 變多、工作變慢。最高分不分開。設計紀錄在 Spectra change `reasoning-effort`。
 14. 「公司團隊席位應該可以多申請 如果信任度夠高可以申請第二個第三個」
    → 每家廠商最多一個、最多三個席位，門檻 55／65／75，一次只審一個。設計紀錄在 Spectra change `gh-06-01-multi-team-seats`；平衡量測另開 #7。
+15. 「工程投資可以細化或者增加項目」、「有事故時信任度降低的程度要減小」
+   → 補測試拆成單元測試與 CI 流水線，新增 pre-commit／lint hook、secret scanning／脫敏、上架自動化（fastlane）、監控告警；事故扣信任減半做成監控告警的效果。設計紀錄在 Spectra change `gh-08-01-more-investments`。
 
 介面文字一律繁體中文（台灣用語）。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
@@ -93,7 +95,7 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 ### 工單（`makeIssue`）
 - 複雜度 1–5，越後期越難；`BASE[cx]` 為基準 token，`KPI[cx]` 為獎勵。
 - 屬性：技術線 `stack`、事故（當天到期、KPI ×1.6）、機敏、大型 codebase、案主、到期日、上架審核 `store`。
-- 逾期：扣 KPI 一半、信任 −4（事故 −8）。
+- 逾期：扣 KPI 一半、信任 −4（事故 −8，有監控告警時 −4）。
 
 ### 公司與技術線（`STACKS`、`COMPANIES`、`pickStack`）
 - 開局在 `showSetup` 選 1–2 家公司（主技術線），存在 `S.companies`，固定照 laravel、rails、rust、app 的順序（`normCompanies`；跨 `fresh()` 保留；舊版存的單一字串視為只選一條；不合法退回 `['laravel']`）。選滿兩條時其他按鈕停用，最後一條不能取消（`toggleCompany`）。週一調整訂閱時不能換公司。開局換選擇會用 `firstIssues()` 重抽第 1 天的工單。公司名稱用 `companyName()` 以「＋」串起來（標頭、開局說明、紀錄、結算標題）。
@@ -105,7 +107,7 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 |---|---|---|---|
 | laravel、rails | 複雜度 ≤3 時能力差 +1（框架慣例） | — | — |
 | rust | 能力 <4 的模型能力差 −1（borrow checker） | ×1.2 | 期限 +1 天、KPI ×1.3 |
-| app | — | ×1.15 | 期限 +1 天、KPI ×1.3；複雜度 ≥2 的工單 40% 需上架審核，agent 成功後仍有 20% 被退件，自我審核救不回來 |
+| app | — | ×1.15 | 期限 +1 天、KPI ×1.3；複雜度 ≥2 的工單 40% 需上架審核，agent 成功後仍有 20% 被退件（有上架自動化 10%），自我審核救不回來 |
 | fe | — | — | — |
 
 - token 用量不受技術線影響。派工台顯示的成功率已含技術線效果（需上架審核的工單 ×0.8），並在下方顯示技術線提示（`stackHint`）。
@@ -164,7 +166,7 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 - 個人 API：扣個人錢包。
 - 公司 API：扣公司預算；單日超過 NT$1,500 信任 −6；透支信任 −8。
 - 本地：免費但很慢。平行模式下本地 GPU 一次只能跑一個 agent（`localBusy`），跑的期間（含過夜）不能再派本地、不能用本地評估架構，也不能自己手寫（電腦被吃滿）。單線模式不受影響。
-- 機敏工單走個人訂閱或個人 API：35% 被稽核（信任 −12），中國廠商 60%。
+- 機敏工單走個人訂閱或個人 API：35% 被稽核（信任 −12），中國廠商 60%；有 secret scanning 時減半（17.5%／30%）。
 - 外包單不能用公司 API 和公司席位（見「接外包」）。
 
 ### 案主與中國模型限制（`CLIENTS`、`banOf`、`cnBlock`）
@@ -177,9 +179,9 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 ### 平行模式（`S.mode==='parallel'`）
 - 工作槽數開局選 2–6 個（`SLOT_CHOICES`，預設 3，存在 `S.slots`，跨 `fresh()` 保留，不合法退回 3；週一不能改）。派工花 0.2h，agent 在背景跑；「等 1 小時」「等到下一個完成」推進時鐘（`advance`）。
 - Token 加成 `parMul() = 1 + 0.15 × 正在跑的數量`。
-- 完成時合併衝突機率 = 0.1 × 其他還在跑的數量（補測試減半）。衝突不算失敗：原單原地變成「解決衝突：<原標題>」工單（`merge:true`），複雜度 max(1, 原複雜度 − 1)、基準 token 照新複雜度重抽，技術線、案主、機敏、事故、到期日、KPI、上架審核照舊；那次派工的 token 照扣，不花審 PR 時間。玩家可以重新選怎麼解（任何派工方式或自己手寫），KPI 等它完成才拿，到期沒解完照一般逾期扣分。解決衝突工單不會再衝突、不是陷阱、不能評估架構或找主管重新評估，卡片顯示「合併衝突」。設計紀錄在 Spectra change `merge-conflict-resolve`。
+- 完成時合併衝突機率 = 0.1 × 其他還在跑的數量（CI 流水線減半）。衝突不算失敗：原單原地變成「解決衝突：<原標題>」工單（`merge:true`），複雜度 max(1, 原複雜度 − 1)、基準 token 照新複雜度重抽，技術線、案主、機敏、事故、到期日、KPI、上架審核照舊；那次派工的 token 照扣，不花審 PR 時間。玩家可以重新選怎麼解（任何派工方式或自己手寫），KPI 等它完成才拿，到期沒解完照一般逾期扣分。解決衝突工單不會再衝突、不是陷阱、不能評估架構或找主管重新評估，卡片顯示「合併衝突」。設計紀錄在 Spectra change `merge-conflict-resolve`。
   實測（2026-10-09，`SIM_N=100`，每格 300 局，兩次平均；改動前是「衝突算失敗、重做 token ×0.4」）：Laravel 8,176 → 8,465（+3.5%）、Rails 8,167 → 8,449（+3.5%）、Rust 7,903 → 8,425（+6.6%）、App 8,438 → 8,962（+6.2%）。門檻是 ±15%，沒有調數值；工作槽數表沒有重測。
-- 成功後要審 PR：`cx × 0.2` 小時（有審核時減半）。
+- 成功後要審 PR：`cx × 0.2` 小時（有審核時減半，有 pre-commit hook 再減半；`prHrs`）。
 - 下班時跑到 17:00，剩下的過夜（剩餘時間 −3h）；到期沒跑完或廠商當機會被中止，已用 token 照算。
 - 每天新工單 3–6 張（單線 2–4），評等門檻 ×1.6。結算標題顯示「平行模式（N 個 agent）」。最高分不分工作槽數。
 - 工作槽數沒有額外代價，取捨只靠既有的 token 加成與合併衝突。實測（`SIM_SLOTS=N SIM_N=100`，每格 300 局，平行模式平均分）：
@@ -205,12 +207,17 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 | 投資 | 工時 | 公司預算 | 效果 |
 |---|---|---|---|
 | 寫 CLAUDE.md（每條技術線各一次，含前端） | 3h | NT$300 | 該技術線 token ×0.85（`MD_TK`）、成功率 +0.06（`MD_P`） |
-| 補測試 | 6h | NT$600 | 自我審核抓錯率 +0.10（`TEST_CATCH`，上限 0.95）；合併衝突機率減半 |
+| 單元測試 | 4h | NT$400 | 自我審核抓錯率 +0.10（`TEST_CATCH`，上限 0.95） |
+| CI 流水線 | 3h | NT$300 | 平行模式合併衝突機率減半 |
+| pre-commit／lint hook | 2h | NT$200 | 平行模式審 PR 時間 ×0.5（`HOOK_PR`），和自我審核的減半疊加；單線模式沒有審 PR 時間 |
+| secret scanning／脫敏 | 3h | NT$300 | 機敏工單走個人訂閱或個人 API 時，稽核機率 ×0.5（`SCAN_AUDIT`），派工與評估架構都算 |
+| 上架自動化（fastlane） | 3h | NT$400 | App Store 退件機率 0.2 → 0.1（`FASTLANE_REJECT`、`storeReject`），派工台成功率與提示一起改 |
+| 監控告警 | 3h | NT$400 | 之後產生的事故單期限延到隔天（上限第 20 天），KPI 的事故加成 ×1.6 → ×1.2（`MONITOR_KPI`）；已在佇列的事故單不變。事故單逾期扣信任 8 → 4（`MONITOR_LATE`，逾期當下判斷，買之前進來的也算） |
 | 做 skills | 3h | NT$400 | 解鎖「批次派工」：依佇列順序把顯示複雜度 ≤2 的工單一鍵派出，沒有可用方案的略過 |
 | 接 MCP 文件 | 3h | NT$400 | 評估架構識破率 +0.2（`MCP_REVEAL`，上限 0.95）、評估時間減半 |
 | 導入 SDD | 6h | NT$500 | 每次派工 token ×1.1（`SDD_TK`）；真實複雜度 ≥3 成功率 +0.08（`SDD_P`）；能力不夠的隱藏陷阱只燒 0.15（`SDD_TRAP_STOP`），紀錄寫「寫規格時就發現」。不影響評估架構 |
 
-成功率加成在 clamp 到 0.05–0.97 之前加上。派工台會用一行提示列出對這張工單生效的投資。結算多一行「工程投資 N 項」。
+成功率加成在 clamp 到 0.05–0.97 之前加上。面板順序照 `INV_KEYS`。派工台會用一行提示列出對這張工單生效的投資（CI、hook 只在平行模式，secret scanning 只在機敏單，fastlane 只在需上架審核的單，監控告警只在事故單）。補測試在 `gh-08-01-more-investments` 拆成單元測試（沿用 `S.inv.tests`）與 CI 流水線（`S.inv.ci`）。結算多一行「工程投資 N 項」。
 
 平衡實測（2026-10-09，`SIM_N=100`，每格 300 局；投資玩家平均分 ÷ 不投資玩家平均分）。`SIM_INVEST=1` 的自動玩家每天開工時買下一項付得起的：主技術線 CLAUDE.md、補測試、導入 SDD（共 15h，第 1–3 天買完）；它不評估也不批次派工，所以 MCP 和 skills 沒有量到。
 
@@ -221,7 +228,18 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 | Rust | +12.2% / +12.6% | +0.9% / −4.7% |
 | App | +6.7% / +11.1% | −5.9% / −9.9% |
 
-每格是兩次獨立實測，同一組數值兩次之間會差到約 4 個百分點。目標是平行模式 +3%～+15%。調整過程：初版 CLAUDE.md +0.08、補測試 +0.15、SDD +0.10 時 Rust +17.9%；降 SDD、降 CLAUDE.md 後 Rust 仍在 14–15.5% 徘徊。逐項單獨量測才發現 Rust 的增幅主要來自補測試（只買 CLAUDE.md +6.7%、只買補測試 +13.2%、只買 SDD +7.1%）：Rust 單常失敗，抓錯率加成救回最多。最後把補測試的抓錯率加成降到 +0.10。平行模式拿 S 的比例從約 72% 升到約 88%，沒有超過兩倍，評等門檻不調。單線模式完全受工時限制，自動玩家投資大多反而虧，沒有設目標，照實記錄。
+每格是兩次獨立實測，同一組數值兩次之間會差到約 4 個百分點。目標是平行模式 +3%～+15%。調整過程：初版 CLAUDE.md +0.08、補測試 +0.15、SDD +0.10 時 Rust +17.9%；降 SDD、降 CLAUDE.md 後 Rust 仍在 14–15.5% 徘徊。逐項單獨量測才發現 Rust 的增幅主要來自補測試（只買 CLAUDE.md +6.7%、只買補測試 +13.2%、只買 SDD +7.1%）：Rust 單常失敗，抓錯率加成救回最多。最後把補測試的抓錯率加成降到 +0.10。平行模式拿 S 的比例從約 72% 升到約 88%，沒有超過兩倍，評等門檻不調。單線模式完全受工時限制，自動玩家投資大多反而虧，沒有設目標，照實記錄。上表是拆分補測試之前的量測。
+
+拆分與新增投資後重測（2026-10-09，`SIM_N=100`，每格 300 局，跑兩次，各自和同一份程式碼的不投資玩家比）。`SIM_INVEST=1` 改成買主技術線 CLAUDE.md、單元測試、CI 流水線與 pre-commit hook（只在平行模式）、導入 SDD；`SIM_INVEST=2` 再加買上架自動化（有選 App 才買）、監控告警、secret scanning。
+
+| 公司 | 平行 INVEST=1 | 單線 INVEST=1 | 平行 INVEST=2 | 單線 INVEST=2 |
+|---|---|---|---|---|
+| Laravel | +7.8% / +5.8% | −6.0% / −6.3% | +9.9% / +11.6% | +5.9% / +4.4% |
+| Rails | +6.8% / +7.1% | −7.2% / −3.8% | +13.0% / +9.5% | −0.5% / +3.7% |
+| Rust | +12.3% / +14.8% | +6.5% / −5.5% | +21.3% / +26.6% | +17.2% / +8.1% |
+| App | +8.7% / +10.5% | −9.7% / −5.4% | +22.0% / +21.9% | +13.5% / +7.4% |
+
+平行模式拿 S 的比例：不投資約 78%、INVEST=1 約 93%、INVEST=2 約 98%。調整過程：監控告警第一版只有「期限 +1 天」，全買的玩家平行 +18%～+33%；逐項量（`SIM_INV_EXTRA`，在 INVEST=1 之上單獨加買）發現幾乎都來自期限延長，fastlane 約 +0～1%、secret scanning 約 +1～5%。把監控告警調到 6h／NT$800 幾乎沒差（平行模式投資時背景 agent 照跑，工時壓不住），使用者選擇削弱延期事故單的獎勵：KPI 事故加成 ×1.6 → ×1.2（試過 ×1.0，Rust／App 仍在 +16.5%～+21%）。目標仍是平行模式 +3%～+15%，套在 INVEST=1。最後 INVEST=1 在目標內；INVEST=2 的 Laravel、Rails 在目標內，Rust、App 超出，使用者接受並照實記錄：難的公司從工程投資拿到比較多回報。單線模式不設目標。
 
 ### 接外包（`S.outsource`、`makeGig`、`addGigs`、`GIG_PAY`、`GIG_LATE`、`gigBlocked`、`reward`）
 - 開局彈窗有「不接外包／接外包」（`data-out`），不佔主技術線名額，預設不接，跨 `fresh()` 保留，不是布林值就退回不接；週一調整不顯示。開局只切這個開關時不重抽公司工單，只加上或拿掉第 1 天的外包單。
@@ -296,10 +314,10 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 | 模組 | 內容 |
 |---|---|
 | `main.js` | 入口：`app` 上的事件委派（用 `data-*` 屬性分派）、開局，載入時呼叫一次 `start()`：`firstIssues`、`start` |
-| `data.js` | 資料與工具函式，沒有狀態：`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP` |
+| `data.js` | 資料與工具函式，沒有狀態：`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP`、`INV_KEYS`、`HOOK_PR`、`SCAN_AUDIT`、`FASTLANE_REJECT`、`MONITOR_LATE`、`MONITOR_KPI` |
 | `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`hardStack`、`unfamiliar`、`makeIssue`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs` |
-| `calc.js` | 計算（`est(is, v, mid, rv, ef)` 會套推理強度）：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log` |
-| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`parMul`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`endDay` |
+| `calc.js` | 計算（`est(is, v, mid, rv, ef)` 會套推理強度）：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log` |
+| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`parMul`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`endDay` |
 | `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`quickBtn`、`invPanel`、`qbox`、`dispatchPanel` |
 | `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showEnd` |
 
@@ -320,6 +338,7 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 - 平行模式下「嚴格審核＋便宜的中國模型」明顯偏強。可以考慮讓嚴格審核佔用工作槽，或加重時間成本。
 - `tools/sim.js` 的自動玩家很粗糙，不理會稽核和信任，所以模擬結果裡信任常常歸零。它只適合拿來確認不會壞、看大致趨勢；需要時可以改寫成更聰明的策略。
 - 「消耗的 Token 可能加成」目前實作為平行用量加成。如果使用者原意是其他意思（例如某方案有 token 倍數優惠），需要再確認。
+- 全部工程投資都買時（`SIM_INVEST=2`），平行模式 Rust、App 約 +21%～+27%，超過 +3%～+15%，使用者接受。拿 S 的比例約 98%，如果之後覺得平行模式評等失去意義，可以考慮評等門檻隨投資數調整。
 - 多團隊席位只量了上限（見「時間與資源」的席位實測）：平行模式 −4.3%～+6.0%，在目標內；單線模式 +14.6%～+50.0%。第 2、3 個席位對這個自動玩家幾乎沒有額外效果，重度使用 Opus 的玩家還沒量。照真實規則（要顧信任）的增幅也沒量，因為自動玩家不顧信任。
 - 單線模式下 Rust、App 公司明顯較難（見上方平衡實測），目前用難度星等交代；如果要拉近，可以考慮單線模式下這兩家每天少一張工單。
 - 可能的擴充：Cursor／Copilot 這類多模型訂閱、prompt caching 折扣、用 Sonnet 寫再用 Opus 審的交叉審核、多人比分、存檔與繼續、更多技術線（例如 Go、Python 資料管線）。
