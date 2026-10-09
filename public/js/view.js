@@ -1,7 +1,7 @@
-import {BILL_LABEL,EFFORT,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc} from './data.js';
+import {BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
-import {REVIEW,bills,catchRate,costLine,est,localBusy,manualHrs,presetFor,quotaLeft,stackHint} from './calc.js';
-import {INV_STACKS,PAR,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,invCount,invHint,investBlock,queueOrder,reviewLoad} from './actions.js';
+import {REVIEW,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetFor,quotaLeft,stackHint} from './calc.js';
+import {INV_STACKS,PAR,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad} from './actions.js';
 
 /* ===== 畫面 ===== */
 export const app=document.getElementById('app'), ov=document.getElementById('ov'), mo=document.getElementById('mo');
@@ -30,6 +30,7 @@ export function render(){
   }
   for(const v of S.seats){const u=S.used.seat[v];qs+=qbox(`${VENDORS[v].name} 團隊席位`,'公司付費',Math.max(0,SEAT.day-u.d),SEAT.day,Math.max(0,SEAT.week-u.w),SEAT.week);}
   if(S.seatReq) qs+=`<div class="q none">團隊席位採購審核中，預計第 ${S.seatReq.day+5} 天有結果</div>`;
+  if(S.hwReq) qs+=`<div class="q none">採購 ${HW[S.hwReq.k].name} 審核中，預計第 ${S.hwReq.day+HW[S.hwReq.k].days} 天到貨</div>`;
   if(!qs) qs=`<div class="q none">目前沒有任何訂閱。只能用 API、公司預算或本地模型。</div>`;
 
   const jobsHtml=!PAR()?'':`<div class="ph" style="margin-top:6px"><h2>背景 agent</h2><span>${S.jobs.length} / ${S.slots} 個工作槽</span></div>
@@ -80,7 +81,13 @@ export function invPanel(){
     return `<button class="sb" data-inv="${k}" ${st?`data-st="${st}"`:''} ${why?'disabled':''}><b>${k==='md'?STACKS[st].name:I.name}</b><small>${why||`${I.hrs}h・公司 ${nt(I.cost)}`}</small></button>`;};
   const row=(k,body)=>`<div class="inv"><div><b>${INVEST[k].name}</b><span>${INVEST[k].desc}${k==='md'?`・每條技術線 ${INVEST.md.hrs}h、公司 ${nt(INVEST.md.cost)}`:''}</span></div><div class="seg">${body}</div></div>`;
   return `<section class="panel"><div class="ph"><h2>工程投資</h2><span>效果維持到月底・已做 ${invCount()} 項</span></div>
-    <div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${INV_KEYS.map(k=>row(k,btn(k))).join('')}</div></section>`;
+    <div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${INV_KEYS.map(k=>row(k,btn(k))).join('')}${hwRow()}</div></section>`;
+}
+/* 採購電腦：公司採購申請，不扣 API 預算，到貨當天看信任 */
+export function hwRow(){
+  const b=k=>{const H=HW[k], why=hwReqBlock(k);
+    return `<button class="sb" data-hw="${k}" ${why?'disabled':''}><b>${H.name}</b><small>${why||`${H.price}・信任 ${H.trust}・${H.days} 天到貨`}</small><small>${H.desc}</small></button>`;};
+  return `<div class="inv"><div><b>採購電腦</b><span>走公司採購，不扣 API 預算：申請花 ${HW_REQ_HRS}h，到貨當天信任夠才核准、架設 ${HW_SETUP_HRS}h；同時只能一張申請。買了以後本地跑 agent 時還能手寫，但每台當天沒用到信任 -${HW_IDLE}</span></div><div class="seg">${HW_KEYS.map(b).join('')}</div></div>`;
 }
 export function qbox(name,sub,dl,dc,wl,wc){
   const dp=dc?dl/dc*100:0, wp=wc?wl/wc*100:0;
@@ -93,13 +100,13 @@ export function dispatchPanel(){
   const is=S.issues.find(i=>i.id===sel.issue);
   if(!is) return `<div class="ph"><h2>派工台</h2></div><div class="empty">先從工單佇列選一張。<br>每張單可以挑一家 agent、一個模型，再決定這筆 token 誰來付。</div>`;
   // ensure billing valid
-  const avail=(v,M)=>S.outage!==v&&!cnBlock(is,v,M);
+  const avail=(v,M)=>S.outage!==v&&!cnBlock(is,v,M)&&!hwBlock(M);
   if(!avail(sel.v,model(sel.v,sel.m))){for(const v in VENDORS){const M=VENDORS[v].models.find(M=>avail(v,M));if(M){sel.v=v;sel.m=M.id;break;}}if(sel.v==='local')sel.b='local';else if(sel.b==='local')sel.b='api';}
   let bl=bills(sel.v,is); if(!bl.find(b=>b.id===sel.b&&b.ok)){const f=bl.find(b=>b.ok);sel.b=f?f.id:bl[0].id;}
   const rows=Object.keys(VENDORS).map(v=>{
     const V=VENDORS[v], down=S.outage===v;
     return `<div class="vrow" style="--vc:${vc(v)}"><div class="vn"><b>${V.name}</b><span>${down?'今日當機':V.agent}</span>${V.cn?'<span class="cn">中國廠商</span>':''}</div>
-      <div class="mods">${V.models.map(M=>{const why=cnBlock(is,v,M);return `<button class="mb ${sel.v===v&&sel.m===M.id?'sel':''}" data-v="${v}" data-m="${M.id}" ${down||why?'disabled':''}><b>${M.name}</b><span>能力 ${'●'.repeat(M.cap)}${'○'.repeat(Math.max(0,5-M.cap))}</span><span class="${why?'why':''}">${why||(M.price?`$${M.price}/k`:'免費')}${!why&&M.cn?'・中國權重':''}</span></button>`;}).join('')}</div></div>`;
+      <div class="mods">${V.models.map(M=>{const why=cnBlock(is,v,M)||hwBlock(M);return `<button class="mb ${sel.v===v&&sel.m===M.id?'sel':''}" data-v="${v}" data-m="${M.id}" ${down||why?'disabled':''}><b>${M.name}</b><span>能力 ${'●'.repeat(M.cap)}${'○'.repeat(Math.max(0,5-M.cap))}</span><span class="${why?'why':''}">${why||(M.price?`$${M.price}/k`:'免費')}${!why&&M.cn?'・中國權重':''}</span></button>`;}).join('')}</div></div>`;
   }).join('');
   const e=est(is,sel.v,sel.m), M=e.M, cl=costLine(sel.b,M,sel.v,e);
   const segs=bl.map(b=>`<button class="sb ${sel.b===b.id?'sel':''}" data-b="${b.id}" ${b.ok?'':'disabled'}>${b.label}<small>${b.note}</small></button>`).join('');
@@ -115,8 +122,8 @@ export function dispatchPanel(){
   else if(PAR()&&e.hrs+.2>S.hours) warn='今天跑不完，agent 會跑過夜，明早才有結果。';
   else if(!PAR()&&e.hrs*1.2>S.hours) warn='今天剩的工時可能不夠跑完。';
   else if(sel.b==='api'&&cl.hi>S.wallet) warn='錢包可能不夠付這一筆。';
-  const mh=manualHrs(is), ec=evalCost(model(sel.v,sel.m));
-  const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m))||(sel.b==='local'&&localBusy());
+  const mh=manualHrs(is), ec=evalCost(model(sel.v,sel.m),sel.v);
+  const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m))||!!hwBlock(model(sel.v,sel.m))||(sel.b==='local'&&localBusy());
   return `<div class="ph"><h2>派工台</h2><span>${is.title}</span></div>
   <div class="sec"><label>選 AGENT 與模型</label>${rows}</div>
   <div class="sec"><label>誰付這筆 TOKEN</label><div class="seg">${segs}</div>${S.seats.length&&!S.seats.includes(sel.v)?`<p class="hint">你有 ${S.seats.map(v=>VENDORS[v].name).join('、')} 團隊席位，選 ${S.seats.map(v=>VENDORS[v].agent).join('、')} 的模型才能用公司席位付款。</p>`:''}</div>
@@ -136,7 +143,7 @@ export function dispatchPanel(){
   <div class="warnline">${warn}</div>
   <div class="actions">
     <button class="btn primary" data-act="go" ${blocked||S.hours<.2||(PAR()&&S.jobs.length>=S.slots)?'disabled':''}>${PAR()?'派到背景':'派給'} ${VENDORS[sel.v].agent}</button>
-    <button class="btn ghost" data-act="manual" ${mh>S.hours||localBusy()?'disabled':''}>${localBusy()?'本地 GPU 跑 agent 中，電腦卡到沒辦法手寫':`自己手寫（${h1(mh)}h，0 token）`}</button>
+    <button class="btn ghost" data-act="manual" ${mh>S.hours||manualBlocked()?'disabled':''}>${manualBlocked()?'本地 GPU 跑 agent 中，電腦卡到沒辦法手寫':`自己手寫（${h1(mh)}h，0 token）`}</button>
     ${canEvaluate(is)?`<button class="btn ghost" data-act="eval" ${blocked||ec.hrs>S.hours?'disabled':''}>先讓 agent 評估架構（${kt(ec.tk)} tokens，${h1(ec.hrs)}h）</button>`:''}
     ${is.revealed&&!is.rescoped&&!is.out?`<button class="btn ghost" data-act="rescope">找主管重新評估</button>`:''}
   </div>`;

@@ -1,6 +1,6 @@
-import {APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,pick,rnd} from './data.js';
+import {APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd} from './data.js';
 import {GIG_LATE,S,addGigs,hardStack,makeIssue,saveGame,sel,track,unfamiliar} from './state.js';
-import {REVIEW,est,gigBlocked,localBusy,log,manualHrs,presetFor,quotaLeft,storeReject,useQuota} from './calc.js';
+import {REVIEW,est,gigBlocked,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetFor,quotaLeft,storeReject,useQuota} from './calc.js';
 import {render} from './view.js';
 import {showDay,showEnd} from './modals.js';
 
@@ -25,9 +25,10 @@ export const RV_ID=['none','self','strict'];
 export const jobChoice=j=>({vendor:j.v,model:j.m??'unknown',bill:j.b,review:RV_ID[j.rv],effort:EFFORT[j.ef??1].id});
 /* via：panel（派工按鈕）、quick（一鍵派工）、batch（批次派工）；preset 是方案字母 */
 export function dispatch(via='panel',preset='none'){
-  const is=S.issues.find(i=>i.id===sel.issue); if(!is||gigBlocked(is,sel.b)) return;
+  const is=S.issues.find(i=>i.id===sel.issue); if(!is||gigBlocked(is,sel.b)||hwBlock(model(sel.v,sel.m))) return;
   const j=makeJob(is);
   if(PAR()&&(S.jobs.length>=S.slots||(j.b==='local'&&localBusy()))) return;
+  useHw(j.v,j.m);
   track('dispatch',{...jobChoice(j),via,preset,cx:is.cx,stack:is.stack,incident:!!is.inc,sensitive:!!is.sens,gig:!!is.out,merge:!!is.merge});
   if(PAR()){
     j.left=j.hrs; is.running=true; S.jobs.push(j); sel.issue=null;
@@ -152,7 +153,7 @@ export function wait(next){
 export function manual(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is) return;
   const hrs=manualHrs(is), cx=is.cx;
-  if(hrs>S.hours||localBusy()) return;
+  if(hrs>S.hours||manualBlocked()) return;
   const fix=outcome=>track('manual_fix',{cx,stack:is.stack,unfamiliar:unfamiliar(is),gig:!!is.out,outcome,hours:Math.round(hrs*10)/10});
   if(PAR()){ is.running=true; advance(hrs); is.running=false; if(!S.issues.includes(is)){render();return;} }
   else S.hours-=hrs;
@@ -168,15 +169,15 @@ export function manual(){
 /* 評估架構：先花少量 token 讓 agent 讀架構，模型越強越容易識破陷阱 */
 export const EVAL_TK=40;
 export const canEvaluate=is=>!is.inc&&!is.merge&&!is.evaluated&&!is.revealed;
-export const evalCost=M=>({tk:EVAL_TK*M.verb,hrs:.5*M.speed*(S.inv.mcp?.5:1)});
+export const evalCost=(M,v=sel.v)=>({tk:EVAL_TK*M.verb,hrs:.5*M.speed*localSpeed(v)*(S.inv.mcp?.5:1)});
 export const revealRate=M=>Math.min(.95,.35+.15*M.cap+(S.inv.mcp?MCP_REVEAL:0));
 export function evaluate(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is||!canEvaluate(is)||gigBlocked(is,sel.b)) return;
-  const M=model(sel.v,sel.m), {tk,hrs}=evalCost(M), cx=is.cx;
+  const M=model(sel.v,sel.m), {tk,hrs}=evalCost(M,sel.v), cx=is.cx; if(hwBlock(M)) return;
   if(hrs>S.hours||(sel.b==='local'&&localBusy())) return;
   if(PAR()){ is.running=true; advance(hrs); is.running=false; if(!S.issues.includes(is)){render();return;} }
   else S.hours-=hrs;
-  const ch=charge(sel.b,sel.v,M,tk), used=tk*ch.frac;
+  const ch=charge(sel.b,sel.v,M,tk), used=tk*ch.frac; useHw(sel.v,sel.m);
   S.st.tk[sel.v]+=used; S.st.byBill[sel.b]+=used;
   const evt=outcome=>track('evaluate',{vendor:sel.v,model:sel.m,bill:sel.b,cx,stack:is.stack,gig:!!is.out,outcome});
   if(ch.short){ evt('quota'); log('bad',`✗ ${is.title}｜評估｜額度不夠，評估沒做完｜${ch.spend}`); render(); return; }
@@ -218,6 +219,27 @@ export function invest(k,st){
   log('ok',`★ 工程投資：${I.name}${k==='md'?`（${STACKS[st].name}）`:''}｜${h1(I.hrs)}h｜公司 ${nt(I.cost)}`);
   return true;
 }
+/* 採購電腦：一次只能一張申請，不扣公司 API 預算；到貨日不能超過第 20 天 */
+export function hwReqBlock(k){
+  if(S.hw[k]) return '已到貨';
+  if(S.hwReq) return '採購審核中';
+  if(S.hours<HW_REQ_HRS-1e-9) return '工時不夠';
+  if(S.day+HW[k].days>20) return '來不及到貨';
+  return '';
+}
+export function requestHw(k){
+  if(!HW[k]||hwReqBlock(k)) return false;
+  S.hwReq={k,day:S.day};
+  track('invest',{investment:k,stack:'none'});
+  if(PAR()) advance(HW_REQ_HRS); else S.hours-=HW_REQ_HRS;
+  log('dim',`· 提出採購申請：${HW[k].name}（${HW[k].price}）｜${h1(HW_REQ_HRS)}h｜預計第 ${S.day+HW[k].days} 天到貨`);
+  return true;
+}
+/* 今天用到哪台電腦：本地模型都算 PC，解鎖的模型算對應那台 */
+export function useHw(v,m){
+  if(v!=='local') return;
+  S.hwUsed.pc=true; const h=model(v,m).hw; if(h) S.hwUsed[h]=true;
+}
 /* 做 skills 之後：一次派出所有複雜度 ≤2 的工單 */
 export function batch(){
   if(!S.inv.skills) return;
@@ -243,6 +265,7 @@ export function invHint(is){
   if(S.inv.fastlane&&is.store) out.push(`fastlane：退件機率 ${Math.round(FASTLANE_REJECT*100)}%`);
   if(S.inv.monitor&&is.inc) out.push(`監控告警：逾期扣信任 ${MONITOR_LATE}`);
   if(S.inv.mcp) out.push(`MCP 文件：識破率 +${Math.round(MCP_REVEAL*100)}%、評估時間減半`);
+  if(S.hw.pc&&sel.v==='local') out.push(`顯卡 PC：本地執行時間 ×${PC_SPEED}`);
   return out.length?`工程投資：${out.join('；')}。`:'';
 }
 
@@ -275,6 +298,9 @@ export function endDay(){
   S.issues=S.issues.filter(i=>i.due>S.day);
   if(late.length) rep.push(`${late.length} 張工單逾期，主管信任下降。`);
   if(S.corpDay>1500){S.trust=Math.max(0,S.trust-6);rep.push(`今天公司 API 刷了 ${nt(S.corpDay)}，主管在 Slack 問你在幹嘛（信任 -6）。`);log('warn',`! 公司單日花費 ${nt(S.corpDay)} 太高，信任 -6`);}
+  /* 買了電腦沒用：每台每天信任 -2 */
+  const idle=HW_KEYS.filter(k=>S.hw[k]&&!S.hwUsed[k]);
+  if(idle.length){const n=HW_IDLE*idle.length;S.trust=Math.max(0,S.trust-n);const msg=`電腦閒置：${idle.map(k=>HW[k].name).join('、')} 今天沒用到，主管覺得白買了（信任 -${n}）。`;rep.push(msg);log('warn',`! ${msg}`);}
   if(S.day>=20){render();return showEnd();}
   S.day++; S.hours=8; S.corpDay=0; S.outage=null;
   for(const k of ['sub','seat'])for(const v in S.used[k])S.used[k][v].d=0;
@@ -284,6 +310,12 @@ export function endDay(){
     const sv=S.seatReq.vendor, need=SEAT.trust[S.seats.length]; S.seatReq=null;
     if(S.trust>=need){S.seats.push(sv);rep.push(`採購通過：公司幫你開了 ${VENDORS[sv].name} 團隊席位。`);log('ok',`★ ${VENDORS[sv].name} 團隊席位核准`);}
     else{rep.push(`採購被退件：主管信任不夠（需要 ${need} 以上）。`);log('bad','✗ 團隊席位申請被退件');}
+  }
+  S.hwUsed=objOf(HW_KEYS,()=>false);
+  if(S.hwReq&&S.day>=S.hwReq.day+HW[S.hwReq.k].days){
+    const k=S.hwReq.k, H=HW[k]; S.hwReq=null;
+    if(S.trust>=H.trust){S.hw[k]=true;S.hours-=HW_SETUP_HRS;rep.push(`採購到貨：${H.name} 架好了（架設花了 ${HW_SETUP_HRS} 小時）。`);log('ok',`★ ${H.name} 到貨，架設 ${h1(HW_SETUP_HRS)}h`);}
+    else{rep.push(`採購被退件：主管信任不夠（需要 ${H.trust} 以上）。`);log('bad',`✗ ${H.name} 採購申請被退件`);}
   }
   let ev=null; if(Math.random()<.55) ev=pick(EVENTS)();
   if(S.outage){const n=cancelJobs(j=>j.v===S.outage,'廠商當機，session 斷了');if(n)rep.push(`${n} 個跑在 ${VENDORS[S.outage].name} 的 agent 因為當機斷線。`);}

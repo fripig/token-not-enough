@@ -1,4 +1,4 @@
-import {FASTLANE_REJECT,MD_P,MD_TK,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,effModel,efOf,kt,model,planOf} from './data.js';
+import {FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,effModel,efOf,kt,model,planOf} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
 import {PAR} from './actions.js';
 
@@ -29,8 +29,14 @@ export function stackHint(is){
   if(is.stack==='app') return `App：要跑模擬器，執行時間 ×${stackHrs(is)}${is.store?`；這張要過 App Store 審核，agent 做完仍有 ${Math.round(storeReject()*100)}% 機率被退件，自我審核救不回來`:''}。`;
   return '';
 }
-/* 本地 GPU 一次只能跑一個 agent，跑的時候電腦被吃滿，也不能自己手寫 */
+/* 本地 GPU 一次只能跑一個 agent，跑的時候電腦被吃滿，也不能自己手寫；買了電腦之後手寫不受影響 */
 export const localBusy=()=>S.jobs.some(j=>j.b==='local');
+export const hasHw=()=>Object.values(S.hw).some(Boolean);
+export const manualBlocked=()=>localBusy()&&!hasHw();
+/* 要先買電腦才能用的本地模型 */
+export const hwBlock=M=>M.hw&&!S.hw[M.hw]?`需要 ${HW[M.hw].name}`:'';
+/* 有顯卡的 PC：本地模型都變快 */
+export const localSpeed=v=>v==='local'&&S.hw.pc?PC_SPEED:1;
 export const manualHrs=is=>is.cx*2.2*(is.tries?.8:1)*(unfamiliar(is)?2:1);
 /* 進階模式的推理強度套在模型上；能力超過工單的 token 折扣看原本的模型 */
 export function est(is,v,mid,rv=sel.rv,ef=sel.ef){
@@ -42,7 +48,7 @@ export function est(is,v,mid,rv=sel.rv,ef=sel.ef){
   if(md)p+=MD_P; if(sdd&&is.cx>=3)p+=SDD_P;
   p=Math.max(.05,Math.min(.97,p));
   const c=catchRate(rv,M);
-  return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:(p+(1-p)*c)*(is.store?1-storeReject():1),hrs:is.cx*M.speed*(is.tries?.8:1)*REVIEW[rv].hrs*stackHrs(is)};
+  return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:(p+(1-p)*c)*(is.store?1-storeReject():1),hrs:is.cx*M.speed*localSpeed(v)*(is.tries?.8:1)*REVIEW[rv].hrs*stackHrs(is)};
 }
 
 /* 外包單只能自己付：公司 API 與公司席位都不能用 */
@@ -67,7 +73,7 @@ export function costLine(b,M,v,e){
 export function presetBlock(is,p){
   const M=model(p.v,p.m);
   if(S.outage===p.v) return '今日當機';
-  const why=cnBlock(is,p.v,M); if(why) return why;
+  const why=cnBlock(is,p.v,M)||hwBlock(M); if(why) return why;
   if(gigBlocked(is,p.b)) return GIG_NOTE;
   if(p.b==='seat'&&!S.seats.includes(p.v)) return '沒有公司席位';
   const bl=bills(p.v,is).find(b=>b.id===p.b); if(!bl) return '不能用這種付費方式'; if(!bl.ok) return bl.note;

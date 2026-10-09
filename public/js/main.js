@@ -1,6 +1,6 @@
 import {S,addGigs,clearSave,fresh,makeIssue,readSave,resetIds,sel} from './state.js';
 import {log} from './calc.js';
-import {batch,dispatch,endDay,evaluate,invest,loadPreset,manual,quick,rescope,savePreset,wait} from './actions.js';
+import {batch,dispatch,endDay,evaluate,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait} from './actions.js';
 import {app,render} from './view.js';
 import {showBadSave,showResume,showSetup} from './modals.js';
 
@@ -14,6 +14,7 @@ app.addEventListener('click',e=>{
   else if(t.dataset.ef){sel.ef=+t.dataset.ef;render();}
   else if(t.dataset.quick)quick(+t.dataset.quick);
   else if(t.dataset.inv){invest(t.dataset.inv,t.dataset.st);render();}
+  else if(t.dataset.hw){requestHw(t.dataset.hw);render();}
   else if(t.dataset.act==='batch'){batch();render();}
   else if(t.dataset.load){loadPreset(+t.dataset.load);render();}
   else if(t.dataset.save){savePreset(+t.dataset.save);render();}

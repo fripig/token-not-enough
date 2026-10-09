@@ -1,4 +1,4 @@
-import {APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,normCompanies,objOf,pick,pickClient,presetsOf,rnd} from './data.js';
+import {APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,normCompanies,objOf,pick,pickClient,presetsOf,rnd} from './data.js';
 import {SLOT_CHOICES} from './actions.js';
 
 /* ===== 狀態 ===== */
@@ -14,6 +14,7 @@ export function fresh(){
     used:{sub:objOf(APIV,()=>({d:0,w:0})),seat:objOf(SEAT.vendors,()=>({d:0,w:0}))},
     capMod:objOf(APIV,()=>1),priceMod:objOf(Object.keys(VENDORS),()=>1),cnBan:false,
     seats:[],seatReq:null,
+    hw:objOf(HW_KEYS,()=>false),hwReq:null,hwUsed:objOf(HW_KEYS,()=>false),
     outage:null,corpDay:0,issues:[],log:[],
     st:{subFee:0,api:0,corp:0,done:0,late:0,audits:0,manual:0,conflicts:0,caught:0,tk:objOf(Object.keys(VENDORS),()=>0),byBill:{sub:0,seat:0,api:0,corp:0,local:0},kpiLost:0,trapHit:0,trapFound:0,outIncome:0,outPenalty:0,outDone:0,outLate:0}};
   sel={issue:null,v:'anthropic',m:'sonnet',b:'api',rv:sel?.rv??1,ef:sel?.ef??1};
@@ -47,7 +48,11 @@ export function readSave(){
     return {S:s,sel:d.sel,uid:d.uid,morning:d.morning};
   }catch(e){clearSave(); return {bad:true};}
 }
-export function loadGame(d){S=d.S; sel=d.sel; uid=d.uid;}
+/* 採購電腦之前的存檔沒有這三個欄位：當作沒買、沒申請、今天還沒用 */
+export function loadGame(d){
+  S=d.S; sel=d.sel; uid=d.uid;
+  S.hw??=objOf(HW_KEYS,()=>false); S.hwReq??=null; S.hwUsed??=objOf(HW_KEYS,()=>false);
+}
 
 /* 一般工單：75% 平分給選到的主技術線、15% 前端、10% 平分給沒選的技術線 */
 export function pickStack(){

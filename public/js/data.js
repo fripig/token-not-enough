@@ -23,7 +23,9 @@ export const VENDORS={
     plans:[{id:'none',name:'不訂閱',price:0},{id:'member',name:'會員',price:300,day:1500,week:6000}],
     models:[{id:'k2',name:'K2',cap:4,price:.12,w:1,speed:.9,verb:1.2}]},
   local:{name:'自架開源',agent:'OpenCode＋本地 GPU',vc:'--local',corp:false,plans:[],
-    models:[{id:'qwen',name:'Qwen Coder 32B',cap:3,price:0,w:0,speed:2.1,verb:1.3,cn:true},{id:'gemma',name:'Gemma 27B',cap:3,price:0,w:0,speed:2.4,verb:1.25},{id:'oss',name:'gpt-oss 20B',cap:2,price:0,w:0,speed:1.8,verb:1.2}]}
+    /* 基本款不用買電腦；id 沿用舊名，存檔、派工方案與 GA 不受影響。hw 標記要先買哪台電腦（見 HW） */
+    models:[{id:'qwen',name:'Qwen3.6 35B-A3B',cap:3,price:0,w:0,speed:1.7,verb:1.3,cn:true},{id:'gemma',name:'Gemma 4 26B A4B',cap:3,price:0,w:0,speed:1.9,verb:1.25},{id:'oss',name:'Gemma 4 E4B',cap:2,price:0,w:0,speed:1.8,verb:1.2},
+      {id:'qcnext',name:'Qwen3-Coder-Next',cap:4,price:0,w:0,speed:1.4,verb:1.2,cn:true,hw:'spark'},{id:'gemma4',name:'Gemma 4 31B',cap:4,price:0,w:0,speed:2,verb:1.2,hw:'spark'},{id:'glm53',name:'GLM-5.3',cap:5,price:0,w:0,speed:2.8,verb:1,cn:true,hw:'mac'}]}
 };
 export const SUBV=Object.keys(VENDORS).filter(v=>VENDORS[v].plans.length>1);
 export const APIV=Object.keys(VENDORS).filter(v=>v!=='local');
@@ -137,4 +139,11 @@ export const INVEST={
 export const INV_KEYS=['tests','ci','hook','scan','fastlane','monitor','skills','mcp','sdd'];
 export const MD_TK=.85, MD_P=.06, TEST_CATCH=.1, MCP_REVEAL=.2, SDD_TK=1.1, SDD_P=.08, SDD_TRAP_STOP=.15;
 export const HOOK_PR=.5, SCAN_AUDIT=.5, FASTLANE_REJECT=.1, MONITOR_LATE=4, MONITOR_KPI=1.2;
-
+/* 採購電腦：走公司採購申請，不扣公司 API 預算；到貨當天看信任決定核不核准 */
+export const PC_SPEED=.7, HW_REQ_HRS=1, HW_SETUP_HRS=1, HW_IDLE=2;
+export const HW={
+  pc:{name:'有顯卡的 PC（RTX 5090）',price:'約 NT$12 萬',trust:55,days:2,desc:`本地模型執行時間 ×${PC_SPEED}`},
+  spark:{name:'NVIDIA DGX Spark',price:'約 NT$13 萬',trust:60,days:3,desc:'解鎖 Qwen3-Coder-Next 與 Gemma 4 31B（能力 4，Gemma 政府標案可用）'},
+  mac:{name:'Mac Studio（512GB）',price:'約 NT$30 萬',trust:70,days:3,desc:'解鎖 GLM-5.3（能力 5，很慢，中國權重）'},
+};
+export const HW_KEYS=Object.keys(HW);

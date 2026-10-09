@@ -10,8 +10,8 @@
 
 - `public/index.html`：頁面骨架。`<head>` 有含關鍵字的 `<title>`、canonical、`theme-color`、Open Graph／Twitter Card、JSON-LD（`VideoGame`）、favicon 與 manifest；`#app` 裡只有載入中的佔位，`start()` 第一次 `render()` 會換掉。遊戲介紹與怎麼玩放在 `#app` 外面的 `<footer class="about">`，一直留在頁面上，Googlebot 執行 JS 後也索引得到。分享圖是 `public/img/og.png`（1200×630），圖示是 `public/favicon.ico`、`public/apple-touch-icon.png`、`public/img/icon-192.png`／`icon-512.png`；另有 `robots.txt`、`sitemap.xml`、`manifest.webmanifest`。改遊戲名稱或介紹時一起更新這些地方（`sitemap.xml` 的 `lastmod` 在介紹內容改動時更新）。
 - `public/css/style.css`：樣式。開頭補了 `body{margin:0}`、`[hidden]{display:none!important}`，原本由 Artifact 外殼提供；少了後者 `.ov` 的 `display:flex` 會蓋過 `hidden`，彈窗關不掉。
-- `public/js/*.js`：遊戲本體，拆成七個原生 ES modules（見「程式碼地圖」），由 `public/index.html` 以 `<script type="module" src="js/main.js">` 載入；無建置步驟、遊戲邏輯沒有外部 JS 相依。瀏覽器不允許從 `file://` 載入模組，一定要用本機伺服器開。頁面另外從 Google Fonts 載字型，並在 `public/index.html` 載入 Google Analytics（gtag.js）做流量統計。遊戲事件由 `state.js` 的 `track()` 送出（沒有 `gtag` 時不動作，node 工具不受影響）：`game_start`（開局確認，週一調整不送）、`day_reached`（開局送第 1 天，之後每天開工送一次）、`game_end`（月底結算，多帶 `score`、`grade`）。每個事件都帶 `game_version`（`data.js` 的 `GAME_VERSION`，部署時 `pages.yml` 把 `'dev'` 換成短 commit hash，sed 沒換到就讓部署失敗）、`game_mode`、`companies`（如 `laravel+rust`）、`slots`（單線為 1）、`advanced`、`outsource`、`day`。看玩家玩到第幾天：GA4 依 `day` 統計 `day_reached` 的使用者數；`day`、`game_mode` 等參數要先在 GA 管理後台註冊成事件範圍的自訂維度才看得到。事件規則以 `docs/spectra/specs/play-analytics/` 為準（Spectra change `gh-10-01-play-analytics`），`tools/check.js` 有對應斷言。訂閱與解決工單的選擇另外送（Spectra change `gh-14-01-choice-analytics`，#14）：`subscription`（開局每家有訂閱的送一筆 `vendor`、`plan`，都沒有送一筆 `none`；週一只送有改的那幾家，開局順序是 `game_start`→`subscription`→`day_reached`）、`dispatch`（agent 開跑時：`vendor`、`model`、`bill`、`review`、`effort`、`via`＝panel／quick／batch、`preset`、工單的 `cx`、`stack`、`incident`、`sensitive`、`gig`、`merge`）、`job_result`（`settle` 時：同樣的選擇參數加 `cx`、`stack`、`gig`、`outcome`＝aborted／quota／conflict／rejected／caught／success／trap_stop／fail、`tokens`（k）、`cost`（NT$）、`hours`）、`manual_fix`（`outcome`＝success／fail／trap、`unfamiliar`、`hours`）、`evaluate`（`cx` 送評估前看到的原估，Spectra change `gh-15-01-evaluate-shown-cx`；`outcome`＝found／clear／quota）、`rescope`（approved／refused）、`invest`（`investment`、`stack`）。被擋下的動作不送。GA 後台要把 `vendor`、`plan`、`model`、`bill`、`review`、`effort`、`via`、`preset`、`cx`、`stack`、`incident`、`sensitive`、`gig`、`merge`、`outcome`、`unfamiliar`、`investment` 註冊成事件範圍自訂維度，`tokens`、`cost`、`hours` 註冊成自訂指標。本機用 `python3 -m http.server -d public 8000` 開。
-- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 四家公司 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資（`SIM_INVEST=2` 再加買三項新投資，`SIM_INV_EXTRA=monitor,scan` 之類可只加買指定幾項），`SIM_COMBOS=1` 改跑六種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_EFFORT=1` 開啟進階模式並讓自動玩家挑推理強度，`SIM_SEATS=1..3` 在第 6、11、16 天直接給團隊席位（量上限用，不經信任審核）並讓自動玩家優先刷席位，`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 公司」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
+- `public/js/*.js`：遊戲本體，拆成七個原生 ES modules（見「程式碼地圖」），由 `public/index.html` 以 `<script type="module" src="js/main.js">` 載入；無建置步驟、遊戲邏輯沒有外部 JS 相依。瀏覽器不允許從 `file://` 載入模組，一定要用本機伺服器開。頁面另外從 Google Fonts 載字型，並在 `public/index.html` 載入 Google Analytics（gtag.js）做流量統計。遊戲事件由 `state.js` 的 `track()` 送出（沒有 `gtag` 時不動作，node 工具不受影響）：`game_start`（開局確認，週一調整不送）、`day_reached`（開局送第 1 天，之後每天開工送一次）、`game_end`（月底結算，多帶 `score`、`grade`）。每個事件都帶 `game_version`（`data.js` 的 `GAME_VERSION`，部署時 `pages.yml` 把 `'dev'` 換成短 commit hash，sed 沒換到就讓部署失敗）、`game_mode`、`companies`（如 `laravel+rust`）、`slots`（單線為 1）、`advanced`、`outsource`、`day`。看玩家玩到第幾天：GA4 依 `day` 統計 `day_reached` 的使用者數；`day`、`game_mode` 等參數要先在 GA 管理後台註冊成事件範圍的自訂維度才看得到。事件規則以 `docs/spectra/specs/play-analytics/` 為準（Spectra change `gh-10-01-play-analytics`），`tools/check.js` 有對應斷言。訂閱與解決工單的選擇另外送（Spectra change `gh-14-01-choice-analytics`，#14）：`subscription`（開局每家有訂閱的送一筆 `vendor`、`plan`，都沒有送一筆 `none`；週一只送有改的那幾家，開局順序是 `game_start`→`subscription`→`day_reached`）、`dispatch`（agent 開跑時：`vendor`、`model`、`bill`、`review`、`effort`、`via`＝panel／quick／batch、`preset`、工單的 `cx`、`stack`、`incident`、`sensitive`、`gig`、`merge`）、`job_result`（`settle` 時：同樣的選擇參數加 `cx`、`stack`、`gig`、`outcome`＝aborted／quota／conflict／rejected／caught／success／trap_stop／fail、`tokens`（k）、`cost`（NT$）、`hours`）、`manual_fix`（`outcome`＝success／fail／trap、`unfamiliar`、`hours`）、`evaluate`（`cx` 送評估前看到的原估，Spectra change `gh-15-01-evaluate-shown-cx`；`outcome`＝found／clear／quota）、`rescope`（approved／refused）、`invest`（`investment`、`stack`；申請採購電腦也送，`investment` 是 `pc`／`spark`／`mac`）。被擋下的動作不送。GA 後台要把 `vendor`、`plan`、`model`、`bill`、`review`、`effort`、`via`、`preset`、`cx`、`stack`、`incident`、`sensitive`、`gig`、`merge`、`outcome`、`unfamiliar`、`investment` 註冊成事件範圍自訂維度，`tokens`、`cost`、`hours` 註冊成自訂指標。本機用 `python3 -m http.server -d public 8000` 開。
+- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 四家公司 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資（`SIM_INVEST=2` 再加買三項新投資，`SIM_INV_EXTRA=monitor,scan` 之類可只加買指定幾項），`SIM_COMBOS=1` 改跑六種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_EFFORT=1` 開啟進階模式並讓自動玩家挑推理強度，`SIM_SEATS=1..3` 在第 6、11、16 天直接給團隊席位（量上限用，不經信任審核）並讓自動玩家優先刷席位，`SIM_HW=1` 讓自動玩家照真實信任審核採購電腦（信任達門檻才申請，DeepSeek 被禁時改派解鎖的本地模型），`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好），印出抽樣與每個「模式 × 公司」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
 - `tools/check.js`：規則檢查。`node tools/check.js` 把 spec 裡的範例數字逐條斷言（技術線分布、成功率、時間倍率、手寫時數、上架審核、KPI 補償、最高分 key、難度標示、接外包、GA 遊戲事件、存檔，以及十份核心規則 spec 的情境），任何一條不符就以非 0 結束。改規則時同步更新。
 
 部署：push 到 `main` 後 `.github/workflows/pages.yml` 把 `public/` 發佈到 https://token-not-enough.youareright.app/ 。只有 `public/` 會公開。自訂網域設在 repo 的 Pages 設定（用 Actions 部署時 `CNAME` 檔不會生效），DNS 是 Cloudflare 上 `youareright.app` 的 CNAME `token-not-enough` → `fripig.github.io`（DNS only），舊網址 `fripig.github.io/token-not-enough/` 會轉址過來。
@@ -61,6 +61,8 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 20. 「openai的model沒有細分到model 名稱是為何」、「換成家族名，開卡處理 主要目標是 gpt6」、「能力也要對應」、「cluade model也有新版」、「Haiku 5.5 才是對比luna吧」
    → OpenAI 三個模型改名為 GPT-6 家族名 Luna／Sol／Astra（不帶版號，id 不動），數值照實際定位調整（使用者選「照比例但壓縮」，第一次量測後再選「能力 3，調慢加價再量」）。設計紀錄在 Spectra change `gh-16-01-gpt6-model-names`（#16）。
    → Claude 照 Claude 5 家族調整：Haiku 跟 Luna 同一套（能力 3、0.15、速度 0.7），Opus 降到 Sonnet 的 2 倍價，新增能力 6 的 Fable（都是使用者從選項裡選的）。設計紀錄在 Spectra change `gh-16-02-claude-5-models`（#16）。
+21. 「投資可以買電腦 有顯卡的pc mac 或者 nvidai spark 買了以後地端不會卡手寫 另外也能跑更高等級的模型」、「金額可能要相對調整 現在的金額太不現實了」、「買了沒用每天降信任」、「是否有更強力的本地model可以選擇」、「寫程式還是要用 gemma吧 用gpt-oss沒有新資料」、「基本款也順便改」
+   → 工程投資面板加「採購電腦」：三台可全買、效果疊加，走公司採購申請（不扣 API 預算、信任審核），買了本地跑 agent 時能手寫、本地仍一次一個，閒置每台每天信任 −2；Spark 解鎖 Qwen3-Coder-Next 與 Gemma 4 31B、Mac 解鎖 GLM-5.3；基本款本地模型換成 Qwen3.6 35B-A3B、Gemma 4 26B A4B、Gemma 4 E4B 並把 MoE 調快（都是使用者從選項裡選的）。設計紀錄在 Spectra change `gh-17-01-local-hardware`（#17）。
 
 介面文字一律繁體中文（台灣用語）。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
@@ -88,7 +90,7 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
 | deepseek | Claude Code 接 DeepSeek API | 否 | 是 | Chat 3、Reasoner 4，無訂閱 |
 | zhipu | Claude Code＋GLM Coding Plan | 否 | 是 | GLM Air 3、GLM 4 |
 | moonshot | Kimi CLI | 否 | 是 | K2 4 |
-| local | OpenCode＋本地 GPU | — | Qwen 是 | Qwen Coder 32B 3（cn 權重）、Gemma 27B 3（比 Qwen 慢，政府標案可用）、gpt-oss 20B 2 |
+| local | OpenCode＋本地 GPU | — | Qwen、GLM 是 | 基本款：Qwen3.6 35B-A3B 3（cn 權重）、Gemma 4 26B A4B 3（比 Qwen 慢，政府標案可用）、Gemma 4 E4B 2；買電腦解鎖：Qwen3-Coder-Next 4（cn，Spark）、Gemma 4 31B 4（Spark）、GLM-5.3 5（cn，Mac） |
 
 - OpenAI 的模型照 GPT-6 家族命名，名稱不帶「GPT-6」，id 沿用 `mini`／`std`／`high`（存檔、派工方案、GA 的 `model` 都送 id）。實際的價格比例 Luna : Sol : Astra 約 1 : 20 : 100（第三方轉述的官方價，每百萬輸入 token $0.10／$2／$10），遊戲裡刻意壓縮：Luna 能力 3，但比 DeepSeek Chat 貴（0.15 對 0.03）、一樣慢（0.7），賣點是沒有案主禁它；Astra 跟 Opus 同型（貴、`w` 3、不特別慢）。原本的最高階模型是照推理模式設的（跟中階同價、慢、token ×1.8），跟進階模式的推理強度重複，改成 Astra 後拿掉。
 
@@ -210,7 +212,7 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
 - 個人訂閱／公司席位：扣額度，額度不夠時 agent 停在一半（失敗）。
 - 個人 API：扣個人錢包。
 - 公司 API：扣公司預算；單日超過 NT$1,500 信任 −6；透支信任 −8。
-- 本地：免費但很慢。平行模式下本地 GPU 一次只能跑一個 agent（`localBusy`），跑的期間（含過夜）不能再派本地、不能用本地評估架構，也不能自己手寫（電腦被吃滿）。單線模式不受影響。
+- 本地：免費但很慢。平行模式下本地 GPU 一次只能跑一個 agent（`localBusy`），跑的期間（含過夜）不能再派本地、不能用本地評估架構，也不能自己手寫（電腦被吃滿；買了任何一台電腦就能手寫，見「採購電腦」）。單線模式不受影響。
 - 機敏工單走個人訂閱或個人 API：35% 被稽核（信任 −12），中國廠商 60%；有 secret scanning 時減半（17.5%／30%）。
 - 外包單不能用公司 API 和公司席位（見「接外包」）。
 
@@ -336,6 +338,36 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
 
 目標是平行模式 −5%～+15%，第一版倍率就落在範圍內，沒有調。單線模式完全受工時限制，高強度變慢反而虧（Rust 例外，因為 borrow checker 對能力 <4 的扣分被高強度補回來），不設目標，照實記錄。
 
+### 採購電腦（`HW`、`requestHw`、`hwReqBlock`、`hwBlock`、`useHw`、`hwRow`）
+規則以 `docs/spectra/specs/local-hardware/` 為準。遊戲裡的錢是真實量級（Claude Pro NT$650），真實電腦買不起，所以走公司採購申請：按鈕只用文字顯示真實價格，不扣公司 API 預算，靠信任審核。
+
+| 電腦 | 價格文字 | 信任門檻 | 到貨 | 效果 |
+|---|---|---|---|---|
+| 有顯卡的 PC（RTX 5090） | 約 NT$12 萬 | 55 | 2 天 | 本地模型執行時間 ×0.7（`PC_SPEED`，評估架構也算） |
+| NVIDIA DGX Spark | 約 NT$13 萬 | 60 | 3 天 | 解鎖 Qwen3-Coder-Next（能力 4、速度 1.4、cn）與 Gemma 4 31B（能力 4、速度 2.0、政府標案可用） |
+| Mac Studio（512GB） | 約 NT$30 萬 | 70 | 3 天 | 解鎖 GLM-5.3（能力 5、速度 2.8、cn） |
+
+- 申請花 1h（`HW_REQ_HRS`），同時只能一張（`S.hwReq`），到貨日超過第 20 天不能申請。到貨當天早上（團隊席位審核之後）看當天信任：夠就裝好（`S.hw`），當天少 1h 架設（`HW_SETUP_HRS`，平行模式 10:00 開工）；不夠就退件、不扣分、可再申請。
+- 買了任何一台，本地跑 agent 時還能手寫（`manualBlocked`）；本地 GPU 仍然一次只跑一個 agent。
+- 閒置：每天下班（第 20 天在結算前）每台當天沒用到的電腦信任 −2（`HW_IDLE`）。PC 看當天有沒有本地派工或本地評估，Spark 看 Qwen3-Coder-Next 或 Gemma 4 31B，Mac 看 GLM-5.3；被擋下的動作不算。使用紀錄 `S.hwUsed` 每天開工清空。
+- 沒解鎖的模型按鈕停用並寫「需要 <電腦>」；派工方案存了這種模型時一鍵派工略過。存檔沒有電腦欄位時 `loadGame` 補預設值，`SAVE_VER` 沒加。
+- 模型選擇依 2026-10-10 的網路搜尋：Spark（128GB）放得下 Qwen3-Coder-Next（80B MoE）與 Gemma 4 31B，GLM-5.3（744B）只有 512GB 的 Mac Studio 放得下。強的開源權重幾乎都是中國的，Gemma 4 31B 是 Spark 上給政府標案用的非中國選項（原本是 gpt-oss 120B，使用者指出 gpt-oss 沒有新資料而換掉）。基本款也換成新一代，id 沿用 `qwen`／`gemma`／`oss`，兩個 MoE 速度調快約 20%（2.1→1.7、2.4→1.9）。預設自動玩家不派本地模型，固定種子比對改動前後輸出逐字相同。
+
+平衡實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；`SIM_HW=1` 平均分 ÷ 同一份程式碼的預設平均分，減 1）。調整過程：第一版自動玩家不看信任就申請，信任歸零後一直被退、白花工時，平行模式 −3.6%～−5.5%；改成信任達門檻才申請後平行 −1.9%～+0.6%、單線 −23%～−37%；code review 指出它會把單線放不下的工單（例如複雜度 4 用 GLM-5.3 要 11.2h）硬派給本地模型、必定跑不完，改成跑不完的模型略過（單線超過今天工時、平行今天到期又跑不完）之後：
+
+| 模式 × 公司 | 兩次 |
+|---|---|
+| 平行 Laravel | −1.2% / −0.8% |
+| 平行 Rails | −0.7% / −0.2% |
+| 平行 Rust | +1.0% / −2.4% |
+| 平行 App | −1.4% / −1.2% |
+| 單線 Laravel | −11.7% / −13.7% |
+| 單線 Rails | −14.6% / −14.9% |
+| 單線 Rust | −17.1% / −23.6% |
+| 單線 App | −15.4% / −10.8% |
+
+目標是平行模式 +3%～+15%，沒達到，使用者選擇接受、數值不調。自動玩家的信任通常第 11 天前就歸零，抽樣多半只買到 Spark 或什麼都沒買，Mac 幾乎沒買到，所以 GLM-5.3（免費能力 5）會不會太強沒有量到。單線模式完全受工時限制，本地模型比 Sonnet 慢很多，又用不到「跑 agent 時能手寫」，所以還是虧；單線不設目標。
+
 ### 自我審核（`REVIEW`、`catchRate`）
 | 等級 | token | 時間 | 抓錯率 |
 |---|---|---|---|
@@ -369,11 +401,11 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 | 模組 | 內容 |
 |---|---|
 | `main.js` | 入口：`app` 上的事件委派（用 `data-*` 屬性分派）、開局，載入時呼叫一次 `boot()`：`firstIssues`、`start`、`boot` |
-| `data.js` | 資料與工具函式，沒有狀態：`GAME_VERSION`、`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP`、`INV_KEYS`、`HOOK_PR`、`SCAN_AUDIT`、`FASTLANE_REJECT`、`MONITOR_LATE`、`MONITOR_KPI` |
+| `data.js` | 資料與工具函式，沒有狀態：`GAME_VERSION`、`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP`、`INV_KEYS`、`HOOK_PR`、`SCAN_AUDIT`、`FASTLANE_REJECT`、`MONITOR_LATE`、`MONITOR_KPI`、`HW`、`HW_KEYS`、`PC_SPEED`、`HW_REQ_HRS`、`HW_SETUP_HRS`、`HW_IDLE` |
 | `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件、存檔：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`SAVE_KEY`、`SAVE_VER`、`saveGame`、`clearSave`、`readSave`、`loadGame`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`hardStack`、`unfamiliar`、`makeIssue`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs` |
-| `calc.js` | 計算（`est(is, v, mid, rv, ef)` 會套推理強度）：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log` |
-| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`RV_ID`、`jobChoice`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`endDay` |
-| `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`quickBtn`、`invPanel`、`qbox`、`dispatchPanel` |
+| `calc.js` | 計算（`est(is, v, mid, rv, ef)` 會套推理強度）：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`hasHw`、`manualBlocked`、`hwBlock`、`localSpeed`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log` |
+| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`RV_ID`、`jobChoice`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`hwReqBlock`、`requestHw`、`useHw`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`endDay` |
+| `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`quickBtn`、`invPanel`、`hwRow`、`qbox`、`dispatchPanel` |
 | `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showResume`、`showBadSave`、`showEnd` |
 
 模組規則：

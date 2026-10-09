@@ -11,16 +11,18 @@
 // 有席位時公司工單刷第一個今日席位額度還超過 300k 的廠商，用它能力 4 的模型（Sonnet、Codex Sol、Gemini Pro），外包單照舊走個人 API。
 // SIM_LUNA=1 讓自動玩家在 DeepSeek 被禁、又沒用席位時改派 Codex Luna（個人 API），不派 Sonnet，量 Luna 的影響（預設的自動玩家只有 Anthropic 當機被自動改派時才會用到 Luna，不會派 Astra）。
 // SIM_HAIKU=1 讓自動玩家在 DeepSeek 被禁、又沒用席位時改派 Claude Haiku 不派 Sonnet，付費方式照 Sonnet 的規則（訂閱額度夠用訂閱，否則公司 API），量 Haiku 的影響。
+// SIM_HW=1 讓自動玩家採購電腦（照真實的信任審核）：每天開工時沒有待審申請、且信任已達門檻，就依序申請 DGX Spark、PC、Mac Studio；DeepSeek 被禁、又沒用席位時，本地 GPU 有空（或單線模式）就改派解鎖的本地模型：
+// 複雜度 ≥4 且案主允許時用 GLM-5.3，否則 Qwen3-Coder-Next，政府標案用 Gemma 4 31B；跑不完（單線超過今天工時、平行今天到期跑不完）的模型略過，沒有能用的才照舊。買了沒用照樣每台每天扣信任。
 // SIM_COMBOS=1 改跑六種雙選組合（另跑單選 Laravel 當對照）。
 // SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
 import {els} from './fake-dom.js';
 import './seed.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {firstIssues,start} from '../public/js/main.js';
-import {COMPANIES,SEAT,cnBlock,model} from '../public/js/data.js';
+import {COMPANIES,HW,HW_KEYS,SEAT,cnBlock,model} from '../public/js/data.js';
 import {S,sel,setTrapRate} from '../public/js/state.js';
-import {quotaLeft} from '../public/js/calc.js';
-import {PAR,dispatch,endDay,invest,wait} from '../public/js/actions.js';
+import {est,hwBlock,localBusy,quotaLeft} from '../public/js/calc.js';
+import {PAR,dispatch,endDay,invest,requestHw,wait} from '../public/js/actions.js';
 import {dispatchPanel} from '../public/js/view.js';
 // 自動玩家不記最高分（和改成模組前一樣）
 globalThis.localStorage={getItem(){return null},setItem(){}};
@@ -36,6 +38,14 @@ const OUT=process.env.SIM_OUTSOURCE==='1';
 const EFF=process.env.SIM_EFFORT==='1';
 const LUNA=process.env.SIM_LUNA==='1';
 const HAIKU=process.env.SIM_HAIKU==='1';
+const HWSIM=process.env.SIM_HW==='1', HW_ORDER=['spark','pc','mac'];
+/* SIM_HW：這張單能用的解鎖本地模型（沒有就回傳 undefined） */
+const hwModel=is=>{
+  if(PAR()&&localBusy()) return;
+  /* 跑不完會被中止：單線模式超過今天剩的工時、平行模式今天到期又跑不完，都不派 */
+  const ok=m=>{const M=model('local',m), h=est(is,'local',m,sel.rv).hrs;return !hwBlock(M)&&!cnBlock(is,'local',M)&&(PAR()?!(is.due<=S.day&&h+.2>S.hours):h<=S.hours);};
+  return [...(is.cx>=4?['glm53']:[]),'qcnext','gemma4'].find(ok);
+};
 // SIM_SLOTS=2..6 指定平行模式的工作槽數（預設 3）
 const SLOTS=process.env.SIM_SLOTS===undefined?3:Number(process.env.SIM_SLOTS);
 if(![2,3,4,5,6].includes(SLOTS)){ console.error(`SIM_SLOTS 必須是 2–6 的整數，收到「${process.env.SIM_SLOTS}」`); process.exit(1); }
@@ -56,6 +66,7 @@ function sim(){
         let guard=0;
         while(S.day<=20&&guard++<2000){
           const sk=SEAT_DAYS.indexOf(S.day); if(sk>=0&&sk<SEATS&&!S.seats.includes(SEAT.vendors[sk])) S.seats.push(SEAT.vendors[sk]);
+          if(HWSIM&&!S.hwReq){const k=HW_ORDER.find(k=>!S.hw[k]); if(k&&S.trust>=HW[k].trust) requestHw(k);}
           if(INV){
             const list=[...S.companies.map(k=>['md',k]),['tests'],...(PAR()?[['ci'],['hook']]:[]),['sdd'],
               ...(INV===2?EXTRA.filter(k=>k!=='fastlane'||S.companies.includes('app')).map(k=>[k]):[])];
@@ -70,9 +81,10 @@ function sim(){
               const dsOk=!cnBlock(free[0],'deepseek',model('deepseek','chat'));
               const seatV=SEATS&&!free[0].out?S.seats.find(v=>quotaLeft('seat',v)>300):undefined;
               const alt=LUNA?['openai','mini']:['anthropic',HAIKU?'haiku':'sonnet'];
-              sel.v=seatV||(dsOk?'deepseek':alt[0]); sel.m=seatV?SEAT_MODEL[seatV]:dsOk?'chat':alt[1]; dispatchPanel();
+              const hm=HWSIM&&!seatV&&!dsOk?hwModel(free[0]):undefined;
+              sel.v=seatV||(dsOk?'deepseek':hm?'local':alt[0]); sel.m=seatV?SEAT_MODEL[seatV]:dsOk?'chat':hm||alt[1]; dispatchPanel();
               if(EFF){const gap=model(sel.v,sel.m).cap-free[0].cx; sel.ef=gap<=-1?2:gap>=2?0:1;}
-              if(seatV)sel.b='seat'; else if(dsOk||free[0].out||LUNA)sel.b='api'; else sel.b=quotaLeft('sub','anthropic')>300?'sub':'corp';
+              if(hm)sel.b='local'; else if(seatV)sel.b='seat'; else if(dsOk||free[0].out||LUNA)sel.b='api'; else sel.b=quotaLeft('sub','anthropic')>300?'sub':'corp';
               if(sel.b==='corp'&&S.corp<=0) sel.b='api';
               const before=S.hours; dispatch(); acted=S.hours!==before||PAR();
               if(!PAR()&&S.hours===before)acted=false;
@@ -85,7 +97,7 @@ function sim(){
         const score=+html.match(/總分<\/span><span>(-?[\d,]+)/)[1].replace(/,/g,'');
         const k=mode+' '+company; sum[k]??={n:0,tot:0,g:{}};
         sum[k].n++; sum[k].tot+=score; sum[k].g[grade]=(sum[k].g[grade]||0)+1;
-        if(g<3){const self=S.st.subFee+S.st.api;console.log(mode,company,'rv',g%3,'caught',S.st.caught,'cnBan',S.cnBan,'ds',Math.round(S.st.tk.deepseek),'ant',Math.round(S.st.tk.anthropic),'kpi',S.kpi,'done',S.st.done,'late',S.st.late,'trust',Math.round(S.trust),'self',Math.round(self),'corp',Math.round(S.st.corp),'conf',S.st.conflicts,'out',S.st.outDone+'/'+S.st.outLate,'outIncome',S.st.outIncome,...(LUNA?['oai',Math.round(S.st.tk.openai)]:[]),...(SEATS?['seats',S.seats.join('+'),'oai',Math.round(S.st.tk.openai),'goog',Math.round(S.st.tk.google)]:[]),'grade',grade);}
+        if(g<3){const self=S.st.subFee+S.st.api;console.log(mode,company,'rv',g%3,'caught',S.st.caught,'cnBan',S.cnBan,'ds',Math.round(S.st.tk.deepseek),'ant',Math.round(S.st.tk.anthropic),'kpi',S.kpi,'done',S.st.done,'late',S.st.late,'trust',Math.round(S.trust),'self',Math.round(self),'corp',Math.round(S.st.corp),'conf',S.st.conflicts,'out',S.st.outDone+'/'+S.st.outLate,'outIncome',S.st.outIncome,...(LUNA?['oai',Math.round(S.st.tk.openai)]:[]),...(HWSIM?['hw',HW_KEYS.filter(k=>S.hw[k]).join('+')||'none','local',Math.round(S.st.tk.local)]:[]),...(SEATS?['seats',S.seats.join('+'),'oai',Math.round(S.st.tk.openai),'goog',Math.round(S.st.tk.google)]:[]),'grade',grade);}
       }
     }
   }
