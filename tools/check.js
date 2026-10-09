@@ -1332,7 +1332,11 @@ function tests(){
   /* 讀不到 localStorage：當成沒有存檔 */
   const gi=localStorage.getItem; localStorage.getItem=()=>{throw new Error('denied');};
   ok(St.readSave()===null,'save-game：getItem 丟例外時當成沒有存檔');
+  let threwLoad=false; try{boot();}catch(e){threwLoad=true;}
+  ok(!threwLoad&&els.mo.innerHTML.includes('月初：決定這個月怎麼付 token')&&!els.ov.hidden,'save-game：getItem 丟例外時開頁照常開局設定');
   localStorage.getItem=gi;
+  /* 存檔只有這五個欄位，不帶 GAME_VERSION */
+  ok(Object.keys(base).join()==='ver,S,sel,uid,morning','save-game：存檔欄位只有 ver,S,sel,uid,morning',Object.keys(base).join());
   resetStore(); ok(St.readSave()===null,'save-game：沒有存檔回 null');
   /* 讀檔後 job 的工單和佇列是同一個物件 */
   withSave(base); St.loadGame(St.readSave());
