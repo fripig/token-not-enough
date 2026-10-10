@@ -1,4 +1,4 @@
-import {RESEARCH_DIRECT_TK,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,APIV,BIG,BILL_LABEL,CATCH,CI_CONFLICT,CLIENTS,CONFLICT,EFFORT,EVAL_HRS,FASTLANE_REJECT,HARD_KPI,HOOK_PR,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INC_KPI,INVEST,INV_KEYS,KPI,BASE,LATE_KPI,MANUAL_HRS,MCP_EVAL_HRS,MCP_REVEAL,MONITOR_KPI,MONITOR_LATE,PN,PR_HRS,PR_REVIEWED,RESCOPE,RETRY,REVEAL,SCAN_AUDIT,SDD_TRAP_STOP,SEAT,STACK_HRS,STORE_RATE,UNFAMILIAR_HRS,VENDORS,kt,nt,AI_MAX,AI_P,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL,MD_P,SKILLS_CX,TEST_CATCH,STACKS} from './data.js';
+import {RESEARCH_DIRECT_TK,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,APIV,BIG,BILL_LABEL,CATCH,CI_CONFLICT,CLIENTS,CONFLICT,EFFORT,EVAL_HRS,FASTLANE_REJECT,HARD_KPI,HOOK_PR,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INC_KPI,INVEST,INV_KEYS,KPI,BASE,LATE_KPI,MANUAL_HRS,MCP_EVAL_HRS,MCP_REVEAL,MONITOR_KPI,MONITOR_LATE,PN,PR_HRS,PR_REVIEWED,RESCOPE,RETRY,REVEAL,SCAN_AUDIT,SDD_NAME,SDD_TRAP_STOP,SEAT,STACK_HRS,STORE_RATE,UNFAMILIAR_HRS,VENDORS,kt,nt,AI_MAX,AI_P,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL,MD_P,SKILLS_CX,TEST_CATCH,STACKS} from './data.js';
 import {GIG_LATE,GIG_PAY,RESEARCH_RATE,START,TRAP_RATE} from './state.js';
 import {P_STEP,REVIEW,STORE_REJECT} from './calc.js';
 import {CANCEL_MIN,AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_TRUST,DOUBT_TRUST,EVAL_TK,EVENT_RATE,INC_LATE_TRUST,INC_RAMP,INC_RATE,LATE_TRUST,OVERDRAFT_TRUST,OVERNIGHT_HRS,PACE_KPI,PRAISE_TRUST,RESCOPE_TRUST,REVIEW_LOAD,SLOT_CHOICES,TRAP_STOP} from './actions.js';
@@ -31,7 +31,8 @@ export function rulesTab(id){
       `Rust、App、DevOps 的工單期限多 1 天、KPI ×${HARD_KPI}。`,
       'SRE：事故單比較多，見「工單與陷阱」。']))
     +rsec('派工方案與手寫',rlist([
-      `存三組方案 ${PN.join('／')}（廠商、模型、付費、審核、推理強度），工單卡片的「一鍵派工」照 ${PN.join('→')} 用第一個能用的方案。`,
+      `存三組方案 ${PN.join('／')}（廠商、模型、付費、審核、推理強度、SDD），工單卡片的「一鍵派工」照 ${PN.join('→')} 用第一個能用的方案。`,
+      `買了${INVEST.sdd.name}之後，派工台的「開發流程」可以每張單選 SDD：${SDD_NAME[0]}或已買的等級（Lv1 ${SDD_NAME[1]}、Lv2 ${SDD_NAME[2]}），小單選${SDD_NAME[0]}可以省 token。每局一開始選已買的最高級；方案存的等級還沒買到時，用已買的最高級。`,
       '做了 skills 之後可以批次派工：複雜度 2 以下的工單一次派出。',
       `自己手寫：複雜度 × ${MANUAL_HRS} 小時，沒選的技術線算不熟 ×${UNFAMILIAR_HRS}。本地 GPU 跑 agent 時不能手寫，買了電腦就可以。`]));
   case 'billing': return rsec('付費方式',rlist([
@@ -54,7 +55,7 @@ export function rulesTab(id){
       `沒選的技術線算不熟：自己手寫時數 ×${UNFAMILIAR_HRS}。`])}`)
     +rsec('陷阱題',rlist([
       `顯示複雜度 1–2 的非事故工單有 ${pct(TRAP_RATE)} 是陷阱，真實複雜度 4 或 5，卡片上看不出來。`,
-      `派工時能力夠就照真實複雜度硬做完；不夠就燒掉真實用量的 ${pct(TRAP_STOP)} 後停下來（導入 SDD 只燒 ${pct(SDD_TRAP_STOP)}），算失敗。自己手寫會花完時數後曝光。`,
+      `派工時能力夠就照真實複雜度硬做完；不夠就燒掉真實用量的 ${pct(TRAP_STOP)} 後停下來（派工時套用 SDD ${SDD_NAME[1]} 只燒 ${pct(SDD_TRAP_STOP[1])}、${SDD_NAME[2]} 只燒 ${pct(SDD_TRAP_STOP[2])}），算失敗。自己手寫會花完時數後曝光。`,
       `評估架構：花 ${EVAL_TK}k × token 倍率、${EVAL_HRS}h × 速度，識破率 ${REVEAL.base} + ${REVEAL.per} × 能力，上限 ${pct(REVEAL.max)}（接 MCP 文件 +${pct(MCP_REVEAL)}、評估時間 ×${MCP_EVAL_HRS}）。`,
       `找主管重新評估（曝光後每張一次）：信任 ≥ ${RESCOPE_TRUST} 時信任 −${RESCOPE.ok}、KPI 照真實複雜度、期限 +${RESCOPE.days} 天；否則信任 −${RESCOPE.no}。`]))
     +rsec('研究單',rlist([
@@ -69,7 +70,7 @@ export function rulesTab(id){
   case 'invest': return rsec('工程投資',`${rtable(['投資','工時','公司預算','效果'],['md',...INV_KEYS].flatMap(k=>{const I=INVEST[k];return [[`${I.name}${k==='md'?'（每條技術線各一次）':''}${k==='ai'?`（最多 ${AI_MAX} 級，每級）`:''}`,`${I.hrs}h`,nt(I.cost),I.desc],
       ...(I.lv2?[[`${I.name} Lv2`,`${I.lv2.hrs}h`,nt(I.lv2.cost),I.lv2.desc]]:[])];}))}
     ${rlist(['花自己的工時加公司 API 預算，效果維持到月底。',
-      `Lv2 要先買 Lv1，並去過對應的研討會：CLAUDE.md 要去過涵蓋該技術線的技術線場，${INVEST.scan.name}要資安場、${INVEST.skills.name}要 AI 場、${INVEST.tests.name}要綜合場。Lv2 數值：CLAUDE.md 成功率 +${pct(MD_P[2])}、抓錯率 +${pct(TEST_CATCH[2])}、稽核機率 ×${SCAN_AUDIT[2]}、批次派工到複雜度 ≤${SKILLS_CX[2]}。`,
+      `Lv2 要先買 Lv1；除了${INVEST.sdd.name}，還要去過對應的研討會：CLAUDE.md 要去過涵蓋該技術線的技術線場，${INVEST.scan.name}要資安場、${INVEST.skills.name}要 AI 場、${INVEST.tests.name}要綜合場。${INVEST.sdd.name} Lv2 不用研討會。Lv2 數值：CLAUDE.md 成功率 +${pct(MD_P[2])}、抓錯率 +${pct(TEST_CATCH[2])}、稽核機率 ×${SCAN_AUDIT[2]}、批次派工到複雜度 ≤${SKILLS_CX[2]}。`,
       `${INVEST.ai.name}：去過 N 場研討會才能買第 N 級，每級所有派工成功率 +${pct(AI_P)}；不影響評估架構與手寫。`])}`)
     +rsec('國內研討會',`${rtable(['研討會','類別','涵蓋技術線','報名費'],CONF_KEYS.map(k=>{const C=CONF[k];return [C.name,CONF_CATS[C.cat],C.stacks.map(st=>STACKS[st].name).join('、')||'—',nt(C.fee)];}))}
     ${rlist([`第 1–${CONF_LAST_DAY} 天的平日報名，自費（從錢包扣，算進你自己掏的錢；錢不算分），不花工時、不看信任；一週只能報一場，每場只能去一次。`,

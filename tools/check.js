@@ -406,7 +406,7 @@ function tests(){
   start(); ok(same(S.presets,DEFAULT_PRESETS),'第一次開局是預設方案',JSON.stringify(S.presets));
   ok(same(S.presets.map(p=>[p.v,p.m,p.b,p.rv].join('/')),['deepseek/chat/api/1','anthropic/sonnet/corp/1','anthropic/opus/corp/2']),'預設 A/B/C 內容');
   S.presets[0]={v:'anthropic',m:'haiku',b:'sub',rv:0}; start();
-  ok(same(S.presets[0],{v:'anthropic',m:'haiku',b:'sub',rv:0,ef:1}),'再玩一個月沿用方案 A（沒有推理強度的補成中）');
+  ok(same(S.presets[0],{v:'anthropic',m:'haiku',b:'sub',rv:0,ef:1,sdd:2}),'再玩一個月沿用方案 A（沒有推理強度的補成中、沒有 SDD 補成 2）');
   S.presets[1]={v:'anthropic',m:'nope',b:'corp',rv:1}; fresh();
   ok(same(S.presets,DEFAULT_PRESETS),'有不存在的模型時三組都退回預設');
   S.presets[0].rv=0; ok(DEFAULT_PRESETS[0].rv===1,'修改方案不會改到預設值');
@@ -451,7 +451,7 @@ function tests(){
   /* 存成／載入方案 */
   newRun('laravel'); S.hours=8; const keep=ticket('fe',2); S.issues=[keep]; sel.issue=keep.id;
   Object.assign(sel,{v:'google',m:'pro',b:'corp',rv:0}); savePreset(1);
-  ok(same(S.presets[1],{v:'google',m:'pro',b:'corp',rv:0,ef:1})&&S.issues.includes(keep),'存成方案 B 不會派工');
+  ok(same(S.presets[1],{v:'google',m:'pro',b:'corp',rv:0,ef:1,sdd:2})&&S.issues.includes(keep),'存成方案 B 不會派工');
   Object.assign(sel,{v:'anthropic',m:'haiku',b:'api',rv:2}); loadPreset(1);
   ok(sel.v==='google'&&sel.m==='pro'&&sel.b==='corp'&&sel.rv===0&&sel.issue===keep.id,'載入方案 B 回到 google/pro/corp/0，選取的工單不變');
   render(); ok(els.app.innerHTML.includes('data-save="2"')&&els.app.innerHTML.includes('載入方案 C'),'派工台有存成與載入按鈕');
@@ -631,6 +631,37 @@ function tests(){
   ok(tj.stop&&tj.tk>=te.tk*.15*.7-1e-9&&tj.tk<=te.tk*.15*1.3+1e-9&&tj.hrs<=te.hrs*.15*1.2+1e-9,'SDD：陷阱只燒真實估計的 0.15',`${tj.tk/te.tk}`);
   const tr=settle(tj); ok(!tr.ok&&sddTrap.revealed&&S.log.some(l=>l.msg.includes('寫規格時就發現牽扯整個架構')),'SDD：陷阱失敗、曝光，紀錄寫出寫規格時發現');
 
+  /* SDD 兩級：套用的等級 = min(選的, 已買的) */
+  {  newRun('laravel'); const fe4=ticket('fe',4), fe2=ticket('fe',2), b4=est(fe4,'anthropic','sonnet',0,1,2), b2=est(fe2,'anthropic','sonnet',0,1,2);
+  ok(C.sddLevel(2)===0&&near(b4.p,.80),'SDD 沒買：選 2 也套 0 級，複雜度 4 fe × Sonnet 0.80');
+  S.inv.sdd=2;
+  ok([[0,.80,1],[1,.88,1.1],[2,.95,1.2]].every(([L,p,k])=>{const e=est(fe4,'anthropic','sonnet',0,1,L);return near(e.p,p)&&near(e.tk,b4.tk*k);}),'SDD 各級：複雜度 4 fe × Sonnet 成功率 0.80／0.88／0.95、token ×1／1.1／1.2');
+  ok(near(est(fe2,'anthropic','sonnet',0,1,2).tk,b2.tk*1.2)&&near(est(fe2,'anthropic','sonnet',0,1,2).p,b2.p),'SDD Lv2：複雜度 2 token ×1.2、成功率不變');
+  S.inv.sdd=1; ok(C.sddLevel(2)===1&&C.sddLevel(0)===0&&C.sddLevel(undefined)===1,'SDD 只買 Lv1：選 2 套 1、選 0 套 0、沒選當 2');
+  S.inv.sdd=2; ok(near(evalCost(son).tk,ec0.tk)&&near(evalCost(son).hrs,ec0.hrs),'SDD Lv2 不影響評估架構');
+  for(const [L,f,note] of [[1,.15,'寫規格時就發現牽扯整個架構'],[2,.05,'跑框架流程時就發現牽扯整個架構']]){
+    const tp=ticket('fe',1,{trap:true,trueCx:5,trueBase:BASE[5],revealed:false,evaluated:false});
+    S.issues=[tp]; Object.assign(sel,{issue:tp.id,v:'deepseek',m:'chat',b:'api',rv:0,sdd:L});
+    const e5=est(trueView(tp),'deepseek','chat',0), jj=makeJob(tp);
+    ok(jj.stop&&jj.sdd===L&&jj.tk>=e5.tk*f*.7-1e-9&&jj.tk<=e5.tk*f*1.3+1e-9&&jj.hrs<=e5.hrs*f*1.2+1e-9,`SDD Lv${L}：陷阱只燒真實估計的 ${f}`,`${jj.tk/e5.tk}`);
+    const rr=settle(jj); ok(!rr.ok&&tp.revealed&&S.log[0].msg.includes(note),`SDD Lv${L}：陷阱失敗、曝光，紀錄寫出「${note}」`,S.log[0].msg);
+  }
+  {const tp=ticket('fe',1,{trap:true,trueCx:5,trueBase:BASE[5],revealed:false,evaluated:false});
+    S.issues=[tp]; Object.assign(sel,{issue:tp.id,sdd:0}); const e5=est(trueView(tp),'deepseek','chat',0), jj=makeJob(tp);
+    ok(jj.stop&&jj.sdd===0&&jj.tk>=e5.tk*.4*.7-1e-9&&jj.tk<=e5.tk*.4*1.3+1e-9,'SDD 選不用：陷阱照燒 0.4');
+    settle(jj); ok(S.log[0].msg.includes('做到一半發現牽扯整個架構'),'SDD 選不用：陷阱紀錄是做到一半發現');}
+  sel.sdd=2;
+
+  /* SDD Lv2 購買：不用研討會、1h、NT$200 */
+  {const ge=[]; globalThis.gtag=(k,n,p)=>ge.push({n,p});
+  newRun('laravel'); S.inv.sdd=1; S.hours=8; S.corp=11500;
+  ok(invest('sdd')&&near(S.hours,7)&&S.corp===11300&&S.inv.sdd===2&&A.investBlock('sdd')==='已完成','SDD Lv2：8h、NT$11,500 → 7h、NT$11,300，已完成');
+  ok(ge.some(e=>e.n==='invest'&&e.p.investment==='sdd2'),'SDD Lv2：GA invest 送 sdd2',JSON.stringify(ge));
+  delete globalThis.gtag;}
+  newRun('laravel'); S.inv.sdd=1; S.hours=.5; let sddBefore=JSON.stringify(S);
+  ok(!invest('sdd')&&JSON.stringify(S)===sddBefore&&A.investBlock('sdd')==='工時不夠','SDD Lv2：剩 0.5h 買不了');
+  S.hours=8; render(); ok(!/data-inv="sdd"[^>]*>[\s\S]{0,80}需要去過/.test(els.app.innerHTML)&&A.invLock('sdd',undefined,2)==='','SDD Lv2 按鈕不寫需要去過研討會');}
+
   /* 批次派工 */
   newRun('laravel','parallel'); S.hours=8; S.slots=3; S.presets=presetsOf(DEFAULT_PRESETS);
   render(); ok(!els.app.innerHTML.includes('data-act="batch"'),'沒做 skills 不顯示批次派工');
@@ -644,6 +675,11 @@ function tests(){
   ok(S.jobs.map(j=>j.issue).join()===[oC,oB].join()&&S.jobs[0].issue===oC&&S.jobs[1].issue===oB&&!oA.running,'批次派工順序：期限早的先，同期限 KPI 高的先（C、B，A 等下一輪）');
   newRun('laravel'); S.inv.skills=true; S.hours=.5; const slow=ticket('fe',2); S.issues=[slow]; batch();
   ok(S.issues.includes(slow)&&near(S.hours,.5),'單線模式工時不夠時批次派工停下來');
+  /* 單線批次派工照方案自己的推理強度估工時（不是派工台目前的選擇） */
+  newRun('laravel'); S.advanced=true; S.inv.skills=true; sel.ef=1; const hiT=ticket('fe',2); S.issues=[hiT];
+  S.presets=presetsOf(DEFAULT_PRESETS).map((p,i)=>i?p:{...p,ef:2}); const midH=est(hiT,'deepseek','chat',1,1).hrs; S.hours=midH*1.2; batch();
+  ok(S.issues.includes(hiT)&&!S.log.some(l=>l.msg.startsWith('D01 → 派出'))&&near(S.hours,midH*1.2),'單線批次派工：方案 A 高強度估的工時放不下就停下來（派工台選中強度也一樣）');
+  S.advanced=false;
   newRun('laravel','parallel'); S.inv.skills=true; S.hours=8; S.presets=DEFAULT_PRESETS.map(p=>({...p,v:'deepseek',m:'chat',b:'api'}));
   const gov=ticket('fe',1,{client:CLIENTS[3]}), okT=ticket('fe',1); S.issues=[gov,okT]; batch();
   ok(gov.running!==true&&okT.running===true&&S.log.some(l=>l.msg.includes('派出 1 張，略過 1 張')),'沒有可用方案的工單被略過');
@@ -906,8 +942,8 @@ function tests(){
   /* reasoning-effort：派工方案存推理強度 */
   const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   ok(DEFAULT_PRESETS.every(p=>p.ef===1),'預設方案都是中強度');
-  S.presets[0]={v:'anthropic',m:'sonnet',b:'corp',rv:1}; fresh(); ok(same(S.presets[0],{v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:1}),'沒有推理強度的方案保留並補成中');
-  S.presets[0]={v:'anthropic',m:'haiku',b:'sub',rv:0,ef:2}; start(); ok(same(S.presets[0],{v:'anthropic',m:'haiku',b:'sub',rv:0,ef:2}),'再玩一個月沿用高強度方案 A');
+  S.presets[0]={v:'anthropic',m:'sonnet',b:'corp',rv:1}; fresh(); ok(same(S.presets[0],{v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:1,sdd:2}),'沒有推理強度的方案保留並補成中、SDD 補成 2');
+  S.presets[0]={v:'anthropic',m:'haiku',b:'sub',rv:0,ef:2,sdd:1}; start(); ok(same(S.presets[0],{v:'anthropic',m:'haiku',b:'sub',rv:0,ef:2,sdd:1}),'再玩一個月沿用高強度、SDD 1 的方案 A');
   S.presets[0]={v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:7}; fresh(); ok(same(S.presets,DEFAULT_PRESETS),'推理強度不合法時三組退回預設');
   newRun('laravel'); S.hours=8; const tp=ticket('laravel',4); S.issues=[tp]; sel.issue=tp.id;
   Object.assign(sel,{v:'google',m:'pro',b:'corp',rv:0,ef:2}); savePreset(1); ok(S.presets[1].ef===2,'存成方案記下推理強度');
@@ -922,6 +958,74 @@ function tests(){
   S.presets=[{v:'anthropic',m:'sonnet',b:'corp',rv:0,ef:2},...DEFAULT_PRESETS.slice(1)].map(p=>({...p}));
   ok(quick(tq.id)&&S.log.some(l=>l.msg.includes('Sonnet'))&&!S.log.some(l=>l.msg.includes('強度')),'一般模式一鍵派工用存了高強度的方案，照中強度派工');
   S.advanced=false;
+  }
+
+  {
+  /* ===== 派工台的 SDD 選項與派工方案（gh-33-01-sdd-levels） ===== */
+  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+  const clickApp=ds=>els.app.on.click({target:{closest:()=>({dataset:ds,disabled:false})}});
+  const panel=()=>{render(); return els.app.innerHTML;};
+  newRun('laravel'); S.hours=8; const t2=ticket('laravel',2); S.issues=[t2]; sel.issue=t2.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0});
+  ok(sel.sdd===2,'新局 SDD 選擇是 2（已買的最高級）');
+  let h=panel(); ok(!h.includes('開發流程')&&!h.includes('data-sdd'),'沒買 SDD：派工台沒有開發流程');
+  S.inv.sdd=1; h=panel();
+  ok(h.includes('開發流程')&&/data-sdd="0"/.test(h)&&/class="sb sel" data-sdd="1"/.test(h)&&!h.includes('data-sdd="2"'),'買了 Lv1：不用、markdown，亮 markdown');
+  S.inv.sdd=2; h=panel(); ok(/class="sb sel" data-sdd="2"/.test(h)&&h.includes('框架（Lv2）'),'買了 Lv2：三個按鈕，亮框架');
+  ok(/data-sdd="2">框架（Lv2）<small>token ×1\.2・≥3 成功率 \+15%・陷阱燒 5%/.test(h)&&/data-sdd="0">不用<small>陷阱燒 40%/.test(h),'SDD 按鈕寫出 token、成功率、陷阱燒的比例');
+  S.inv.sdd=1; const off0=est(t2,'anthropic','sonnet',0,1,0);
+  clickApp({sdd:'0'}); h=panel();
+  ok(sel.sdd===0&&/class="sb sel" data-sdd="0"/.test(h)&&!/SDD markdown：/.test(h),'點不用：亮不用，提示不寫 SDD');
+  ok(near(est(t2,'anthropic','sonnet',0).tk,off0.tk)&&near(off0.tk,est(t2,'anthropic','sonnet',0,1,0).tk),'點不用：預估 token 等於沒有 SDD');
+  S.jobs=[]; const j0=makeJob(t2); ok(j0.sdd===0,'點不用：派出去的 job 套 0 級');
+  clickApp({sdd:'1'}); h=panel(); ok(/SDD markdown：token ×1\.1/.test(h),'選 markdown：提示寫 SDD markdown token ×1.1');
+  S.inv.sdd=2; h=panel(); ok(sel.sdd===1&&/class="sb sel" data-sdd="1"/.test(h)&&makeJob(t2).sdd===1,'先選 Lv1 再買 Lv2：還是亮 markdown、派工套 1 級');
+  sel.sdd=0; start(); S.inv.sdd=1; S.issues=[t2]; sel.issue=t2.id; h=panel(); ok(sel.sdd===2&&/class="sb sel" data-sdd="1"/.test(h),'這局選不用，下一局重設：買 Lv1 後亮 markdown');
+
+  /* 派工方案：預設、存檔、載入、不夠就降級 */
+  ok(same(DEFAULT_PRESETS.map(p=>p.sdd),[0,2,2]),'預設方案 SDD：A 不用、B／C 2');
+  S.presets[0]={v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:1,sdd:3}; fresh(); ok(same(S.presets,DEFAULT_PRESETS),'方案 SDD 等級 3 不合法：三組退回預設');
+  newRun('laravel'); S.hours=8; S.inv.sdd=1; const t3=ticket('laravel',3); S.issues=[t3]; sel.issue=t3.id;
+  Object.assign(sel,{v:'google',m:'pro',b:'corp',rv:0,ef:2,sdd:0}); savePreset(1); ok(same(S.presets[1],{v:'google',m:'pro',b:'corp',rv:0,ef:2,sdd:0}),'存成方案 B 記下 SDD 0');
+  sel.sdd=2; loadPreset(1); ok(sel.sdd===0,'載入方案 B 帶回 SDD 0');
+  S.presets=presetsOf(DEFAULT_PRESETS); h=panel();
+  ok(/載入方案 A<small>[^<]*・SDD 不用</.test(h)&&/載入方案 B<small>[^<]*・SDD markdown</.test(h)&&/載入方案 C<small>[^<]*・SDD markdown</.test(h),'買了 Lv1：載入按鈕 A 寫 SDD 不用、B／C 寫 SDD markdown');
+  S.inv.sdd=0; h=panel(); ok(!/載入方案 [ABC]<small>[^<]*SDD/.test(h),'沒買 SDD：載入按鈕不寫 SDD');
+  S.inv.sdd=1; S.presets=[{v:'deepseek',m:'chat',b:'nope'},{v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:1,sdd:2},DEFAULT_PRESETS[2]].map(p=>({...p}));
+  S.presets[0]={...DEFAULT_PRESETS[0],v:'anthropic',m:'sonnet',b:'seat'}; // A 沒有席位不能用
+  const r=presetFor(t3); ok(r.i===1,'方案 B 要 SDD 2、只買 Lv1：不略過',JSON.stringify(r));
+  ok(presetBlock(t3,S.presets[1])===''&&quick(t3.id)&&S.log.some(l=>l.msg.includes('一鍵派工方案 B')),'一鍵派工用方案 B');
+  ok(sel.sdd===2&&S.log.some(l=>/一鍵派工方案 B/.test(l.msg)&&l.msg.includes('SDD markdown')),'方案 B 要 SDD 2：派工套已買的 Lv1（紀錄寫 SDD markdown）');
+  S.presets=presetsOf(DEFAULT_PRESETS); sel.sdd=2;
+
+  /* 紀錄與 GA 的 SDD 等級 */
+  {const ge=[]; globalThis.gtag=(k,n,p)=>ge.push({n,p});
+  for(const [own,req,want,seg] of [[0,2,'none',''],[1,2,'md','・SDD markdown'],[2,2,'framework','・SDD 框架'],[2,0,'none','']]){
+    newRun('laravel','parallel'); S.hours=8; S.slots=3; S.inv.sdd=own; const tx=ticket('laravel',2); S.issues=[tx];
+    Object.assign(sel,{issue:tx.id,v:'anthropic',m:'sonnet',b:'corp',rv:1,sdd:req}); ge.length=0; dispatch();
+    const d=ge.find(e=>e.n==='dispatch');
+    ok(d&&d.p.sdd===want,`play-analytics：買 ${own} 級、選 ${req} → dispatch sdd ${want}`,JSON.stringify(d?.p));
+    ok(S.log.some(l=>l.msg.includes(`｜Claude Code / Sonnet・公司 API・自審${seg}｜成功率`)),`action-log：買 ${own} 級、選 ${req} 的派工行選項段落`,S.log.map(l=>l.msg).join('\n'));
+    if(own===0) ok(d.p.vendor==='anthropic'&&d.p.model==='sonnet'&&d.p.bill==='corp'&&d.p.review==='self'&&d.p.effort==='mid'&&d.p.via==='panel'&&d.p.preset==='none'&&d.p.cx===2&&d.p.stack==='laravel','play-analytics：派工台派工（沒買 SDD）');
+  }
+  newRun('laravel'); S.inv.sdd=2; const tf=ticket('laravel',2); S.issues=[tf]; Object.assign(sel,{issue:tf.id,v:'anthropic',m:'sonnet',b:'corp',rv:0,sdd:2});
+  ge.length=0; settle(makeJob(tf)); ok(ge.find(e=>e.n==='job_result')?.p.sdd==='framework','play-analytics：套 2 級的 job_result sdd framework');
+  ge.length=0; settle({...makeJob(tf),sdd:true}); ok(ge.find(e=>e.n==='job_result')?.p.sdd==='md','play-analytics：舊 job（sdd true）的 job_result sdd md');
+  ge.length=0; settle({...makeJob(tf),sdd:false}); ok(ge.find(e=>e.n==='job_result')?.p.sdd==='none','play-analytics：舊 job（sdd false）的 job_result sdd none');
+  {const tp=ticket('laravel',1,{trap:true,trueCx:5,trueBase:BASE[5],revealed:false,evaluated:false}); S.issues=[tp]; Object.assign(sel,{issue:tp.id,v:'deepseek',m:'chat',b:'api',rv:0,sdd:0});
+   const jj=makeJob(tp); ok(jj.stop,'舊 job 陷阱測試：DeepSeek 碰到真實複雜度 5 的陷阱會停');
+   settle({...jj,sdd:true}); ok(S.log[0].msg.includes('寫規格時就發現牽扯整個架構'),'舊 job（sdd true）陷阱停下的紀錄是 Lv1 的',S.log[0].msg);}
+
+  /* 舊存檔：沒有 sel.sdd、job 的 sdd 是布林 */
+  newRun('laravel','parallel'); S.inv.sdd=true; const to=ticket('laravel',2,{running:true}); S.issues=[to];
+  Object.assign(sel,{issue:to.id,v:'anthropic',m:'sonnet',b:'corp',rv:0});
+  S.jobs=[{issue:to,v:'anthropic',m:'sonnet',ef:1,b:'corp',M:model('anthropic','sonnet'),rv:0,tk:100,hrs:3,ok:true,caught:false,left:2,hidden:false,stop:false,sdd:true,research:false}];
+  const oldSel={...sel}; delete oldSel.sdd;
+  resetStore({[St.SAVE_KEY]:JSON.stringify({ver:St.SAVE_VER,S,sel:oldSel,uid:900,morning:null})});
+  const rd=St.readSave(); ok(rd&&!rd.bad,'save-game：沒有 SDD 選擇、job sdd 是布林的舊存檔沒有被丟掉');
+  St.loadGame(rd); render();
+  ok(St.sel.sdd===2&&/class="sb sel" data-sdd="1"/.test(els.app.innerHTML),'save-game：讀檔後 SDD 選擇補成 2，派工台亮 markdown',St.sel.sdd);
+  ge.length=0; settle(S.jobs[0]); ok(ge.find(e=>e.n==='job_result')?.p.sdd==='md','save-game：讀檔後舊 job 結算送 sdd md');
+  resetStore(); delete globalThis.gtag;}
   }
 
   const R0=Math.random;
@@ -2109,6 +2213,10 @@ function tests(){
   /* 規則 modal */
   {const h=Ru.rulesTab('invest'), D2=dataModule;
    ok(D2.CONF_KEYS.every(k=>h.includes(D2.CONF[k].name)&&h.includes(`NT$${D2.CONF[k].fee.toLocaleString('en-US')}`))&&h.includes('×0.8')&&h.includes('+8%')&&h.includes('單元測試 Lv2')&&h.includes('×0.25')&&h.includes('≤3')&&h.includes('+15%')&&h.includes('+20%'),'rules-reference：投資與電腦列出十場研討會、手寫 0.8、Lv2 與 agent 能力 8%');
+   ok(/導入 SDD Lv2<\/td><td[^>]*>1h<\/td><td[^>]*>NT\$200<\/td><td[^>]*>[^<]*Spectra／OpenSpec／Spec Kit[^<]*token ×1\.2[^<]*\+15%[^<]*5%/.test(h)&&/導入 SDD<\/td><td[^>]*>6h<\/td><td[^>]*>NT\$500<\/td><td[^>]*>[^<]*markdown[^<]*token ×1\.1[^<]*\+8%/.test(h)&&h.includes('導入 SDD Lv2 不用研討會'),'rules-reference：投資與電腦列出 SDD 兩級、Lv2 1h NT$200 不用研討會',h.match(/導入 SDD[^]*?<\/tr>/g)?.join(' | '));
+   const hd=Ru.rulesTab('dispatch'), ht=Ru.rulesTab('tickets');
+   ok(hd.includes('開發流程')&&hd.includes('每張單選 SDD')&&hd.includes('已買的最高級'),'rules-reference：派工與成功率寫出每張單選 SDD 與方案降級');
+   ok(ht.includes('40%')&&ht.includes('markdown 只燒 15%')&&ht.includes('框架 只燒 5%'),'rules-reference：工單與陷阱寫出 SDD 各級陷阱燒的比例');
    ok(Ru.rulesTab('score').includes('研討會報名費'),'rules-reference：個人花費包含研討會報名費');}
   globalThis.gtag=g0;
   }

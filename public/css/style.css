@@ -129,6 +129,7 @@ button:disabled{cursor:not-allowed;opacity:.42}
 .mb span{font:400 10px var(--mono);color:var(--muted)}
 .mb.sel{border-color:var(--vc);box-shadow:0 0 0 1px var(--vc);background:var(--card)}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
+.seglbl{align-self:center;font-size:12px;font-weight:600;color:var(--muted);min-width:2.6em}
 .sb{border:1px solid var(--line);background:var(--paper);border-radius:5px;padding:6px 10px;font-size:13px;display:flex;flex-direction:column;align-items:flex-start;line-height:1.2}
 .sb small{font-size:10px;color:var(--muted)}
 .sb.sel{background:var(--ink);color:var(--card);border-color:var(--ink)}
