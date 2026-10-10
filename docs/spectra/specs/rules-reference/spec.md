@@ -36,7 +36,7 @@ The tabs SHALL cover, at minimum:
 - 派工與成功率: the success-rate table by ability minus complexity; the big-codebase adjustment; the self-review table; stack effects; presets and 一鍵派工.
 - 付費與稽核: the billing methods; company API daily limit and overdraft penalties; audit odds and penalty; team seats; client bans on Chinese models.
 - 工單與陷阱: complexity with base tokens and KPI; incident tickets; late penalties; unfamiliar stacks; traps, 評估架構 and 找主管重新評估; research tickets with their rate, direct-dispatch token premium, agent and self research costs and split table; outsourcing.
-- 投資與電腦: every engineering investment with its hours, cost and effect; every hardware purchase with its price text, trust threshold, delivery days and effect; the idle penalty.
+- 投資與電腦: every engineering investment with its hours, cost and effect, including the level 2 cost, effect and unlocking conference category where one exists; 提升 agent 能力 with its per-level effect and unlock rule; every domestic conference with its category, covered stacks and fee, the registration window, weekend attendance, the self-paid rule and the tech-stack conference effect; every hardware purchase with its price text, trust threshold, delivery days and effect; the idle penalty.
 - 結算: the score formula, grade thresholds for both modes, best score per mode and work content, and the day-start save.
 
 Lines that apply only to 平行模式, 進階模式 or 接外包 SHALL be labeled with that setting. All rules SHALL be shown regardless of the current run's settings.
@@ -60,6 +60,11 @@ Lines that apply only to 平行模式, 進階模式 or 接外包 SHALL be labele
 
 - **WHEN** the player selects 工單與陷阱
 - **THEN** the tab shows the research ticket rate 30%, the direct-dispatch premium ×4, agent research 40k tokens and 0.5h × model speed, self research 1.5h, and the splits 4 → 2＋3 and 5 → 3＋3
+
+#### Scenario: Conferences in the rules
+
+- **WHEN** the player opens 投資與電腦
+- **THEN** the tab lists all ten conferences with their fees from the game constants, the 0.8 hand-writing factor, the four level 2 effects and the 0.08 per level of 提升 agent 能力
 
 ---
 ### Requirement: Rule numbers come from game constants

@@ -146,7 +146,7 @@ code:
 ---
 ### Requirement: Unfamiliar stack hand-writing cost
 
-A ticket SHALL be unfamiliar when its stack is neither a selected stack nor fe. Writing an unfamiliar ticket by hand SHALL take twice the normal manual hours, and the manual button SHALL show the doubled hours. Ticket cards for unfamiliar tickets SHALL show a 不熟 chip.
+A ticket SHALL be unfamiliar when its stack is neither a selected stack, nor fe, nor a stack covered by an attended 技術線場 conference (see `engineering-investments`). Writing an unfamiliar ticket by hand SHALL take twice the normal manual hours, and the manual button SHALL show the doubled hours. Ticket cards for unfamiliar tickets SHALL show a 不熟 chip.
 
 #### Scenario: Manual hours doubled
 
@@ -155,28 +155,19 @@ A ticket SHALL be unfamiliar when its stack is neither a selected stack nor fe. 
 
 ##### Example: manual hours by familiarity
 
-| Selected stacks | Ticket stack | Complexity | Tries | Manual hours |
-| ------- | ------------ | ---------- | ----- | ------------ |
-| laravel | laravel | 2 | 0 | 4.4h |
-| laravel | fe | 2 | 0 | 4.4h |
-| laravel | rust | 2 | 0 | 8.8h |
-| app | rails | 3 | 1 | 10.6h |
-| laravel, rust | rust | 2 | 0 | 4.4h |
-| laravel, rust | app | 2 | 0 | 8.8h |
-| laravel | sre | 2 | 0 | 8.8h |
-| sre, devops | devops | 2 | 0 | 4.4h |
-
-
-<!-- @trace
-source: gh-18-01-work-roles-sre-devops
-updated: 2026-10-10
-code:
-  - public/js/data.js
-  - public/js/calc.js
-  - public/js/actions.js
-  - public/js/state.js
-  - public/js/modals.js
--->
+| Selected stacks | Attended conference | Ticket stack | Complexity | Tries | Manual hours |
+| ------- | ------- | ------------ | ---------- | ----- | ------------ |
+| laravel | none | laravel | 2 | 0 | 4.4h |
+| laravel | none | fe | 2 | 0 | 4.4h |
+| laravel | none | rust | 2 | 0 | 8.8h |
+| app | none | rails | 3 | 1 | 10.6h |
+| laravel, rust | none | rust | 2 | 0 | 4.4h |
+| laravel, rust | none | app | 2 | 0 | 8.8h |
+| laravel | none | sre | 2 | 0 | 8.8h |
+| sre, devops | none | devops | 2 | 0 | 4.4h |
+| laravel | COSCUP | rust | 2 | 0 | 3.5h |
+| laravel | WebConf Taiwan | laravel | 2 | 0 | 3.5h |
+| laravel | HITCON | rust | 2 | 0 | 8.8h |
 
 ---
 ### Requirement: Best score per mode and company
