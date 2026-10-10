@@ -1,7 +1,7 @@
-import {RESEARCH_DIRECT_TK,SKILLS_CX,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
+import {RESEARCH_DIRECT_TK,SKILLS_CX,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
-import {REVIEW,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetFor,quotaLeft,stackHint} from './calc.js';
-import {INV_STACKS,PAR,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
+import {REVIEW,sddLevel,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetFor,quotaLeft,stackHint} from './calc.js';
+import {INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
 
 /* ===== 畫面 ===== */
 /* 背景 agent 的兩段式中止：第一次點只是待確認，記住是哪張單（不進存檔） */
@@ -74,6 +74,13 @@ export function render(){
     <div class="log">${S.log.map(l=>`<p class="${l.cls}">${l.msg}</p>`).join('')||'<p class="dim">還沒有紀錄。點左邊一張工單開始派工。</p>'}</div>
     <small style="color:var(--muted);font-size:12px">價格、額度與模型能力都是遊戲平衡用的虛構數字，不代表各家實際方案。</small>
   </section>`;
+}
+/* 開發流程：買了 SDD 才顯示；只列已買的等級，亮的是這次會套用的等級 */
+export function sddRow(){
+  const own=lv(S.inv.sdd); if(!own) return '';
+  const cur=sddLevel(), pc=x=>`${Math.round(x*100)}%`;
+  const b=L=>`<button class="sb ${cur===L?'sel':''}" data-sdd="${L}">${L?`${SDD_NAME[L]}（Lv${L}）`:SDD_NAME[0]}<small>${L?`token ×${SDD_TK[L]}・≥3 成功率 +${pc(SDD_P[L])}・陷阱燒 ${pc(SDD_TRAP_STOP[L])}`:`陷阱燒 ${pc(TRAP_STOP)}`}</small></button>`;
+  return `<div class="sec"><label>開發流程</label><div class="seg"><span class="seglbl">SDD</span>${[0,1,2].filter(L=>L<=own).map(b).join('')}</div></div>`;
 }
 /* 工單卡片上的一鍵派工按鈕：顯示會用哪個方案、前面的方案為什麼不能用 */
 export function quickBtn(is){
@@ -158,7 +165,8 @@ export function dispatchPanel(){
   <div class="sec"><label>誰付這筆 TOKEN</label><div class="seg">${segs}</div>${S.seats.length&&!S.seats.includes(sel.v)?`<p class="hint">你有 ${S.seats.map(v=>VENDORS[v].name).join('、')} 團隊席位，選 ${S.seats.map(v=>VENDORS[v].agent).join('、')} 的模型才能用公司席位付款。</p>`:''}</div>
   <div class="sec"><label>自我審核</label><div class="seg">${REVIEW.map((r,i)=>`<button class="sb ${sel.rv===i?'sel':''}" data-rv="${i}">${r.name}<small>${i?`token ×${r.tk}・抓錯 ${Math.round(catchRate(i,M)*100)}%`:'改壞就整單重做'}</small></button>`).join('')}</div></div>
   ${S.advanced?`<div class="sec"><label>推理強度</label><div class="seg">${EFFORT.map((f,i)=>`<button class="sb ${sel.ef===i?'sel':''}" data-ef="${i}">${f.name}<small>${f.cap?`能力 ${f.cap>0?'+':'−'}${Math.abs(f.cap)}・token ×${f.tk}・時間 ×${f.hrs}`:'原本的模型'}</small></button>`).join('')}</div></div>`:''}
-  <div class="sec"><label>派工方案</label><div class="seg">${S.presets.map((p,i)=>`<button class="sb" data-load="${i}">載入方案 ${PN[i]}<small>${model(p.v,p.m).name}${S.advanced&&p.ef!==1?`・${EFFORT[p.ef].name}強度`:''}・${BILL_LABEL[p.b]}・${REVIEW[p.rv].name}</small></button>`).join('')}</div>
+  ${sddRow()}
+  <div class="sec"><label>派工方案</label><div class="seg">${S.presets.map((p,i)=>`<button class="sb" data-load="${i}">載入方案 ${PN[i]}<small>${model(p.v,p.m).name}${S.advanced&&p.ef!==1?`・${EFFORT[p.ef].name}強度`:''}・${BILL_LABEL[p.b]}・${REVIEW[p.rv].name}${lv(S.inv.sdd)?`・SDD ${SDD_NAME[sddLevel(p.sdd)]}`:''}</small></button>`).join('')}</div>
     <div class="seg">${PN.map((n,i)=>`<button class="sb" data-save="${i}">存成方案 ${n}<small>用上面的選擇</small></button>`).join('')}</div></div>
   <div class="est">
     <div><label>預估 tokens</label><b>${kt(e.lo)}–${kt(e.hi)}</b></div>

@@ -7,6 +7,8 @@
 // SIM_INVEST=2 再加買上架自動化（有選 App 才買）、監控告警、secret scanning，量新投資的效果；SIM_INV_EXTRA=monitor,scan 之類可只加買指定的幾項（fastlane、monitor、scan），拿來逐項量。
 // SIM_CONF=1 讓自動玩家去國內研討會（要搭配 SIM_INVEST）：第 1、6、11 天報名第一個付得起的場次（涵蓋第一條主技術線的技術線場、台灣人工智慧年會、HWDC、HITCON、其他），
 // 每天先買開放了的 Lv2（已買 Lv1 的 CLAUDE.md、單元測試、secret scanning、做 skills）和下一級提升 agent 能力，再買 SIM_INVEST 的投資。
+// SIM_SDD2=1（要搭配 SIM_INVEST）讓自動玩家在 SIM_INVEST 的投資都買完、已有導入 SDD Lv1 之後，買 SDD 框架（Lv2）。
+// SIM_SDD_PICK=1 讓自動玩家每張單選 SDD：顯示複雜度 ≤2 選不用，其他選已買的最高級。沒開時自動玩家不動 SDD 選擇（一律已買的最高級）。
 // SIM_OUTSOURCE=1 開啟接外包：外包單一律走個人 API（能用 DeepSeek 就用，否則 Sonnet）。
 // SIM_EFFORT=1 開啟進階模式：每張單看選到模型的原始能力減顯示複雜度，≤ −1 用高強度、≥ 2 用低強度、其他用中。
 // SIM_SEATS=1..3 量團隊席位的上限：在第 6、11、16 天依序直接給 Anthropic、OpenAI、Google 席位（不經申請與信任審核，當作信任一直夠），給到指定個數；
@@ -48,6 +50,7 @@ const INV=['1','2'].includes(process.env.SIM_INVEST)?+process.env.SIM_INVEST:0;
 const EXTRA=(process.env.SIM_INV_EXTRA||'fastlane,monitor,scan').split(',');
 if(!EXTRA.every(k=>['fastlane','monitor','scan'].includes(k))){ console.error(`SIM_INV_EXTRA 只能是 fastlane、monitor、scan，收到「${process.env.SIM_INV_EXTRA}」`); process.exit(1); }
 const CONFSIM=process.env.SIM_CONF==='1';
+const SDD2=process.env.SIM_SDD2==='1', SDD_PICK=process.env.SIM_SDD_PICK==='1';
 if(CONFSIM&&!INV){ console.error('SIM_CONF 要搭配 SIM_INVEST=1 或 2'); process.exit(1); }
 const COMBOS=process.env.SIM_COMBOS==='1';
 const OUT=process.env.SIM_OUTSOURCE==='1';
@@ -116,12 +119,14 @@ function sim(){
               ...(INV===2?EXTRA.filter(k=>k!=='fastlane'||S.companies.includes('app')).map(k=>[k]):[])];
             const next=list.find(([k,st])=>!(k==='md'?S.inv.md[st]:S.inv[k]));
             if(next) invest(...next);
+            else if(SDD2&&invLevel('sdd')===1&&!investBlock('sdd')) invest('sdd');
           }
           let acted=true;
           while(acted){acted=false;
             const free=S.issues.filter(i=>!i.running&&!skip.has(i.id)&&!(UPG_STOP&&i.out&&S.subs.openai==='pro500'));
             if(free.length&&S.hours>.3&&(!PAR()||S.jobs.length<S.slots)){
               sel.issue=free[0].id; sel.rv=g%3;
+              if(SDD_PICK) sel.sdd=free[0].cx<=2?0:2;
               const dsOk=!cnBlock(free[0],'deepseek',model('deepseek','chat'));
               const seatV=SEATS&&!free[0].out?S.seats.find(v=>quotaLeft('seat',v)>300):undefined;
               const alt=LUNA?['openai','mini']:['anthropic',HAIKU?'haiku':'sonnet'];

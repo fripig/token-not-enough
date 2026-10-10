@@ -140,10 +140,15 @@ export const planOf=v=>VENDORS[v].plans.find(p=>p.id===S.subs[v])||{id:'none',pr
 
 /* 派工方案：三組常用的廠商／模型／付費方式／審核等級／推理強度，一鍵派工照 A→B→C 用第一個能用的 */
 export const PN=['A','B','C'];
-export const DEFAULT_PRESETS=[{v:'deepseek',m:'chat',b:'api',rv:1,ef:1},{v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:1},{v:'anthropic',m:'opus',b:'corp',rv:2,ef:1}];
+export const DEFAULT_PRESETS=[{v:'deepseek',m:'chat',b:'api',rv:1,ef:1,sdd:0},{v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:1,sdd:2},{v:'anthropic',m:'opus',b:'corp',rv:2,ef:1,sdd:2}];
 export const BILL_LABEL={sub:'個人訂閱',seat:'公司席位',api:'個人 API',corp:'公司 API',local:'本地 GPU'};
-export const validPreset=p=>!!(p&&VENDORS[p.v]&&model(p.v,p.m)&&BILL_LABEL[p.b]&&(p.v==='local')===(p.b==='local')&&[0,1,2].includes(p.rv)&&(p.ef===undefined||[0,1,2].includes(p.ef)));
-export const presetsOf=ps=>(Array.isArray(ps)&&ps.length===3&&ps.every(validPreset)?ps:DEFAULT_PRESETS).map(p=>({...p,ef:p.ef??1}));
+export const validPreset=p=>!!(p&&VENDORS[p.v]&&model(p.v,p.m)&&BILL_LABEL[p.b]&&(p.v==='local')===(p.b==='local')&&[0,1,2].includes(p.rv)&&(p.ef===undefined||[0,1,2].includes(p.ef))&&(p.sdd===undefined||[0,1,2].includes(p.sdd)));
+/* 舊方案沒有推理強度補成中、沒有 SDD 等級補成 2（用已買的最高級） */
+export const presetsOf=ps=>(Array.isArray(ps)&&ps.length===3&&ps.every(validPreset)?ps:DEFAULT_PRESETS).map(p=>({...p,ef:p.ef??1,sdd:p.sdd??2}));
+
+/* 導入 SDD 依套用的等級查表（0 不用、1 markdown、2 框架）；陷阱停下的比例在 0 級時用 TRAP_STOP */
+export const SDD_TK=[1,1.1,1.2], SDD_P=[0,.08,.15], SDD_TRAP_STOP=[0,.15,.05], SDD_NAME=['不用','markdown','框架'];
+export const sddDesc=L=>`token ×${SDD_TK[L]}；複雜度 3 以上成功率 +${Math.round(SDD_P[L]*100)}%；陷阱只燒 ${Math.round(SDD_TRAP_STOP[L]*100)}%`;
 
 /* 工程投資：花工時和公司預算，效果維持到月底 */
 export const INVEST={
@@ -156,13 +161,13 @@ export const INVEST={
   monitor:{name:'監控告警',hrs:3,cost:400,desc:'之後的事故單提早告警：期限延到隔天，但 KPI 加成 ×1.6 → ×1.2；事故單逾期扣信任 8 → 4'},
   skills:{name:'做 skills',hrs:3,cost:400,desc:'解鎖批次派工：一次派出所有複雜度 ≤2 的工單',lv2:{hrs:1,cost:200,desc:'批次派工到複雜度 ≤3（去過 AI 場）'}},
   mcp:{name:'接 MCP 文件',hrs:3,cost:400,desc:'評估架構識破率 +20%、評估時間減半'},
-  sdd:{name:'導入 SDD',hrs:6,cost:500,desc:'先寫規格再派工：每次派工 token ×1.1；複雜度 3 以上成功率 +8%；陷阱在寫規格時就會發現，只燒 15%'},
+  sdd:{name:'導入 SDD',hrs:6,cost:500,desc:`先用 markdown 寫規格再派工（例如 Superpowers）：${sddDesc(1)}；派工台每張單可以選不用`,lv2:{hrs:1,cost:200,desc:`改用 SDD 框架（Spectra／OpenSpec／Spec Kit）：${sddDesc(2)}（不用研討會）`}},
   ai:{name:'提升 agent 能力',hrs:1,cost:200,desc:'每級所有派工成功率 +8%，最多 3 級；去過 N 場研討會才能買第 N 級'},
 };
 /* CLAUDE.md 以外的投資，面板照這個順序 */
 export const INV_KEYS=['tests','ci','hook','scan','fastlane','monitor','skills','mcp','sdd','ai'];
 /* 有 Lv2 的投資：數值依等級查表（0 沒買、1、2） */
-export const MD_TK=.85, MD_P=[0,.06,.15], TEST_CATCH=[0,.1,.2], MCP_REVEAL=.2, MCP_EVAL_HRS=.5, SDD_TK=1.1, SDD_P=.08, SDD_TRAP_STOP=.15;
+export const MD_TK=.85, MD_P=[0,.06,.15], TEST_CATCH=[0,.1,.2], MCP_REVEAL=.2, MCP_EVAL_HRS=.5;
 export const HOOK_PR=.5, SCAN_AUDIT=[1,.5,.25], SKILLS_CX=[0,2,3], FASTLANE_REJECT=.1, MONITOR_LATE=4, MONITOR_KPI=1.2;
 /* 國內研討會：週末自費參加。票價是 2026-10-10 查到的一般票，查不到的用往年或估計（見 DESIGN.md） */
 export const CONF_CATS={stack:'技術線場',sec:'資安場',ai:'AI 場',gen:'綜合場'};

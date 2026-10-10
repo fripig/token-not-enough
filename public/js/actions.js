@@ -1,6 +1,6 @@
-import {RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
+import {RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
 import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardStack,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks} from './state.js';
-import {REVIEW,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
+import {REVIEW,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
 import {render} from './view.js';
 import {showDay,showEnd} from './modals.js';
 
@@ -11,19 +11,22 @@ export const SLOT_CHOICES=[2,3,4,5,6];
 export const clock=el=>{const m=Math.round((9+el)*60);return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;};
 /* 還沒曝光的陷阱題照真實複雜度跑；模型能力不夠就做到一半停下來 */
 export const TRAP_STOP=.4;
+/* 陷阱停下來的紀錄，依套用的 SDD 等級 */
+export const TRAP_NOTE=['做到一半發現牽扯整個架構，先停下來','寫規格時就發現牽扯整個架構，先停下來','跑框架流程時就發現牽扯整個架構，先停下來'];
 export const hiddenTrap=is=>is.trap&&!is.revealed;
 export const trueView=is=>hiddenTrap(is)?{...is,cx:is.trueCx,base:is.trueBase}:is;
 export function reveal(is){ if(!hiddenTrap(is)) return; is.shownCx=is.cx; is.cx=is.trueCx; is.base=is.trueBase; is.revealed=true; }
 export function makeJob(is){
   const hidden=hiddenTrap(is), e=est(trueView(is),sel.v,sel.m);
-  const stop=hidden&&e.M.cap<is.trueCx, f=stop?(S.inv.sdd?SDD_TRAP_STOP:TRAP_STOP):1;
+  const sdd=sddLevel(), stop=hidden&&e.M.cap<is.trueCx, f=stop?(sdd?SDD_TRAP_STOP[sdd]:TRAP_STOP):1;
   const ok=!stop&&Math.random()<e.p, tk=e.tk*f*R(.7,1.3), n=R(.8,1.2);
   /* shownHrs：畫面與紀錄看到的預估，陷阱曝光前照顯示的複雜度算，才不會從時間看出陷阱；實際跑 hrs */
-  return {issue:is,v:sel.v,m:sel.m,ef:efOf(sel.ef),b:sel.b,M:e.M,rv:sel.rv,tk,hrs:e.hrs*f*n,shownHrs:(hidden?est(is,sel.v,sel.m).hrs:e.hrs*f)*n,ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd:S.inv.sdd,research:!!is.research};
+  return {issue:is,v:sel.v,m:sel.m,ef:efOf(sel.ef),b:sel.b,M:e.M,rv:sel.rv,tk,hrs:e.hrs*f*n,shownHrs:(hidden?est(is,sel.v,sel.m).hrs:e.hrs*f)*n,ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd,research:!!is.research};
 }
-/* GA：派工與結果共用的選擇參數；舊存檔的 job 沒有 m、ef */
+/* GA：派工與結果共用的選擇參數；舊存檔的 job 沒有 m、ef，sdd 是布林 */
 export const RV_ID=['none','self','strict'];
-export const jobChoice=j=>({vendor:j.v,model:j.m??'unknown',bill:j.b,review:RV_ID[j.rv],effort:EFFORT[j.ef??1].id});
+export const SDD_ID=['none','md','framework'];
+export const jobChoice=j=>({vendor:j.v,model:j.m??'unknown',bill:j.b,review:RV_ID[j.rv],effort:EFFORT[j.ef??1].id,sdd:SDD_ID[lv(j.sdd)]});
 /* 目前選的付費方式能不能用（錢包見底、沒訂閱、外包不能用公司資源等，同派工台的按鈕） */
 export const billOk=is=>bills(sel.v,is).some(b=>b.id===sel.b&&b.ok);
 /* via：panel（派工按鈕）、quick（一鍵派工）、batch（批次派工）；preset 是方案字母 */
@@ -36,7 +39,7 @@ export function dispatch(via='panel',preset='none'){
   /* 復盤用：記下派工當下看到的條件（成功率是派工台顯示的，陷阱照顯示的複雜度） */
   const tags=[`複雜度 ${is.cx}`,is.due<=S.day?'今天到期':`第 ${is.due} 天到期`,...(is.inc?['事故']:[]),...(is.sens?['機敏']:[]),...(is.out?['外包']:[]),...(is.research?['需研究']:[])].join('・');
   const how=via==='quick'?`一鍵派工方案 ${preset}`:via==='batch'?`批次派工方案 ${preset}`:'派工台';
-  log('dim',`→ 派出 ${is.title}（${tags}）｜${VENDORS[j.v].agent} / ${j.M.name}・${BILL_LABEL[j.b]}・${REVIEW[j.rv].name}｜成功率 ${Math.round(pe*100)}%｜${how}｜預計 ${h1(j.shownHrs)}h`);
+  log('dim',`→ 派出 ${is.title}（${tags}）｜${VENDORS[j.v].agent} / ${j.M.name}・${BILL_LABEL[j.b]}・${REVIEW[j.rv].name}${j.sdd?`・SDD ${SDD_NAME[j.sdd]}`:''}｜成功率 ${Math.round(pe*100)}%｜${how}｜預計 ${h1(j.shownHrs)}h`);
   if(PAR()){
     j.left=j.hrs; is.running=true; S.jobs.push(j); sel.issue=null;
     advance(.2); render(); return;
@@ -58,7 +61,7 @@ export function quick(id,via='quick'){
 }
 export const loadPreset=i=>Object.assign(sel,S.presets[i]);
 export function savePreset(i){
-  S.presets[i]={v:sel.v,m:sel.m,b:sel.b,rv:sel.rv,ef:sel.ef};
+  S.presets[i]={v:sel.v,m:sel.m,b:sel.b,rv:sel.rv,ef:sel.ef,sdd:sel.sdd??2};
   log('dim',`· 存成方案 ${PN[i]}：${VENDORS[sel.v].agent} / ${effModel(model(sel.v,sel.m),efOf(sel.ef)).name}・${BILL_LABEL[sel.b]}・${REVIEW[sel.rv].name}`);
 }
 /* 平行模式：推進時鐘，背景 agent 跑完就結算，成功的要花時間審 PR */
@@ -130,7 +133,7 @@ export function settle(j,o={}){
   let tk=j.tk*frac, hrs=j.hrs*frac, ok=j.ok&&!o.fail, note=o.note||'', spend='', conflict=false, fixed=false, rejected=false;
   if(!j.ok&&j.caught&&!o.fail){tk*=1.25;ok=true;fixed=true;}
   if(!j.ok&&!j.caught&&j.rv&&!o.fail) note='審核沒抓到，上線後測試才爆';
-  if(j.stop&&!o.fail) note=j.sdd?'寫規格時就發現牽扯整個架構，先停下來':'做到一半發現牽扯整個架構，先停下來';
+  if(j.stop&&!o.fail) note=TRAP_NOTE[lv(j.sdd)];
   const ch=charge(b,v,M,tk); spend=ch.spend;
   if(ch.short){ tk*=ch.frac; hrs=Math.max(.3,hrs*Math.max(.3,ch.frac)); ok=false; note=b==='api'?'錢包見底，agent 停在一半':'撞到用量上限，agent 停在一半'; }
   /* 解決衝突工單本身不會再衝突 */
@@ -278,7 +281,7 @@ export const invMax=k=>k==='ai'?AI_MAX:INVEST[k].lv2?2:1;
 export const invCost=(k,st)=>invLevel(k,st)>=1&&INVEST[k].lv2?INVEST[k].lv2:INVEST[k];
 export function invLock(k,st,L){
   if(k==='ai') return confCount()>=L?'':`需要去過 ${L} 場研討會`;
-  if(L<2) return '';
+  if(L<2||k==='sdd') return '';  // SDD 框架不用研討會
   if(k==='md') return confStacks().has(st)?'':`需要去過涵蓋 ${STACKS[st].name} 的技術線場`;
   const cat=Object.keys(CONF_LV2).find(c=>CONF_LV2[c]===k);
   return confCat(cat)?'':`需要去過${CONF_CATS[cat]}`;
@@ -362,7 +365,7 @@ export function batch(){
     if(!canQuick()) break;
     const {i}=presetFor(is);
     if(i<0){skip++;continue;}
-    if(!PAR()){const p=S.presets[i]; if(est(is,p.v,p.m,p.rv).hrs>S.hours) break;}
+    if(!PAR()){const p=S.presets[i]; if(est(is,p.v,p.m,p.rv,p.ef,p.sdd).hrs>S.hours) break;}
     if(quick(is.id,'batch')) n++; else skip++;
   }
   log('dim',`· 批次派工：派出 ${n} 張，略過 ${skip} 張`);
@@ -371,7 +374,7 @@ export const INV_STACKS=()=>[...S.companies,...COMPANIES.filter(k=>!S.companies.
 export function invHint(is){
   const out=[];
   if(S.inv.md[is.stack]) out.push(`${STACKS[is.stack].name} 有 CLAUDE.md：token ×${MD_TK}、成功率 +${Math.round(MD_P[lv(S.inv.md[is.stack])]*100)}%`);
-  if(S.inv.sdd) out.push(`SDD：token ×${SDD_TK}${is.cx>=3?`、成功率 +${Math.round(SDD_P*100)}%`:''}`);
+  const sd=sddLevel(); if(sd) out.push(`SDD ${SDD_NAME[sd]}：token ×${SDD_TK[sd]}${is.cx>=3?`、成功率 +${Math.round(SDD_P[sd]*100)}%`:''}`);
   if(S.inv.tests) out.push(`單元測試：抓錯率 +${Math.round(TEST_CATCH[lv(S.inv.tests)]*100)}%`);
   if(S.inv.ci&&PAR()) out.push('CI 流水線：合併衝突減半');
   if(S.inv.hook&&PAR()) out.push('pre-commit hook：審 PR 時間減半');

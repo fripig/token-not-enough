@@ -43,13 +43,15 @@ export const manualHrs=is=>is.cx*MANUAL_HRS*(is.tries?RETRY.hrs:1)*(unfamiliar(i
 /* 進階模式的推理強度套在模型上；能力超過工單的 token 折扣看原本的模型 */
 /* 成功率階梯：能力差 ≥1、0、−1、−2、更低 */
 export const P_STEP=[.95,.8,.5,.25,.1];
-export function est(is,v,mid,rv=sel.rv,ef=sel.ef){
+/* SDD 套用的等級：選的等級（沒選當 2）和已買的等級取小的 */
+export const sddLevel=(req=sel.sdd)=>Math.min(req??2,lv(S.inv.sdd));
+export function est(is,v,mid,rv=sel.rv,ef=sel.ef,sd=sel.sdd){
   const M0=model(v,mid), M=effModel(M0,efOf(ef)), raw=M.cap-is.cx, diff=raw+stackGap(is,M);
-  const md=lv(S.inv.md[is.stack]), sdd=S.inv.sdd;
-  const tk=is.base*M.verb*(is.big&&M.ctx?BIG.tk:1)*(M0.cap-is.cx>=1?.85:1)*REVIEW[rv].tk*(md?MD_TK:1)*(sdd?SDD_TK:1)*(is.research?RESEARCH_DIRECT_TK:1);
+  const md=lv(S.inv.md[is.stack]), sdd=sddLevel(sd);
+  const tk=is.base*M.verb*(is.big&&M.ctx?BIG.tk:1)*(M0.cap-is.cx>=1?.85:1)*REVIEW[rv].tk*(md?MD_TK:1)*SDD_TK[sdd]*(is.research?RESEARCH_DIRECT_TK:1);
   let p=P_STEP[Math.min(4,Math.max(0,1-diff))];
   if(is.big&&M.ctx)p+=BIG.p; if(is.big&&!M.ctx&&M.cap<4)p-=BIG.p;
-  p+=MD_P[md]; if(sdd&&is.cx>=3)p+=SDD_P; p+=AI_P*lv(S.inv.ai);
+  p+=MD_P[md]; if(is.cx>=3)p+=SDD_P[sdd]; p+=AI_P*lv(S.inv.ai);
   p=Math.max(.05,Math.min(.97,p));
   const c=catchRate(rv,M);
   return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:(p+(1-p)*c)*(is.store?1-storeReject():1),hrs:is.cx*M.speed*localSpeed(v)*(is.tries?RETRY.hrs:1)*REVIEW[rv].hrs*stackHrs(is)};
@@ -82,7 +84,7 @@ export function presetBlock(is,p){
   if(p.b==='seat'&&!S.seats.includes(p.v)) return '沒有公司席位';
   const bl=bills(p.v,is).find(b=>b.id===p.b); if(!bl) return '不能用這種付費方式'; if(!bl.ok) return bl.note;
   if(p.b==='local'&&PAR()&&localBusy()) return '本地 GPU 忙';
-  const cl=costLine(p.b,M,p.v,est(is,p.v,p.m,p.rv,p.ef));
+  const cl=costLine(p.b,M,p.v,est(is,p.v,p.m,p.rv,p.ef,p.sdd));
   if((p.b==='sub'||p.b==='seat')&&cl.hi>quotaLeft(p.b,p.v)) return '額度不夠';
   if(p.b==='api'&&cl.hi>S.wallet) return '錢包不夠';
   return '';
