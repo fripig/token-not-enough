@@ -1,6 +1,6 @@
-import {MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,SKILLS_CX,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,lv,model,nt,objOf,pick,rnd} from './data.js';
-import {GIG_LATE,START,S,confCat,confCount,confStacks,addGigs,daySnap,hardStack,makeIssue,saveGame,sel,track,unfamiliar} from './state.js';
-import {REVIEW,est,gigBlocked,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetFor,quotaLeft,storeReject,useQuota} from './calc.js';
+import {RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
+import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardStack,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks} from './state.js';
+import {REVIEW,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
 import {render} from './view.js';
 import {showDay,showEnd} from './modals.js';
 
@@ -18,20 +18,22 @@ export function makeJob(is){
   const hidden=hiddenTrap(is), e=est(trueView(is),sel.v,sel.m);
   const stop=hidden&&e.M.cap<is.trueCx, f=stop?(S.inv.sdd?SDD_TRAP_STOP:TRAP_STOP):1;
   const ok=!stop&&Math.random()<e.p;
-  return {issue:is,v:sel.v,m:sel.m,ef:efOf(sel.ef),b:sel.b,M:e.M,rv:sel.rv,tk:e.tk*f*R(.7,1.3),hrs:e.hrs*f*R(.8,1.2),ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd:S.inv.sdd};
+  return {issue:is,v:sel.v,m:sel.m,ef:efOf(sel.ef),b:sel.b,M:e.M,rv:sel.rv,tk:e.tk*f*R(.7,1.3),hrs:e.hrs*f*R(.8,1.2),ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd:S.inv.sdd,research:!!is.research};
 }
 /* GA：派工與結果共用的選擇參數；舊存檔的 job 沒有 m、ef */
 export const RV_ID=['none','self','strict'];
 export const jobChoice=j=>({vendor:j.v,model:j.m??'unknown',bill:j.b,review:RV_ID[j.rv],effort:EFFORT[j.ef??1].id});
+/* 目前選的付費方式能不能用（錢包見底、沒訂閱、外包不能用公司資源等，同派工台的按鈕） */
+export const billOk=is=>bills(sel.v,is).some(b=>b.id===sel.b&&b.ok);
 /* via：panel（派工按鈕）、quick（一鍵派工）、batch（批次派工）；preset 是方案字母 */
 export function dispatch(via='panel',preset='none'){
-  const is=S.issues.find(i=>i.id===sel.issue); if(!is||gigBlocked(is,sel.b)||hwBlock(model(sel.v,sel.m))) return;
+  const is=S.issues.find(i=>i.id===sel.issue); if(!is||!billOk(is)||hwBlock(model(sel.v,sel.m))) return;
   const pe=est(is,sel.v,sel.m).pe, j=makeJob(is);
   if(PAR()&&(S.jobs.length>=S.slots||(j.b==='local'&&localBusy()))) return;
   useHw(j.v,j.m);
-  track('dispatch',{...jobChoice(j),via,preset,cx:is.cx,stack:is.stack,incident:!!is.inc,sensitive:!!is.sens,gig:!!is.out,merge:!!is.merge});
+  track('dispatch',{...jobChoice(j),via,preset,cx:is.cx,stack:is.stack,incident:!!is.inc,sensitive:!!is.sens,gig:!!is.out,merge:!!is.merge,research:!!is.research});
   /* 復盤用：記下派工當下看到的條件（成功率是派工台顯示的，陷阱照顯示的複雜度） */
-  const tags=[`複雜度 ${is.cx}`,is.due<=S.day?'今天到期':`第 ${is.due} 天到期`,...(is.inc?['事故']:[]),...(is.sens?['機敏']:[]),...(is.out?['外包']:[])].join('・');
+  const tags=[`複雜度 ${is.cx}`,is.due<=S.day?'今天到期':`第 ${is.due} 天到期`,...(is.inc?['事故']:[]),...(is.sens?['機敏']:[]),...(is.out?['外包']:[]),...(is.research?['需研究']:[])].join('・');
   const how=via==='quick'?`一鍵派工方案 ${preset}`:via==='batch'?`批次派工方案 ${preset}`:'派工台';
   log('dim',`→ 派出 ${is.title}（${tags}）｜${VENDORS[j.v].agent} / ${j.M.name}・${BILL_LABEL[j.b]}・${REVIEW[j.rv].name}｜成功率 ${Math.round(pe*100)}%｜${how}｜預計 ${h1(j.hrs)}h`);
   if(PAR()){
@@ -84,14 +86,14 @@ export function cancelJobs(pred,note){
   out.forEach(j=>{j.issue.running=false;settle(j,{frac:Math.max(.05,1-j.left/j.hrs),fail:true,note});});
   return out.length;
 }
-/* 扣款：派工與評估共用。訂閱／席位額度不夠時只扣剩下的，回傳 short 與實際完成比例 frac */
+/* 扣款：派工與評估共用。訂閱／席位額度或個人錢包不夠時只扣剩下的，回傳 short 與實際完成比例 frac；個人 API 不會把錢包扣成負數 */
 export function charge(b,v,M,tk){
   if(b==='sub'||b==='seat'){
     const need=tk*M.w, left=quotaLeft(b,v);
     if(need>left){ useQuota(b,v,left); return {spend:`額度 ${kt(left)}`,short:true,frac:need>0?left/need:0}; }
     useQuota(b,v,need); return {spend:`額度 ${kt(need)}`,short:false,frac:1};
   }
-  if(b==='api'){ const c=tk*M.price*S.priceMod[v]; S.wallet-=c; S.st.api+=c; return {spend:nt(c),short:false,frac:1,cost:c}; }
+  if(b==='api'){ const c=tk*M.price*S.priceMod[v], paid=Math.min(c,Math.max(0,S.wallet)); S.wallet-=paid; S.st.api+=paid; return {spend:nt(paid),short:paid<c,frac:c>0?paid/c:1,cost:paid}; }
   if(b==='corp'){ const c=tk*M.price*S.priceMod[v]; S.corp-=c; S.corpDay+=c; S.st.corp+=c; return {spend:'公司 '+nt(c),short:false,frac:1,cost:c}; }
   return {spend:'電費',short:false,frac:1};
 }
@@ -120,14 +122,14 @@ export function settle(j,o={}){
   if(!j.ok&&!j.caught&&j.rv&&!o.fail) note='審核沒抓到，上線後測試才爆';
   if(j.stop&&!o.fail) note=j.sdd?'寫規格時就發現牽扯整個架構，先停下來':'做到一半發現牽扯整個架構，先停下來';
   const ch=charge(b,v,M,tk); spend=ch.spend;
-  if(ch.short){ tk*=ch.frac; hrs=Math.max(.3,hrs*Math.max(.3,ch.frac)); ok=false; note='撞到用量上限，agent 停在一半'; }
+  if(ch.short){ tk*=ch.frac; hrs=Math.max(.3,hrs*Math.max(.3,ch.frac)); ok=false; note=b==='api'?'錢包見底，agent 停在一半':'撞到用量上限，agent 停在一半'; }
   /* 解決衝突工單本身不會再衝突 */
   if(ok&&!is.merge&&o.conflict&&Math.random()<o.conflict){ok=false;conflict=true;}
   /* App 上架審核在 agent 做完之後才發生，自我審核救不回來 */
   if(ok&&is.store&&Math.random()<storeReject()){ok=false;rejected=true;note='卡在 App Store 審核被退件';}
   S.st.tk[v]+=tk; S.st.byBill[b]+=tk;
   const outcome=o.fail?'aborted':ch.short?'quota':conflict?'conflict':rejected?'rejected':ok?(fixed?'caught':'success'):j.stop?'trap_stop':'fail';
-  track('job_result',{...jobChoice(j),cx:is.cx,stack:is.stack,gig:!!is.out,outcome,tokens:Math.round(tk),cost:Math.round(ch.cost||0),hours:Math.round(hrs*10)/10});
+  track('job_result',{...jobChoice(j),cx:is.cx,stack:is.stack,gig:!!is.out,research:!!j.research,outcome,tokens:Math.round(tk),cost:Math.round(ch.cost||0),hours:Math.round(hrs*10)/10});
   const who=`${VENDORS[v].agent} / ${M.name}・${BILL_LABEL[b]}`;
   if(ok){
     S.issues=S.issues.filter(i=>i!==is); const rw=reward(is);
@@ -141,7 +143,7 @@ export function settle(j,o={}){
     /* 合併衝突：原單原地變成「解決衝突」工單，KPI 等它完成才拿 */
     S.st.conflicts++; if(fixed)S.st.caught++;
     const title=is.title, cx=Math.max(1,is.cx-1);
-    Object.assign(is,{merge:true,title:`解決衝突：${title}`,cx,base:BASE[cx]*R(.85,1.15),trap:false,revealed:false,evaluated:false,big:is.big&&cx>=3,tries:0});
+    Object.assign(is,{merge:true,title:`解決衝突：${title}`,cx,base:BASE[cx]*R(.85,1.15),trap:false,revealed:false,evaluated:false,research:false,big:is.big&&cx>=3,tries:0});
     log('warn',`⚡ ${title}｜${who}｜和其他 agent 的改動合併衝突，留下「解決衝突」工單（複雜度 ${cx}）｜燒掉 ${kt(tk)}｜${spend}｜${h1(hrs)}h`);
   } else {
     is.tries++; is.base*=j.stop?1:RETRY.tk;
@@ -177,11 +179,11 @@ export function manual(){
 
 /* 評估架構：先花少量 token 讓 agent 讀架構，模型越強越容易識破陷阱 */
 export const EVAL_TK=40;
-export const canEvaluate=is=>!is.inc&&!is.merge&&!is.evaluated&&!is.revealed;
+export const canEvaluate=is=>!is.inc&&!is.merge&&!is.research&&!is.evaluated&&!is.revealed;
 export const evalCost=(M,v=sel.v)=>({tk:EVAL_TK*M.verb,hrs:EVAL_HRS*M.speed*localSpeed(v)*(S.inv.mcp?MCP_EVAL_HRS:1)});
 export const revealRate=M=>Math.min(REVEAL.max,REVEAL.base+REVEAL.per*M.cap+(S.inv.mcp?MCP_REVEAL:0));
 export function evaluate(){
-  const is=S.issues.find(i=>i.id===sel.issue); if(!is||!canEvaluate(is)||gigBlocked(is,sel.b)) return;
+  const is=S.issues.find(i=>i.id===sel.issue); if(!is||!canEvaluate(is)||!billOk(is)) return;
   const M=model(sel.v,sel.m), {tk,hrs}=evalCost(M,sel.v), cx=is.cx; if(hwBlock(M)) return;
   if(hrs>S.hours||(sel.b==='local'&&localBusy())) return;
   if(PAR()){ is.running=true; advance(hrs); is.running=false; if(!S.issues.includes(is)){render();return;} }
@@ -190,7 +192,7 @@ export function evaluate(){
   S.st.tk[sel.v]+=used; S.st.byBill[sel.b]+=used;
   const evt=outcome=>track('evaluate',{vendor:sel.v,model:sel.m,bill:sel.b,cx,stack:is.stack,gig:!!is.out,outcome});
   const ew=`評估｜${VENDORS[sel.v].agent} / ${M.name}・${BILL_LABEL[sel.b]}`;
-  if(ch.short){ evt('quota'); log('bad',`✗ ${is.title}｜${ew}｜額度不夠，評估沒做完｜${ch.spend}`); render(); return; }
+  if(ch.short){ evt('quota'); log('bad',`✗ ${is.title}｜${ew}｜${sel.b==='api'?'錢包見底':'額度不夠'}，評估沒做完｜${ch.spend}`); render(); return; }
   is.evaluated=true;
   if(is.trap&&Math.random()<revealRate(M)){ reveal(is); evt('found'); S.st.trapFound++; log('ok',`★ ${is.title}｜${ew}｜發現牽扯架構：原估複雜度 ${is.shownCx}，實際 ${is.cx}｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
   else{ evt('clear'); log('dim',`· ${is.title}｜${ew}｜評估完成，看起來沒問題｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
@@ -207,6 +209,52 @@ export function rescope(){
     S.trust-=RESCOPE.ok; is.kpi=Math.round(KPI[is.cx]*(hardStack(is.stack)?HARD_KPI:1)); is.due=Math.min(20,is.due+RESCOPE.days);
     log('ok',`★ ${is.title}｜主管同意重新評估：KPI 改成 +${is.kpi}，期限延到第 ${is.due} 天｜信任 -${RESCOPE.ok}`);
   } else { S.trust=Math.max(0,S.trust-RESCOPE.no); log('warn',`! ${is.title}｜主管：不是說很簡單嗎？｜信任 -${RESCOPE.no}`); }
+  render();
+}
+
+/* 研究單：先研究（叫 agent 或自己來）就拆成兩張小單；agent 研究的扣款與稽核照評估架構 */
+export const researchCost=(M,v=sel.v)=>({tk:RESEARCH_TK*M.verb,hrs:RESEARCH_HRS*M.speed*localSpeed(v)});
+export const selfResearchHrs=is=>RESEARCH_SELF_HRS*(unfamiliar(is)?UNFAMILIAR_HRS:1);
+/* 研究不能做的原因（派工台按鈕與動作共用）；可以做時回傳空字串 */
+export function researchBlock(is,via){
+  if(!is?.research) return '不是研究單';
+  if(is.running) return '這張單正在跑';
+  if(via==='self') return manualBlocked()?'本地 GPU 跑 agent 中':selfResearchHrs(is)>S.hours?'工時不夠':'';
+  const M=model(sel.v,sel.m);
+  if(S.outage===sel.v) return '今日當機';
+  const why=cnBlock(is,sel.v,M)||hwBlock(M); if(why) return why;
+  const bl=bills(sel.v,is).find(b=>b.id===sel.b); if(!bl?.ok) return bl?.note||'不能用這種付費方式';
+  if(sel.b==='local'&&localBusy()) return '本地 GPU 忙';
+  return researchCost(M,sel.v).hrs>S.hours?'工時不夠':'';
+}
+/* 研究完成：原單換成兩張比較小的單，KPI（外包報酬）照複雜度比例分、總和不變，期限與案主等照舊 */
+export function splitResearch(is){
+  const at=S.issues.indexOf(is); if(at<0) return [];
+  const [c1,c2]=RESEARCH_SPLIT[is.cx], T=c1+c2, k1=Math.round(is.kpi*c1/T), p1=is.out?Math.round(is.pay*c1/T):0;
+  const part=(c,title,kpi,pay)=>{const base=BASE[c]*R(.85,1.15);
+    return {id:nextId(),title,cx:c,base,inc:false,stack:is.stack,trap:false,trueCx:c,trueBase:base,revealed:false,evaluated:false,rescoped:false,merge:false,research:false,
+      store:is.store,sens:is.sens,big:is.big&&c>=3,client:is.client,due:is.due,kpi,tries:0,from:is.id,...(is.out?{out:true,pay}:{})};};
+  const parts=[part(c1,is.parts[0],k1,p1),part(c2,is.parts[1],is.kpi-k1,is.out?is.pay-p1:0)];
+  S.issues.splice(at,1,...parts); sel.issue=parts[0].id;
+  return parts;
+}
+export function research(via){
+  const is=S.issues.find(i=>i.id===sel.issue); if(!is||researchBlock(is,via)) return;
+  const agent=via==='agent', M=model(sel.v,sel.m), cost=agent?researchCost(M,sel.v):{tk:0,hrs:selfResearchHrs(is)}, cx=is.cx;
+  if(PAR()){ is.running=true; advance(cost.hrs); is.running=false; if(!S.issues.includes(is)){render();return;} }
+  else S.hours-=cost.hrs;
+  const evt=outcome=>track('research',{via,vendor:agent?sel.v:'none',model:agent?sel.m:'none',bill:agent?sel.b:'none',cx,stack:is.stack,gig:!!is.out,outcome});
+  const rw=agent?`研究｜${VENDORS[sel.v].agent} / ${M.name}・${BILL_LABEL[sel.b]}`:'自己研究';
+  let ch=null;
+  if(agent){
+    ch=charge(sel.b,sel.v,M,cost.tk); const used=cost.tk*ch.frac; useHw(sel.v,sel.m);
+    S.st.tk[sel.v]+=used; S.st.byBill[sel.b]+=used;
+    if(ch.short){ evt('quota'); log('bad',`✗ ${is.title}｜${rw}｜${sel.b==='api'?'錢包見底':'額度不夠'}，研究沒做完｜${ch.spend}`); render(); return; }
+  }
+  const title=is.title, [a,b]=splitResearch(is);
+  evt('split');
+  log('ok',`✂ ${title}｜${rw}｜拆成「${a.title}」（複雜度 ${a.cx}）＋「${b.title}」（複雜度 ${b.cx}）｜${agent?`${kt(cost.tk)} tokens｜${ch.spend}｜`:''}${h1(cost.hrs)}h`);
+  if(agent){ auditRoll(is,sel.b,sel.v); checkOverdraft(); }
   render();
 }
 
@@ -370,7 +418,9 @@ export function endDay(){
   if(gigLate.length) rep.push(`${gigLate.length} 張外包單逾期，賠了 ${nt(gigLate.reduce((a,i)=>a+Math.round(i.pay*GIG_LATE),0))} 違約金。`);
   const late=S.issues.filter(i=>!i.out&&i.due<=S.day);
   let lateTrust=0;
-  late.forEach(i=>{const pen=Math.ceil(i.kpi*LATE_KPI), t=i.inc?(S.inv.monitor?MONITOR_LATE:INC_LATE_TRUST):LATE_TRUST;S.kpi-=pen;S.st.kpiLost+=pen;S.trust=Math.max(0,S.trust-t);lateTrust+=t;S.st.late++;log('bad',`⌛ 逾期：${i.title}｜KPI -${pen}｜信任 -${t}`);});
+  /* 研究拆出來的兩張單算同一張原單：都逾期時信任只扣一次 */
+  const lateFrom=new Set();
+  late.forEach(i=>{const pen=Math.ceil(i.kpi*LATE_KPI), t=i.from&&lateFrom.has(i.from)?0:i.inc?(S.inv.monitor?MONITOR_LATE:INC_LATE_TRUST):LATE_TRUST; if(i.from)lateFrom.add(i.from);S.kpi-=pen;S.st.kpiLost+=pen;S.trust=Math.max(0,S.trust-t);lateTrust+=t;S.st.late++;log('bad',`⌛ 逾期：${i.title}｜KPI -${pen}｜信任 -${t}`);});
   S.issues=S.issues.filter(i=>i.due>S.day);
   if(late.length) rep.push(`${late.length} 張工單逾期，主管信任 -${lateTrust}。`);
   if(S.corpDay>CORP_DAY_LIMIT){S.trust=Math.max(0,S.trust-CORP_DAY_TRUST);rep.push(`今天公司 API 刷了 ${nt(S.corpDay)}，主管在 Slack 問你在幹嘛（信任 -${CORP_DAY_TRUST}）。`);log('warn',`! 公司單日花費 ${nt(S.corpDay)} 太高，信任 -${CORP_DAY_TRUST}`);}

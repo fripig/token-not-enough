@@ -1,5 +1,5 @@
-import {AI_MAX,AI_P,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL,MD_P,SKILLS_CX,TEST_CATCH,STACKS,APIV,BIG,BILL_LABEL,CATCH,CI_CONFLICT,CLIENTS,CONFLICT,EFFORT,EVAL_HRS,FASTLANE_REJECT,HARD_KPI,HOOK_PR,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INC_KPI,INVEST,INV_KEYS,KPI,BASE,LATE_KPI,MANUAL_HRS,MCP_EVAL_HRS,MCP_REVEAL,MONITOR_KPI,MONITOR_LATE,PN,PR_HRS,PR_REVIEWED,RESCOPE,RETRY,REVEAL,SCAN_AUDIT,SDD_TRAP_STOP,SEAT,STACK_HRS,STORE_RATE,UNFAMILIAR_HRS,VENDORS,kt,nt} from './data.js';
-import {GIG_LATE,GIG_PAY,START,TRAP_RATE} from './state.js';
+import {RESEARCH_DIRECT_TK,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,APIV,BIG,BILL_LABEL,CATCH,CI_CONFLICT,CLIENTS,CONFLICT,EFFORT,EVAL_HRS,FASTLANE_REJECT,HARD_KPI,HOOK_PR,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INC_KPI,INVEST,INV_KEYS,KPI,BASE,LATE_KPI,MANUAL_HRS,MCP_EVAL_HRS,MCP_REVEAL,MONITOR_KPI,MONITOR_LATE,PN,PR_HRS,PR_REVIEWED,RESCOPE,RETRY,REVEAL,SCAN_AUDIT,SDD_TRAP_STOP,SEAT,STACK_HRS,STORE_RATE,UNFAMILIAR_HRS,VENDORS,kt,nt,AI_MAX,AI_P,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL,MD_P,SKILLS_CX,TEST_CATCH,STACKS} from './data.js';
+import {GIG_LATE,GIG_PAY,RESEARCH_RATE,START,TRAP_RATE} from './state.js';
 import {P_STEP,REVIEW,STORE_REJECT} from './calc.js';
 import {AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_TRUST,DOUBT_TRUST,EVAL_TK,EVENT_RATE,INC_LATE_TRUST,INC_RAMP,INC_RATE,LATE_TRUST,OVERDRAFT_TRUST,OVERNIGHT_HRS,PACE_KPI,PRAISE_TRUST,RESCOPE_TRUST,REVIEW_LOAD,SLOT_CHOICES,TRAP_STOP} from './actions.js';
 import {GRADES,PAR_GRADE,SCORE} from './modals.js';
@@ -37,7 +37,7 @@ export function rulesTab(id){
   case 'billing': return rsec('付費方式',rlist([
       `<b>${BILL_LABEL.sub}</b>：月費固定，有每日與每週額度，越強的模型吃額度越快；額度不夠時 agent 停在一半，算失敗。`,
       `<b>${BILL_LABEL.seat}</b>：公司付，每個席位每日 ${kt(SEAT.day)}、每週 ${kt(SEAT.week)} 額度。`,
-      `<b>${BILL_LABEL.api}</b>：用多少付多少，從個人錢包扣。`,
+      `<b>${BILL_LABEL.api}</b>：用多少付多少，從個人錢包扣。錢包不能被花成負數：跑到一半錢用光，agent 停在一半、算失敗；錢包 NT$0 以下時不能選。`,
       `<b>${BILL_LABEL.corp}</b>：扣公司預算，只有 ${APIV.filter(v=>VENDORS[v].corp).map(v=>VENDORS[v].name).join('、')} 可以走。單日超過 ${nt(CORP_DAY_LIMIT)} 信任 −${CORP_DAY_TRUST}；透支信任 −${OVERDRAFT_TRUST}。`,
       `<b>${BILL_LABEL.local}</b>：免費但很慢。${rtag('平行模式')}一次只能跑一個 agent。`,
       `${rtag('接外包')}外包單只能用個人訂閱、個人 API 或本地 GPU。`]))
@@ -57,16 +57,22 @@ export function rulesTab(id){
       `派工時能力夠就照真實複雜度硬做完；不夠就燒掉真實用量的 ${pct(TRAP_STOP)} 後停下來（導入 SDD 只燒 ${pct(SDD_TRAP_STOP)}），算失敗。自己手寫會花完時數後曝光。`,
       `評估架構：花 ${EVAL_TK}k × token 倍率、${EVAL_HRS}h × 速度，識破率 ${REVEAL.base} + ${REVEAL.per} × 能力，上限 ${pct(REVEAL.max)}（接 MCP 文件 +${pct(MCP_REVEAL)}、評估時間 ×${MCP_EVAL_HRS}）。`,
       `找主管重新評估（曝光後每張一次）：信任 ≥ ${RESCOPE_TRUST} 時信任 −${RESCOPE.ok}、KPI 照真實複雜度、期限 +${RESCOPE.days} 天；否則信任 −${RESCOPE.no}。`]))
+    +rsec('研究單',rlist([
+      `複雜度 4–5 的非事故工單有 ${pct(RESEARCH_RATE)} 是研究單，卡片標「需研究」。外包單也可能是研究單。`,
+      `直接派工：token ×${RESEARCH_DIRECT_TK}，成功率與時間不變。`,
+      `讓 agent 研究：花 ${RESEARCH_TK}k × token 倍率、${RESEARCH_HRS}h × 速度，扣款與資安稽核照評估架構；額度不夠時研究沒做完、不拆單。`,
+      `自己研究：花 ${RESEARCH_SELF_HRS}h（不熟的技術線 ×${UNFAMILIAR_HRS}），不花 token；本地 GPU 卡住不能手寫時也不能自己研究。`,
+      `研究完一定拆成兩張：${Object.entries(RESEARCH_SPLIT).map(([c,[a,b]])=>`複雜度 ${c} → ${a}＋${b}`).join('、')}。KPI（外包報酬）照複雜度比例分、總和不變，期限、案主、機敏照舊；拆出來的單不是陷阱、也不能再拆；兩張都逾期時，信任只照一張原單扣一次。研究單不能評估架構。`]))
     +rsec(`接外包 ${rtag('接外包')}`,rlist([
       `每天多 0–2 張外包單，報酬 = KPI × ${GIG_PAY}，做完進個人錢包，不加 KPI、不動信任。`,
-      `逾期賠報酬的 ${pct(GIG_LATE)}，不扣 KPI 與信任。`]));
+      `逾期賠報酬的 ${pct(GIG_LATE)}，不扣 KPI 與信任；錢包不夠時照扣，可能變成負數。`]));
   case 'invest': return rsec('工程投資',`${rtable(['投資','工時','公司預算','效果'],['md',...INV_KEYS].flatMap(k=>{const I=INVEST[k];return [[`${I.name}${k==='md'?'（每條技術線各一次）':''}${k==='ai'?`（最多 ${AI_MAX} 級，每級）`:''}`,`${I.hrs}h`,nt(I.cost),I.desc],
       ...(I.lv2?[[`${I.name} Lv2`,`${I.lv2.hrs}h`,nt(I.lv2.cost),I.lv2.desc]]:[])];}))}
     ${rlist(['花自己的工時加公司 API 預算，效果維持到月底。',
       `Lv2 要先買 Lv1，並去過對應的研討會：CLAUDE.md 要去過涵蓋該技術線的技術線場，${INVEST.scan.name}要資安場、${INVEST.skills.name}要 AI 場、${INVEST.tests.name}要綜合場。Lv2 數值：CLAUDE.md 成功率 +${pct(MD_P[2])}、抓錯率 +${pct(TEST_CATCH[2])}、稽核機率 ×${SCAN_AUDIT[2]}、批次派工到複雜度 ≤${SKILLS_CX[2]}。`,
       `${INVEST.ai.name}：去過 N 場研討會才能買第 N 級，每級所有派工成功率 +${pct(AI_P)}；不影響評估架構與手寫。`])}`)
     +rsec('國內研討會',`${rtable(['研討會','類別','涵蓋技術線','報名費'],CONF_KEYS.map(k=>{const C=CONF[k];return [C.name,CONF_CATS[C.cat],C.stacks.map(st=>STACKS[st].name).join('、')||'—',nt(C.fee)];}))}
-    ${rlist([`第 1–${CONF_LAST_DAY} 天的平日報名，自費（從錢包扣、算進個人花費），不花工時、不看信任；一週只能報一場，每場只能去一次。`,
+    ${rlist([`第 1–${CONF_LAST_DAY} 天的平日報名，自費（從錢包扣，算進你自己掏的錢；錢不算分），不花工時、不看信任；一週只能報一場，每場只能去一次。`,
       '週末出席，下週一早上生效，早上報告會寫開放了什麼。一個月最多 3 場。',
       `技術線場：涵蓋的技術線自己手寫 ×${CONF_MANUAL}，沒選的技術線也不再算不熟。其他類別沒有立即效果，只開放升級。`])}`)
     +rsec('採購電腦',`${rtable(['電腦','價格','信任門檻','到貨','效果'],HW_KEYS.map(k=>{const H=HW[k];return [H.name,H.price,H.trust,`${H.days} 天`,H.desc];}))}
@@ -74,15 +80,15 @@ export function rulesTab(id){
       '買了任何一台，本地跑 agent 時還能手寫；本地 GPU 仍然一次只跑一個 agent。',
       `閒置：每台當天沒用到的電腦，下班時信任 −${HW_IDLE}。`])}`);
   case 'score': return rsec('總分',rlist([
-      `總分 = KPI × ${SCORE.kpi} + 信任 × ${SCORE.trust} + (${SCORE.spendBase} − 個人花費) ÷ ${SCORE.spendDiv}（最低 ${SCORE.spendFloor} ÷ ${SCORE.spendDiv}）− 稽核次數 × ${SCORE.audit}。`,
-      '個人花費 = 訂閱費 + 個人 API + 外包違約金 + 研討會報名費 − 外包收入。']))
+      `總分 = KPI × ${SCORE.kpi} + 信任 × ${SCORE.trust} − 稽核次數 × ${SCORE.audit}。`,
+      '錢不算分：結算會列出個人花費（訂閱費 + 個人 API + 外包違約金 + 研討會報名費 − 外包收入）與月底錢包餘額，只影響稱號。']))
     +rsec('評等',`${rtable(['評等','單線模式','平行模式'],GRADES.map((t,i)=>['SABC'[i],t,Math.round(t*PAR_GRADE)]).concat([['D','以下','以下']]))}
     ${rlist(['最高分依「模式 × 工作內容」分開記錄。'])}`)
     +rsec('存檔',rlist(['每天開工時自動存一格，重新整理會回到當天早上。','開新局或月底結算會刪掉存檔。']));
   default: return rsec('時間與資源',rlist([
       `一個月 20 個工作天，每週 5 天，每天 ${START.hours} 小時。`,
       `開局：個人錢包 ${nt(START.wallet)}、公司 API 預算 ${nt(START.corp)}、主管信任 ${START.trust}、KPI 0。`,
-      '週一重置每週額度，可以調整訂閱：升級只補剩下週數的差價，降級不退費。',
+      '週一重置每週額度，可以調整訂閱：升級只補剩下週數的差價，降級不退費。錢包不夠付這次的訂閱就不能確認；已經訂的方案不受錢包影響。',
       `每天有 ${pct(EVENT_RATE)} 機率發生一件隨機事件：API 降價、廠商當機、預算凍結、額度縮水、流量暴增、主管稱讚或質疑、外包尾款、全公司禁中國雲端。`,
       `主管稱讚或質疑看 KPI 有沒有超過天數 × ${PACE_KPI}：超過信任 +${PRAISE_TRUST}，沒超過信任 −${DOUBT_TRUST}；第 6 天前沒超過只提醒、不扣分。`]))
     +rsec('遊戲模式',rlist([

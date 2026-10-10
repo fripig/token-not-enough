@@ -81,6 +81,10 @@ export function pickStack(){
 export let TRAP_RATE=.1;
 /* 模擬器用來調整陷阱比例 */
 export const setTrapRate=r=>{TRAP_RATE=r;};
+/* 研究單：複雜度 4–5 的非事故單，直接派工很燒 token，先研究就拆成兩張小單 */
+export let RESEARCH_RATE=.3;
+/* 模擬器用來調整研究單比例 */
+export const setResearchRate=r=>{RESEARCH_RATE=r;};
 /* Rust、App、DevOps 比較慢：期限多一天、KPI ×1.3 作為補償 */
 export const hardStack=st=>st==='rust'||st==='app'||st==='devops';
 export const unfamiliar=is=>!S.companies.includes(is.stack)&&is.stack!=='fe'&&!confStacks().has(is.stack);  // 去過涵蓋它的技術線場就算熟
@@ -92,17 +96,20 @@ export function makeIssue(inc,st){
   const stack=st||(inc?pick(S.companies):pickStack());
   const trap=!inc&&cx<=2&&Math.random()<TRAP_RATE, trueCx=Math.random()<.6?4:5;
   const title=trap&&Math.random()<.5?pick(STACKS[stack].pool.trap):pick(STACKS[stack].pool[inc?'inc':cx]);
-  return {id:nextId(),title,cx,base,inc:!!inc,stack,
-    trap,trueCx:trap?trueCx:cx,trueBase:trap?BASE[trueCx]*R(.85,1.15):base,revealed:false,evaluated:false,rescoped:false,merge:false,
+  const is={id:nextId(),title,cx,base,inc:!!inc,stack,
+    trap,trueCx:trap?trueCx:cx,trueBase:trap?BASE[trueCx]*R(.85,1.15):base,revealed:false,evaluated:false,rescoped:false,merge:false,research:false,
     store:stack==='app'&&cx>=2&&Math.random()<STORE_RATE,
     sens:Math.random()<(inc?.55:.25),big:cx>=3&&Math.random()<.45,
     client:inc?CLIENTS[0]:pickClient(),
     due:Math.min(20,due+(!inc&&hardStack(stack)?1:0)),kpi:Math.round(KPI[cx]*(inc?(S.inv.monitor?MONITOR_KPI:INC_KPI):1)*(hardStack(stack)?HARD_KPI:1)),tries:0};
+  /* 研究單在所有既有亂數之後才擲；比例是 0 時不擲，亂數序列和沒有研究單時一樣 */
+  if(RESEARCH_RATE>0&&!inc&&cx>=4&&Math.random()<RESEARCH_RATE){ const e=pick(STACKS[stack].pool.research); Object.assign(is,{research:true,title:e.t,parts:[...e.parts]}); }
+  return is;
 }
 
 
 /* 外包單：每種工作內容加前端平均抽，只能自己付 token，做完拿現金（KPI × GIG_PAY）不拿 KPI */
-export const GIG_PAY=80, GIG_LATE=.3, GIG_STACKS=[...COMPANIES,'fe'];
+export const GIG_PAY=250, GIG_LATE=.3, GIG_STACKS=[...COMPANIES,'fe'];
 export const GIG_CLIENT={name:'外包案主',ban:null};
 export function makeGig(){
   const is=makeIssue(false,pick(GIG_STACKS));

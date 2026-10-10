@@ -1,6 +1,6 @@
 import {S,addGigs,clearSave,fresh,makeIssue,readSave,resetIds,sel} from './state.js';
 import {log} from './calc.js';
-import {batch,dispatch,registerConf,endDay,evaluate,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait} from './actions.js';
+import {batch,dispatch,endDay,evaluate,research,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait,registerConf} from './actions.js';
 import {app,render,toggleInvFold} from './view.js';
 import {showBadSave,showResume,showSetup} from './modals.js';
 import {showRules} from './rules.js';
@@ -23,6 +23,8 @@ app.addEventListener('click',e=>{
   else if(t.dataset.act==='go')dispatch();
   else if(t.dataset.act==='manual')manual();
   else if(t.dataset.act==='eval')evaluate();
+  else if(t.dataset.act==='research')research('agent');
+  else if(t.dataset.act==='selfresearch')research('self');
   else if(t.dataset.act==='rescope')rescope();
   else if(t.dataset.act==='end')endDay();
   else if(t.dataset.act==='wait1')wait(false);

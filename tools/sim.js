@@ -17,7 +17,11 @@
 // 複雜度 ≥4 且案主允許時用 GLM-5.3，否則 Qwen3-Coder-Next，政府標案用 Gemma 4 31B；跑不完（單線超過今天工時、平行今天到期跑不完）的模型略過，沒有能用的才照舊。買了沒用照樣每台每天扣信任。
 // SIM_SUB=pro200|pro500 讓自動玩家改訂 OpenAI 的 Pro 200 或 Pro 500（不訂 Anthropic Max 5×，照價付月費）：OpenAI 沒當機、今日訂閱額度還超過 300k 時，
 // 每張單（公司與外包）都派 Codex Sol 走個人訂閱；額度不夠才照舊（能用 DeepSeek 就用，否則 Sonnet，沒有 Anthropic 訂閱所以走公司 API）。
-// SIM_FLOOR=<NT$> 換掉月底總分的個人花費下限（遊戲是 20000）：每局結束時用遊戲的 monthScore(SIM_FLOOR) 重算總分與評等，只是 (8000 − 個人花費) ÷ 8 的下限改成 (8000 − SIM_FLOOR) ÷ 8，遊戲本身的下限不變。
+// SIM_UPGRADE=1 讓自動玩家存錢升級：第 6、11、16 天（週一）開工時，錢包付得起差價又能留 NT$1,500 給個人 API，就把 OpenAI 升到 Pro 500，否則 Pro 200（照剩餘週數補差價）；
+// 有 OpenAI 訂閱後照 SIM_SUB 的派法（今日額度還超過 300k 就派 Codex Sol 走個人訂閱）。量「接外包→存錢→升級」這條路，和 SIM_OUTSOURCE=1 一起用。
+// SIM_UPGRADE=2 同上，但升到 Pro 500 之後就不再接外包單（放著逾期只賠錢、不扣分）。
+// SIM_RESEARCH_RATE=<比例> 可覆寫研究單比例（例如 SIM_RESEARCH_RATE=0 關掉研究單，亂數序列和沒有研究單時一樣）。
+// SIM_RESEARCH=agent|self 讓自動玩家遇到研究單時先研究再派工：agent 用它本來要派的廠商、模型與付費方式研究，self 自己研究；不能研究（例如工時不夠）時照舊直接派工。預設的自動玩家一律直接派工。
 // SIM_COMBOS=1 改跑十五種雙選組合（另跑單選 Laravel 當對照）。
 // SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
 // SIM_LOG=1 每種模式額外印出月底執行紀錄的筆數（平均、最多）與存檔 JSON 的字元數（平均、最多），量紀錄整月保留後的大小。
@@ -25,17 +29,20 @@ import {els} from './fake-dom.js';
 import './seed.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {firstIssues,start} from '../public/js/main.js';
-import {COMPANIES,CONF,CONF_KEYS,CONF_LAST_DAY,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model} from '../public/js/data.js';
-import {S,sel,setTrapRate} from '../public/js/state.js';
+import {COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model,CONF,CONF_KEYS,CONF_LAST_DAY} from '../public/js/data.js';
+import {START,S,sel,setResearchRate,setTrapRate} from '../public/js/state.js';
 import {est,hwBlock,localBusy,quotaLeft} from '../public/js/calc.js';
-import {PAR,confBlock,dispatch,endDay,invLevel,invest,investBlock,registerConf,requestHw,wait} from '../public/js/actions.js';
+import {PAR,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
 import {dispatchPanel} from '../public/js/view.js';
-import {monthScore} from '../public/js/modals.js';
 // 自動玩家不記最高分（和改成模組前一樣）
 globalThis.localStorage={getItem(){return null},setItem(){}};
 
 const TRAP=process.env.SIM_TRAP===undefined?undefined:Number(process.env.SIM_TRAP);
 if(TRAP!==undefined&&(process.env.SIM_TRAP.trim()===''||!Number.isFinite(TRAP))){ console.error(`SIM_TRAP 必須是數字，收到「${process.env.SIM_TRAP}」`); process.exit(1); }
+const RRATE=process.env.SIM_RESEARCH_RATE===undefined?undefined:Number(process.env.SIM_RESEARCH_RATE);
+if(RRATE!==undefined&&(process.env.SIM_RESEARCH_RATE.trim()===''||!Number.isFinite(RRATE)||RRATE<0||RRATE>1)){ console.error(`SIM_RESEARCH_RATE 必須是 0–1 的數字，收到「${process.env.SIM_RESEARCH_RATE}」`); process.exit(1); }
+const RSCH=process.env.SIM_RESEARCH;
+if(RSCH!==undefined&&!['agent','self'].includes(RSCH)){ console.error(`SIM_RESEARCH 只能是 agent 或 self，收到「${RSCH}」`); process.exit(1); }
 const N=+process.env.SIM_N||100;
 const INV=['1','2'].includes(process.env.SIM_INVEST)?+process.env.SIM_INVEST:0;
 const EXTRA=(process.env.SIM_INV_EXTRA||'fastlane,monitor,scan').split(',');
@@ -66,14 +73,17 @@ const SEAT_DAYS=[6,11,16], SEAT_MODEL={anthropic:'sonnet',openai:'std',google:'p
 const SUB={pro200:'pro',pro500:'pro500'}[process.env.SIM_SUB];
 if(process.env.SIM_SUB!==undefined&&!SUB){ console.error(`SIM_SUB 只能是 pro200 或 pro500，收到「${process.env.SIM_SUB}」`); process.exit(1); }
 const SUB_PRICE=SUB&&VENDORS.openai.plans.find(p=>p.id===SUB).price;
-// SIM_FLOOR=<NT$> 個人花費下限（預設不重算總分）
-const FLOOR=process.env.SIM_FLOOR===undefined?undefined:Number(process.env.SIM_FLOOR);
-if(FLOOR!==undefined&&(process.env.SIM_FLOOR.trim()===''||!Number.isFinite(FLOOR)||FLOOR<0)){ console.error(`SIM_FLOOR 必須是不小於 0 的數字，收到「${process.env.SIM_FLOOR}」`); process.exit(1); }
+if(SUB_PRICE>START.wallet){ console.error(`SIM_SUB=${process.env.SIM_SUB} 的月費 ${SUB_PRICE} 超過起始錢包 ${START.wallet}，開局付不起`); process.exit(1); }
+
+// SIM_UPGRADE=1 週一存錢升級 OpenAI（留 UPG_RESERVE 給個人 API）
+const UPG=process.env.SIM_UPGRADE==='1'||process.env.SIM_UPGRADE==='2', UPG_STOP=process.env.SIM_UPGRADE==='2', UPG_DAYS=[6,11,16], UPG_RESERVE=1500;
+const oaiPrice=id=>VENDORS.openai.plans.find(p=>p.id===id).price;
 
 const LOG=process.env.SIM_LOG==='1', logs={};
 
 function sim(){
   if(TRAP!==undefined) setTrapRate(TRAP);
+  if(RRATE!==undefined) setResearchRate(RRATE);
   const sum={};
   for(const mode of ['parallel','serial']){
     const runs=COMBOS?['laravel',...COMPANIES.flatMap((a,i)=>COMPANIES.slice(i+1).map(b=>a+'+'+b))]:COMPANIES;
@@ -85,6 +95,12 @@ function sim(){
         else{ S.subs.anthropic='max5'; S.wallet-=3300; S.st.subFee+=3300; }
         let guard=0;
         while(S.day<=20&&guard++<2000){
+          const skip=new Set();
+          if(UPG&&UPG_DAYS.includes(S.day)){
+            const wl=4-Math.floor((S.day-1)/5), cur=oaiPrice(S.subs.openai);
+            const up=['pro500','pro'].find(id=>oaiPrice(id)>cur&&(oaiPrice(id)-cur)*wl/4<=S.wallet-UPG_RESERVE);
+            if(up){const c=(oaiPrice(up)-cur)*wl/4; S.subs.openai=up; S.wallet-=c; S.st.subFee+=c;}
+          }
           const sk=SEAT_DAYS.indexOf(S.day); if(sk>=0&&sk<SEATS&&!S.seats.includes(SEAT.vendors[sk])) S.seats.push(SEAT.vendors[sk]);
           if(HWSIM&&!S.hwReq){const k=HW_ORDER.find(k=>!S.hw[k]); if(k&&S.trust>=HW[k].trust) requestHw(k);}
           if(CONFSIM){
@@ -103,13 +119,13 @@ function sim(){
           }
           let acted=true;
           while(acted){acted=false;
-            const free=S.issues.filter(i=>!i.running);
+            const free=S.issues.filter(i=>!i.running&&!skip.has(i.id)&&!(UPG_STOP&&i.out&&S.subs.openai==='pro500'));
             if(free.length&&S.hours>.3&&(!PAR()||S.jobs.length<S.slots)){
               sel.issue=free[0].id; sel.rv=g%3;
               const dsOk=!cnBlock(free[0],'deepseek',model('deepseek','chat'));
               const seatV=SEATS&&!free[0].out?S.seats.find(v=>quotaLeft('seat',v)>300):undefined;
               const alt=LUNA?['openai','mini']:['anthropic',HAIKU?'haiku':'sonnet'];
-              const subOk=SUB&&S.outage!=='openai'&&quotaLeft('sub','openai')>300;
+              const subOk=(SUB||UPG&&S.subs.openai!=='none')&&S.outage!=='openai'&&quotaLeft('sub','openai')>300;
               const hm=HWSIM&&!subOk&&!seatV&&!dsOk?hwModel(free[0]):undefined;
               if(subOk){ sel.v='openai'; sel.m='std'; }
               else{ sel.v=seatV||(dsOk?'deepseek':hm?'local':alt[0]); sel.m=seatV?SEAT_MODEL[seatV]:dsOk?'chat':hm||alt[1]; }
@@ -117,20 +133,29 @@ function sim(){
               if(EFF){const gap=model(sel.v,sel.m).cap-free[0].cx; sel.ef=gap<=-1?2:gap>=2?0:1;}
               if(subOk)sel.b='sub'; else if(hm)sel.b='local'; else if(seatV)sel.b='seat'; else if(dsOk||free[0].out||LUNA)sel.b='api'; else sel.b=quotaLeft('sub','anthropic')>300?'sub':'corp';
               if(sel.b==='corp'&&S.corp<=0) sel.b='api';
-              const before=S.hours; dispatch(); acted=S.hours!==before||PAR();
+              /* 錢包見底時個人 API 不能用：改走 Anthropic 訂閱或公司 API（外包單不能用公司），都不行就派本地 Gemma */
+              if(sel.b==='api'&&S.wallet<=0){
+                const fb=quotaLeft('sub','anthropic')>300?'sub':S.corp>0&&!free[0].out?'corp':'';
+                if(fb){ sel.v='anthropic'; sel.m=HAIKU?'haiku':'sonnet'; sel.b=fb; }
+                else{ sel.v='local'; sel.m='gemma'; sel.b='local'; }
+              }
+              /* SIM_RESEARCH：研究單先研究，拆出來的單下一輪照順序派 */
+              if(RSCH&&free[0].research&&!researchBlock(free[0],RSCH)){ research(RSCH); acted=true; continue; }
+              const before=S.hours, n0=S.jobs.length; dispatch(); acted=S.hours!==before||PAR();
               if(!PAR()&&S.hours===before)acted=false;
+              /* 平行模式派不出去（付費方式不能用、本地 GPU 忙）的單今天略過，換下一張 */
+              if(PAR()&&S.jobs.length===n0&&S.hours===before) skip.add(free[0].id);
             } else if(PAR()&&S.jobs.length&&S.hours>0){ wait(true); acted=true; }
           }
           const d=S.day; endDay(); if(d===20)break;
         }
         const html=els.mo.innerHTML;
-        let grade=html.match(/class="g">(.)/)?.[1];
-        let score=+html.match(/總分<\/span><span>(-?[\d,]+)/)[1].replace(/,/g,'');
-        if(FLOOR!==undefined) ({score,grade}=monthScore(FLOOR));
+        const grade=html.match(/class="g">(.)/)?.[1];
+        const score=+html.match(/總分<\/span><span>(-?[\d,]+)/)[1].replace(/,/g,'');
         const k=mode+' '+company; sum[k]??={n:0,tot:0,g:{}};
         sum[k].n++; sum[k].tot+=score; sum[k].g[grade]=(sum[k].g[grade]||0)+1;
         if(LOG)(logs[mode]??=[]).push([S.log.length,JSON.stringify({S,sel}).length]);
-        if(g<3){const self=S.st.subFee+S.st.api;console.log(mode,company,'rv',g%3,'caught',S.st.caught,'cnBan',S.cnBan,'ds',Math.round(S.st.tk.deepseek),'ant',Math.round(S.st.tk.anthropic),'kpi',S.kpi,'done',S.st.done,'late',S.st.late,'trust',Math.round(S.trust),'self',Math.round(self),'corp',Math.round(S.st.corp),'conf',S.st.conflicts,'out',S.st.outDone+'/'+S.st.outLate,'outIncome',S.st.outIncome,...(LUNA||SUB?['oai',Math.round(S.st.tk.openai)]:[]),...(HWSIM?['hw',HW_KEYS.filter(k=>S.hw[k]).join('+')||'none','local',Math.round(S.st.tk.local)]:[]),...(SEATS?['seats',S.seats.join('+'),'oai',Math.round(S.st.tk.openai),'goog',Math.round(S.st.tk.google)]:[]),'grade',grade);}
+        if(g<3){const self=S.st.subFee+S.st.api;console.log(mode,company,'rv',g%3,'caught',S.st.caught,'cnBan',S.cnBan,'ds',Math.round(S.st.tk.deepseek),'ant',Math.round(S.st.tk.anthropic),'kpi',S.kpi,'done',S.st.done,'late',S.st.late,'trust',Math.round(S.trust),'self',Math.round(self),'corp',Math.round(S.st.corp),'conf',S.st.conflicts,'out',S.st.outDone+'/'+S.st.outLate,'outIncome',S.st.outIncome,...(LUNA||SUB||UPG?['oai',Math.round(S.st.tk.openai)]:[]),...(HWSIM?['hw',HW_KEYS.filter(k=>S.hw[k]).join('+')||'none','local',Math.round(S.st.tk.local)]:[]),...(SEATS?['seats',S.seats.join('+'),'oai',Math.round(S.st.tk.openai),'goog',Math.round(S.st.tk.google)]:[]),'grade',grade);}
       }
     }
   }

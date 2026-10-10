@@ -1,5 +1,5 @@
-import {AI_P,BIG,CATCH,CONF_MANUAL,MANUAL_HRS,RETRY,STACK_HRS,UNFAMILIAR_HRS,FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,effModel,efOf,kt,lv,model,planOf} from './data.js';
-import {S,confStacks,sel,unfamiliar} from './state.js';
+import {BIG,CATCH,MANUAL_HRS,RESEARCH_DIRECT_TK,RETRY,STACK_HRS,UNFAMILIAR_HRS,FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,effModel,efOf,kt,model,planOf,AI_P,CONF_MANUAL,lv} from './data.js';
+import {S,sel,unfamiliar,confStacks} from './state.js';
 import {PAR} from './actions.js';
 
 /* ===== 計算 ===== */
@@ -46,7 +46,7 @@ export const P_STEP=[.95,.8,.5,.25,.1];
 export function est(is,v,mid,rv=sel.rv,ef=sel.ef){
   const M0=model(v,mid), M=effModel(M0,efOf(ef)), raw=M.cap-is.cx, diff=raw+stackGap(is,M);
   const md=lv(S.inv.md[is.stack]), sdd=S.inv.sdd;
-  const tk=is.base*M.verb*(is.big&&M.ctx?BIG.tk:1)*(M0.cap-is.cx>=1?.85:1)*REVIEW[rv].tk*(md?MD_TK:1)*(sdd?SDD_TK:1);
+  const tk=is.base*M.verb*(is.big&&M.ctx?BIG.tk:1)*(M0.cap-is.cx>=1?.85:1)*REVIEW[rv].tk*(md?MD_TK:1)*(sdd?SDD_TK:1)*(is.research?RESEARCH_DIRECT_TK:1);
   let p=P_STEP[Math.min(4,Math.max(0,1-diff))];
   if(is.big&&M.ctx)p+=BIG.p; if(is.big&&!M.ctx&&M.cap<4)p-=BIG.p;
   p+=MD_P[md]; if(sdd&&is.cx>=3)p+=SDD_P; p+=AI_P*lv(S.inv.ai);
@@ -63,7 +63,7 @@ export function bills(v,is){
   const V=VENDORS[v], pl=planOf(v), out=[];
   out.push({id:'sub',label:'個人訂閱',note:pl.id==='none'?'沒有訂閱':`${pl.name}・剩 ${kt(quotaLeft('sub',v))}`,ok:pl.id!=='none'});
   if(S.seats.includes(v)) out.push({id:'seat',label:'公司席位',note:`剩 ${kt(quotaLeft('seat',v))}`,ok:true});
-  out.push({id:'api',label:'個人 API',note:'自己的信用卡',ok:true});
+  out.push(S.wallet>0?{id:'api',label:'個人 API',note:'自己的信用卡',ok:true}:{id:'api',label:'個人 API',note:'錢包見底',ok:false});
   out.push({id:'corp',label:'公司 API',note:!V.corp?'公司沒簽約':S.corp<=0?'預算用完':'走部門預算',ok:V.corp&&S.corp>0});
   return out.map(b=>gigBlocked(is,b.id)?{...b,note:GIG_NOTE,ok:false}:b);
 }
