@@ -40,7 +40,7 @@ The save SHALL contain the save structure version, the run state `S`, the dispat
 source: gh-11-01-save-game
 updated: 2026-10-09
 code:
-  - tools/check.js
+  - tools/check/save-game.test.js
   - public/js/calc.js
   - docs/DESIGN.md
   - public/js/actions.js
@@ -95,7 +95,7 @@ When no save exists, page load SHALL open the opening setup as before.
 source: gh-11-01-save-game
 updated: 2026-10-09
 code:
-  - tools/check.js
+  - tools/check/save-game.test.js
   - public/js/calc.js
   - docs/DESIGN.md
   - public/js/actions.js
@@ -131,7 +131,7 @@ The save SHALL carry a save structure version, an integer that starts at 1 and i
 source: gh-11-01-save-game
 updated: 2026-10-09
 code:
-  - tools/check.js
+  - tools/check/save-game.test.js
   - public/js/calc.js
   - docs/DESIGN.md
   - public/js/actions.js
@@ -163,7 +163,7 @@ The save SHALL be deleted when a new month starts (開新局 in the resume modal
 source: gh-11-01-save-game
 updated: 2026-10-09
 code:
-  - tools/check.js
+  - tools/check/save-game.test.js
   - public/js/calc.js
   - docs/DESIGN.md
   - public/js/actions.js

@@ -34,7 +34,8 @@ python3 -m http.server -d public 8000
 ## Rule checks and balance simulation
 
 ```sh
-node tools/check.js   # asserts every example number in the specs
+node tools/check.js   # asserts every example number in the specs (node:test runs one file per spec under tools/check/)
+node tools/check.js save-game   # check a single spec
 node tools/sim.js     # 2 modes × 6 work roles × 3 review levels, 100 months each (SIM_N to change, SIM_TRAP=0 disables trap tickets, SIM_SLOTS=2..6 sets the slot count, SIM_SEED=<integer> makes output reproducible)
 ```
 
@@ -71,7 +72,8 @@ public/
   js/i18n.js     # localization: language registry, t(), language switch
   js/i18n/*.js   # dictionaries (zh-TW default, en)
 tools/sim.js     # balance simulator
-tools/check.js   # rule checks
+tools/check.js   # rule check entry point
+tools/check/     # rule checks, one <spec>.test.js per spec, plus the shared lib.js
 tools/fake-dom.js # fake DOM shared by the tools
 tools/seed.js    # seeded random (shared by SIM_SEED and CHECK_SEED)
 docs/DESIGN.md   # design and handover notes, in Chinese (requirements, rules and numbers, balance logs, code map)

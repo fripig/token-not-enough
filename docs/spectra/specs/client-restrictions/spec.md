@@ -26,7 +26,7 @@ source: gh-09-01-core-rules-specs
 updated: 2026-10-09
 code:
   - docs/DESIGN.md
-  - tools/check.js
+  - tools/check/client-restrictions.test.js
   - tools/fake-dom.js
 -->
 
@@ -61,7 +61,7 @@ code:
   - tools/sim.js
   - public/js/view.js
   - public/index.html
-  - tools/check.js
+  - tools/check/client-restrictions.test.js
   - public/js/calc.js
   - public/js/data.js
   - public/js/main.js
@@ -83,6 +83,6 @@ source: gh-09-01-core-rules-specs
 updated: 2026-10-09
 code:
   - docs/DESIGN.md
-  - tools/check.js
+  - tools/check/client-restrictions.test.js
   - tools/fake-dom.js
 -->

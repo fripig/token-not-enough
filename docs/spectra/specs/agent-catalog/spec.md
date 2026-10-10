@@ -66,7 +66,7 @@ code:
   - tools/sim.js
   - public/js/view.js
   - public/index.html
-  - tools/check.js
+  - tools/check/agent-catalog.test.js
   - public/js/calc.js
   - public/js/data.js
   - public/js/main.js
@@ -159,7 +159,7 @@ code:
   - tools/sim.js
   - public/js/view.js
   - public/index.html
-  - tools/check.js
+  - tools/check/agent-catalog.test.js
   - public/js/calc.js
   - public/js/data.js
   - public/js/main.js

@@ -72,7 +72,7 @@ source: gh-09-01-core-rules-specs
 updated: 2026-10-09
 code:
   - docs/DESIGN.md
-  - tools/check.js
+  - tools/check/month-end-scoring.test.js
   - tools/fake-dom.js
 -->
 

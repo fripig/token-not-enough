@@ -32,7 +32,8 @@ python3 -m http.server -d public 8000
 ## 規則檢查與平衡模擬
 
 ```sh
-node tools/check.js   # 把 spec 範例數字逐條斷言
+node tools/check.js   # 把 spec 範例數字逐條斷言（node:test 跑 tools/check/ 下每份 spec 一個檔）
+node tools/check.js save-game   # 只跑一份 spec 的檢查
 node tools/sim.js     # 兩種模式 × 六種工作內容 × 三種審核等級各跑 100 個月（SIM_N 可調，SIM_TRAP=0 關掉陷阱題，SIM_SLOTS=2..6 指定工作槽數，SIM_SEED=<整數> 固定亂數讓輸出可重現）
 ```
 
@@ -69,7 +70,8 @@ public/
   js/i18n.js     # 多語系：語言註冊表、t()、語言切換
   js/i18n/*.js   # 各語言字典（zh-TW 預設、en）
 tools/sim.js     # 平衡模擬器
-tools/check.js   # 規則檢查
+tools/check.js   # 規則檢查入口
+tools/check/     # 各 spec 的規則檢查（<spec>.test.js）與共用的 lib.js
 tools/fake-dom.js # 工具共用的假 DOM
 tools/seed.js    # 固定亂數（SIM_SEED、CHECK_SEED 共用）
 docs/DESIGN.md   # 設計與交接文件（需求來源、規則數值、平衡紀錄、程式碼地圖）

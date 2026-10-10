@@ -44,7 +44,7 @@ code:
   - CLAUDE.md
   - public/js/main.js
   - public/js/state.js
-  - tools/check.js
+  - tools/check/reasoning-effort.test.js
   - tools/sim.js
   - public/js/data.js
   - docs/DESIGN.md
@@ -77,7 +77,7 @@ code:
   - CLAUDE.md
   - public/js/main.js
   - public/js/state.js
-  - tools/check.js
+  - tools/check/reasoning-effort.test.js
   - tools/sim.js
   - public/js/data.js
   - docs/DESIGN.md

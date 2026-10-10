@@ -34,7 +34,7 @@ code:
   - public/css/style.css
   - public/js/data.js
   - public/js/modals.js
-  - tools/check.js
+  - tools/check/outsource-gigs.test.js
   - docs/DESIGN.md
   - tools/sim.js
   - public/js/main.js
@@ -114,7 +114,7 @@ code:
   - public/css/style.css
   - public/js/data.js
   - public/js/modals.js
-  - tools/check.js
+  - tools/check/outsource-gigs.test.js
   - docs/DESIGN.md
   - tools/sim.js
   - public/js/main.js

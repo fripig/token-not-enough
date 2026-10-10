@@ -41,7 +41,7 @@ code:
   - CLAUDE.md
   - public/js/state.js
   - public/js/view.js
-  - tools/check.js
+  - tools/check/team-seats.test.js
   - public/js/calc.js
   - public/js/data.js
 -->
@@ -101,7 +101,7 @@ code:
   - CLAUDE.md
   - public/js/state.js
   - public/js/view.js
-  - tools/check.js
+  - tools/check/team-seats.test.js
   - public/js/calc.js
   - public/js/data.js
 -->
@@ -141,7 +141,7 @@ code:
   - CLAUDE.md
   - public/js/state.js
   - public/js/view.js
-  - tools/check.js
+  - tools/check/team-seats.test.js
   - public/js/calc.js
   - public/js/data.js
 -->

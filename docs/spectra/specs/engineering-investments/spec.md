@@ -115,7 +115,7 @@ updated: 2026-10-09
 code:
   - public/css/style.css
   - public/js/game.js
-  - tools/check.js
+  - tools/check/engineering-investments.test.js
   - tools/sim.js
 -->
 
@@ -213,7 +213,7 @@ code:
   - public/js/actions.js
   - public/js/view.js
   - tools/sim.js
-  - tools/check.js
+  - tools/check/engineering-investments.test.js
   - public/js/calc.js
   - public/js/data.js
   - public/js/modals.js
@@ -246,7 +246,7 @@ code:
   - public/js/view.js
   - public/js/actions.js
   - public/js/modals.js
-  - tools/check.js
+  - tools/check/engineering-investments.test.js
 -->
 
 ---
@@ -286,7 +286,7 @@ code:
   - public/js/actions.js
   - public/js/view.js
   - tools/sim.js
-  - tools/check.js
+  - tools/check/engineering-investments.test.js
   - public/js/calc.js
   - public/js/data.js
   - public/js/modals.js
@@ -323,7 +323,7 @@ code:
   - public/js/actions.js
   - public/js/view.js
   - tools/sim.js
-  - tools/check.js
+  - tools/check/engineering-investments.test.js
   - public/js/calc.js
   - public/js/data.js
   - public/js/modals.js

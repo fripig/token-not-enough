@@ -25,7 +25,7 @@ The game SHALL send each analytics event as `gtag('event', <name>, <parameters>)
 source: gh-10-01-play-analytics
 updated: 2026-10-09
 code:
-  - tools/check.js
+  - tools/check/play-analytics.test.js
   - docs/DESIGN.md
 -->
 
@@ -61,7 +61,7 @@ Every event SHALL carry these parameters, read from the run's state at the momen
 source: gh-10-01-play-analytics
 updated: 2026-10-09
 code:
-  - tools/check.js
+  - tools/check/play-analytics.test.js
   - docs/DESIGN.md
 -->
 
@@ -85,7 +85,7 @@ When the player confirms the opening setup modal (開始第 1 天), the game SHA
 source: gh-14-01-choice-analytics
 updated: 2026-10-09
 code:
-  - tools/check.js
+  - tools/check/play-analytics.test.js
 -->
 
 ---
@@ -103,7 +103,7 @@ Each time a day ends and the next day starts (days 2–20), the game SHALL send 
 source: gh-10-01-play-analytics
 updated: 2026-10-09
 code:
-  - tools/check.js
+  - tools/check/play-analytics.test.js
   - docs/DESIGN.md
 -->
 
@@ -136,7 +136,7 @@ When the month-end receipt opens, the game SHALL send `game_end` with the common
 source: gh-10-01-play-analytics
 updated: 2026-10-09
 code:
-  - tools/check.js
+  - tools/check/play-analytics.test.js
   - docs/DESIGN.md
 -->
 
@@ -165,7 +165,7 @@ At the opening confirm the game SHALL send one `subscription` event for each ven
 source: gh-14-01-choice-analytics
 updated: 2026-10-09
 code:
-  - tools/check.js
+  - tools/check/play-analytics.test.js
 -->
 
 ---

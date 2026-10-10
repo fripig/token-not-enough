@@ -101,7 +101,7 @@ code:
   - tools/sim.js
   - public/js/view.js
   - public/index.html
-  - tools/check.js
+  - tools/check/dispatch-presets.test.js
   - public/js/calc.js
   - public/js/data.js
   - public/js/main.js
@@ -134,6 +134,6 @@ updated: 2026-10-09
 code:
   - public/css/style.css
   - public/js/game.js
-  - tools/check.js
+  - tools/check/dispatch-presets.test.js
   - tools/sim.js
 -->

@@ -40,7 +40,7 @@ code:
   - public/js/view.js
   - public/js/actions.js
   - public/js/modals.js
-  - tools/check.js
+  - tools/check/parallel-slots.test.js
 -->
 
 ---
@@ -71,7 +71,7 @@ code:
   - public/js/view.js
   - public/js/actions.js
   - public/js/modals.js
-  - tools/check.js
+  - tools/check/parallel-slots.test.js
 -->
 
 ---
@@ -124,5 +124,5 @@ source: merge-conflict-resolve
 updated: 2026-10-09
 code:
   - public/js/game.js
-  - tools/check.js
+  - tools/check/parallel-slots.test.js
 -->

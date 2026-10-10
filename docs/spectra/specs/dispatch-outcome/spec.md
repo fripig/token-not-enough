@@ -68,7 +68,7 @@ source: gh-09-01-core-rules-specs
 updated: 2026-10-09
 code:
   - docs/DESIGN.md
-  - tools/check.js
+  - tools/check/dispatch-outcome.test.js
   - tools/fake-dom.js
 -->
 
@@ -88,7 +88,7 @@ source: gh-09-01-core-rules-specs
 updated: 2026-10-09
 code:
   - docs/DESIGN.md
-  - tools/check.js
+  - tools/check/dispatch-outcome.test.js
   - tools/fake-dom.js
 -->
 
@@ -116,5 +116,5 @@ code:
   - public/js/view.js
   - public/js/actions.js
   - public/js/modals.js
-  - tools/check.js
+  - tools/check/dispatch-outcome.test.js
 -->
