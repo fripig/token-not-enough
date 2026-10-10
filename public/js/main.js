@@ -4,6 +4,7 @@ import {batch,cancelJob,dispatch,endDay,evaluate,research,invest,loadPreset,manu
 import {app,armCancel,cancelArm,render,toggleInvFold} from './view.js';
 import {showBadSave,showResume,showSetup} from './modals.js';
 import {showRules} from './rules.js';
+import {initLang,setLang} from './i18n.js';
 
 /* ===== 事件 ===== */
 app.addEventListener('click',e=>{
@@ -37,6 +38,7 @@ app.addEventListener('click',e=>{
   else if(t.dataset.act==='adjust')showSetup(true);
   else if(t.dataset.act==='rules')showRules();
   else if(t.dataset.act==='invfold'){toggleInvFold();render();}
+  else if(t.dataset.lang){setLang(t.dataset.lang);render();}
 });
 
 /* 第 1 天的工單依公司產生；開局換公司時重抽 */
@@ -50,8 +52,9 @@ export function start(){
   clearSave(); fresh(); firstIssues();
   render(); showSetup(false);
 }
-/* 開頁：有存檔問要不要繼續，存檔壞了先提示，都沒有就開新局 */
+/* 開頁：先決定語言；有存檔問要不要繼續，存檔壞了先提示，都沒有就開新局 */
 export function boot(){
+  initLang();
   const d=readSave();
   if(!d) start(); else if(d.bad) showBadSave(); else showResume(d);
 }

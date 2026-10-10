@@ -6,8 +6,8 @@ import {DICT as en} from './i18n/en.js';
    第一個是預設語言，也是缺 key 時的退回語言。新增語言：加字典檔、在 LANGS 加一行、在 index.html 加一份頁尾。 */
 export const LANGS=[{id:'zh-TW',dict:zhTW},{id:'en',dict:en}];
 export const LANG_KEY='tokgame-lang';
-/* 標頭的語言切換按鈕；字串全部搬完前先關著 */
-export const LANG_SWITCH=false;
+/* 標頭的語言切換按鈕（gh-34-01 搬字串期間關著） */
+export const LANG_SWITCH=true;
 export let lang=LANGS[0].id;
 
 export const dictOf=id=>(LANGS.find(l=>l.id===id)||LANGS[0]).dict;

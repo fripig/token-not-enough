@@ -2403,7 +2403,7 @@ function tests(){
    /* 英文整局：單線、平行各玩完 20 天，畫面、彈窗、紀錄都沒有中文 */
    for(const mode of ['serial','parallel']){
     const rnd0=Math.random; seedRandom(11); I.setLang('en'); newRun(['laravel','app'],mode); S.outsource=true;
-    const bad=[], chk=(where,html)=>{if(CJK.test(html))bad.push(`${where}: ${html.replace(/<[^>]+>/g,' ').match(/.{0,30}[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uff00-\uffef].{0,30}/)[0]}`);};
+    const bad=[], chk=(where,h)=>{const html=h.replace(/<div class="lang"[\s\S]*?<\/div>/,''); /* 語言按鈕用各自的語言寫，不算 */ if(CJK.test(html))bad.push(`${where}: ${html.replace(/<[^>]+>/g,' ').match(/.{0,30}[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uff00-\uffef].{0,30}/)[0]}`);};
     showSetup(false); chk('setup',els.mo.innerHTML); showSetup(true); chk('setup-adj',els.mo.innerHTML);
     let guard=0;
     while(guard++<40){
@@ -2437,6 +2437,41 @@ function tests(){
     }
     Ru.showRules(); ok(!CJK.test(els.mo.innerHTML)&&els.mo.innerHTML.includes('Game rules'),'i18n：英文規則 modal 標題與分頁');
     I.setLang('zh-TW');}
+   /* 語言切換（標頭按鈕） */
+   {const clickLang=id=>els.app.on.click({target:{closest:()=>({dataset:{lang:id},disabled:false})}});
+    const ge=[]; globalThis.gtag=(k,n,p)=>ge.push({n,p});
+    /* 遊戲中途切換：狀態、存檔不變，不送 GA、不寫紀錄，兩個 agent 照跑 */
+    resetStore(); I.setLang('zh-TW'); resetStore(); newRun('laravel','parallel'); S.day=7; S.issues=[makeIssue(false),makeIssue(false),makeIssue(false)];
+    for(const is of S.issues.slice(0,2)){sel.issue=is.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0}); dispatch();}
+    /* 案主名稱是跟著語言的標籤，比狀態時用 id */
+    const snap=()=>JSON.stringify(S,(k,v)=>k==='client'&&v?.id?v.id:v);
+    St.saveGame(null); const save0=store['tokgame-save'], s0=snap(), n0=ge.length;
+    render(); ok(/data-lang="en"/.test(els.app.innerHTML)&&/class="on" data-lang="zh-TW"/.test(els.app.innerHTML),'i18n：標頭有每個語言的按鈕，目前語言亮起來');
+    clickLang('en');
+    ok(I.lang==='en'&&store[I.LANG_KEY]==='en'&&globalThis.document.documentElement.lang==='en','i18n：切到英文，偏好存進 tokgame-lang、<html lang> 是 en');
+    ok(els.app.innerHTML.includes('Ticket queue')&&els.app.innerHTML.includes('Background agents'),'i18n：切換後畫面重畫成英文');
+        ok(snap()===s0&&store['tokgame-save']===save0&&ge.length===n0&&S.jobs.length===2,'i18n：切換不改狀態、不寫存檔、不送 GA、不寫紀錄，agent 照跑');
+    /* 重新整理：偏好保留，繼續上一局的提示也是英文 */
+    boot(); ok(I.lang==='en'&&els.mo.innerHTML.includes('Continue your last game?'),'i18n：重新整理後沿用英文（含繼續上一局）');
+    /* localStorage 寫不進去：還是切得過去，重新整理再看瀏覽器語言 */
+    I.setLang('zh-TW'); resetStore(); const set0=globalThis.localStorage.setItem; globalThis.localStorage.setItem=()=>{throw new Error('blocked');};
+    let threw=false; try{clickLang('en');}catch(e){threw=true;}
+    globalThis.localStorage.setItem=set0;
+    ok(!threw&&I.lang==='en'&&!(I.LANG_KEY in store),'i18n：localStorage 擋住時照樣切到英文、不報錯');
+    I.initLang(); ok(I.lang==='zh-TW','i18n：擋住時重新整理照瀏覽器語言（zh-TW）');
+    /* 已經寫的紀錄與工單標題維持原本的語言 */
+    resetStore(); I.setLang('zh-TW'); newRun('laravel'); firstIssues(); const t0=S.issues[0].title, first=S.log[S.log.length-1].msg;
+    clickLang('en'); render();
+    ok(CJK.test(t0)&&els.app.innerHTML.includes(t0)&&els.app.innerHTML.includes('Ticket queue'),'i18n：佇列裡的工單維持中文標題，卡片標籤是英文');
+    endDay(); const msgs=S.log.map(l=>l.msg);
+    ok(msgs.includes(first)&&CJK.test(first)&&msgs.some(m=>m.includes('Day 1 done'))&&msgs.some(m=>m.includes('Day 2 starts')),'i18n：切換後舊紀錄維持中文、新紀錄是英文');
+    /* 中文寫的存檔用英文讀 */
+    resetStore(); I.setLang('zh-TW'); newRun('laravel'); S.day=4; endDay(); const rep=(JSON.parse(store['tokgame-save']).morning||{}).rep||[];
+    I.setLang('en'); const d=St.readSave();
+    ok(d&&!d.bad&&d.S.day===5,'i18n：中文存檔在英文模式下讀得到',JSON.stringify(d&&{bad:d.bad,day:d.S?.day}));
+    M.showResume(d); els.mo.onclick({target:{closest:()=>({dataset:{act:'resume'}})}});
+    ok(els.app.innerHTML.includes('Ticket queue')&&els.mo.innerHTML.includes('Start working')&&rep.every(x=>els.mo.innerHTML.includes(x)),'i18n：讀檔後畫面英文，早上報告照存的內容');
+    delete globalThis.gtag; I.setLang('zh-TW'); resetStore();}
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);

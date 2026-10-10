@@ -2,7 +2,7 @@ import {RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,
 import {S,sel,unfamiliar} from './state.js';
 import {REVIEW,sddLevel,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetFor,quotaLeft,stackHint} from './calc.js';
 import {INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
-import {t} from './i18n.js';
+import {LANGS,LANG_SWITCH,lang,t} from './i18n.js';
 
 /* ===== 畫面 ===== */
 /* 背景 agent 的兩段式中止：第一次點只是待確認，記住是哪張單（不進存檔） */
@@ -60,7 +60,7 @@ export function render(){
   <header class="top">
     <div class="brand"><h1><span class="tk">Token</span> ${t('ui.brand')}</h1><p>${t('ui.brandSub',{company:companyName()})}</p></div>
     <div class="cal">${cal}</div>
-    <button class="btn ghost rbtn" data-act="rules">${t('ui.rules')}</button>
+    <div class="tools">${langSwitch()}<button class="btn ghost rbtn" data-act="rules">${t('ui.rules')}</button></div>
   </header>
   ${meters}
   <div class="quotas">${qs}</div>
@@ -76,6 +76,8 @@ export function render(){
     <small style="color:var(--muted);font-size:12px">${t('ui.disclaimer')}</small>
   </section>`;
 }
+/* 標頭的語言切換：每個註冊的語言一顆按鈕，名稱用該語言自己寫，目前的語言亮起來 */
+export const langSwitch=()=>LANG_SWITCH?`<div class="lang" role="group" aria-label="${t('ui.lang')}">${LANGS.map(l=>`<button class="${l.id===lang?'on':''}" data-lang="${l.id}" lang="${l.id}" aria-pressed="${l.id===lang}">${l.dict['lang.name']}</button>`).join('')}</div>`:'';
 /* 開發流程：買了 SDD 才顯示；只列已買的等級，亮的是這次會套用的等級 */
 export function sddRow(){
   const own=lv(S.inv.sdd); if(!own) return '';

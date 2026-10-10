@@ -229,7 +229,13 @@ button:disabled{cursor:not-allowed;opacity:.42}
 .rt th{font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:700;white-space:nowrap}
 .rt td:first-child{white-space:nowrap;font-weight:700}
 .rnote{color:var(--muted);font-size:12px}
-.top .rbtn{align-self:flex-start}
+.top .tools{display:flex;align-items:center;gap:8px;align-self:flex-start}
+/* 語言切換：小型分段按鈕，目前語言用強調色 */
+.lang{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--card)}
+.lang button{font:inherit;font-size:12px;font-weight:600;line-height:1;padding:8px 10px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.lang button+button{border-left:1px solid var(--line)}
+.lang button:hover{color:var(--ink)}
+.lang button.on{background:var(--accent);color:var(--accent-ink)}
 /* 窄螢幕：表格每一列排成一張卡片，欄名當標籤 */
 @media (max-width:480px){
   .rt thead{display:none}

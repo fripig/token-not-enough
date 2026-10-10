@@ -44,7 +44,7 @@ export const DICT={
   'ui.chip.big':'Large codebase',
   'ui.chip.banAll':'No Chinese models',
   'ui.chip.banApi':'No Chinese cloud',
-  'ui.chip.left':'{n} days left',
+  'ui.chip.left':'{n}d left',
   'ui.chip.tries':'Failed {n}×',
   'ui.card.researchNote':'Dispatching directly costs token ×{x} (research first to split it into two smaller tickets)',
   'ui.queue.empty':'Queue cleared. You can leave early and save the hours for tomorrow.',
@@ -696,4 +696,5 @@ export const DICT={
   'rules.th.effort':'Effort',
   'rules.th.cap':'Skill',
   'rules.same':'unchanged',
+  'ui.lang':'Language',
 };

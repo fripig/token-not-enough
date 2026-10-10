@@ -696,4 +696,5 @@ export const DICT={
   'rules.th.effort':'強度',
   'rules.th.cap':'能力',
   'rules.same':'不變',
+  'ui.lang':'語言',
 };
