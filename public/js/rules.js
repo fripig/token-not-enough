@@ -1,7 +1,7 @@
 import {APIV,BIG,BILL_LABEL,CATCH,CI_CONFLICT,CLIENTS,CONFLICT,EFFORT,EVAL_HRS,FASTLANE_REJECT,HARD_KPI,HOOK_PR,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INC_KPI,INVEST,INV_KEYS,KPI,BASE,LATE_KPI,MANUAL_HRS,MCP_EVAL_HRS,MCP_REVEAL,MONITOR_KPI,MONITOR_LATE,PN,PR_HRS,PR_REVIEWED,RESCOPE,RETRY,REVEAL,SCAN_AUDIT,SDD_TRAP_STOP,SEAT,STACK_HRS,STORE_RATE,UNFAMILIAR_HRS,VENDORS,kt,nt} from './data.js';
 import {GIG_LATE,GIG_PAY,START,TRAP_RATE} from './state.js';
 import {P_STEP,REVIEW,STORE_REJECT} from './calc.js';
-import {AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_TRUST,EVAL_TK,EVENT_RATE,INC_LATE_TRUST,INC_RAMP,INC_RATE,LATE_TRUST,OVERDRAFT_TRUST,OVERNIGHT_HRS,RESCOPE_TRUST,REVIEW_LOAD,SLOT_CHOICES,TRAP_STOP} from './actions.js';
+import {AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_TRUST,DOUBT_TRUST,EVAL_TK,EVENT_RATE,INC_LATE_TRUST,INC_RAMP,INC_RATE,LATE_TRUST,OVERDRAFT_TRUST,OVERNIGHT_HRS,PACE_KPI,PRAISE_TRUST,RESCOPE_TRUST,REVIEW_LOAD,SLOT_CHOICES,TRAP_STOP} from './actions.js';
 import {GRADES,PAR_GRADE,SCORE} from './modals.js';
 import {mo,ov} from './view.js';
 
@@ -76,7 +76,8 @@ export function rulesTab(id){
       `一個月 20 個工作天，每週 5 天，每天 ${START.hours} 小時。`,
       `開局：個人錢包 ${nt(START.wallet)}、公司 API 預算 ${nt(START.corp)}、主管信任 ${START.trust}、KPI 0。`,
       '週一重置每週額度，可以調整訂閱：升級只補剩下週數的差價，降級不退費。',
-      `每天有 ${pct(EVENT_RATE)} 機率發生一件隨機事件：API 降價、廠商當機、預算凍結、額度縮水、流量暴增、主管稱讚或質疑、外包尾款、全公司禁中國雲端。`]))
+      `每天有 ${pct(EVENT_RATE)} 機率發生一件隨機事件：API 降價、廠商當機、預算凍結、額度縮水、流量暴增、主管稱讚或質疑、外包尾款、全公司禁中國雲端。`,
+      `主管稱讚或質疑看 KPI 有沒有超過天數 × ${PACE_KPI}：超過信任 +${PRAISE_TRUST}，沒超過信任 −${DOUBT_TRUST}；第 6 天前沒超過只提醒、不扣分。`]))
     +rsec('遊戲模式',rlist([
       '單線模式：一次處理一張，agent 跑多久你就等多久。',
       `${rtag('平行模式')}同時跑 ${SLOT_CHOICES[0]}–${SLOT_CHOICES[SLOT_CHOICES.length-1]} 個 agent（開局選），你的時間花在派工和審 PR。`,

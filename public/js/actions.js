@@ -281,6 +281,8 @@ export function invHint(is){
 
 /* 每天抽隨機事件的機率；下班沒跑完的 agent 過夜推進的時數 */
 export const EVENT_RATE=.55, OVERNIGHT_HRS=3;
+/* 主管事件：KPI 要超過 天數 × PACE_KPI，稱讚 +PRAISE_TRUST、質疑 -DOUBT_TRUST；第 6 天前沒達標只提醒 */
+export const PACE_KPI=7, PRAISE_TRUST=6, DOUBT_TRUST=4;
 export const EVENTS=[
   ()=>{const v=pick(APIV);S.priceMod[v]*=.7;return [`${VENDORS[v].name} 新模型上架，API 降價 30%`,'接下來整個月這家的 API 都比較便宜。'];},
   ()=>{const v=pick(APIV);S.outage=v;return [`${VENDORS[v].name} 服務大當機`,`今天 ${VENDORS[v].agent} 全部不能用，不管你付的是哪種錢。`];},
@@ -288,7 +290,10 @@ export const EVENTS=[
   ()=>{S.corp*=.7;return ['年度預算凍結','公司 API 剩餘預算砍 30%。'];},
   ()=>{const v=pick(SUBV);S.capMod[v]*=.8;return [`${VENDORS[v].name} 調整訂閱用量政策`,'這家訂閱的每日與每週額度縮水 20%。'];},
   ()=>{if(S.day<6)return ['新聞流量比平常高一點','監控曲線抖了一下，系統還撐得住。沒有其他變化。'];S.issues.push(makeIssue(true));S.issues.push(makeIssue(true));return ['大新聞爆發，流量暴增',`一次進來兩張事故單，${S.inv.monitor?'監控提早告警，明天':'今天'}下班前要處理。`];},
-  ()=>{const g=S.kpi>S.day*7;S.trust=Math.max(0,Math.min(100,S.trust+(g?6:-4)));return g?['主管在週會上點名稱讚','「AI 工具用得很有效率。」信任 +6。']:['主管問進度怎麼這麼慢','「不是有買 AI 嗎？」信任 -4。'];},
+  ()=>{const need=S.day*PACE_KPI;
+    if(S.kpi>need){S.trust=Math.min(100,S.trust+PRAISE_TRUST);return ['主管在週會上點名稱讚',`「KPI 已經 ${S.kpi}，超過 ${need}，AI 工具用得很有效率。」信任 +${PRAISE_TRUST}。`];}
+    if(S.day<6)return ['主管在週會上提醒進度',`「KPI 目前 ${S.kpi}。第一週先熟悉工具，之後 KPI 要超過天數 × ${PACE_KPI}。」沒有其他變化。`];
+    S.trust=Math.max(0,S.trust-DOUBT_TRUST);return ['主管問進度怎麼這麼慢',`「KPI 才 ${S.kpi}，要超過 ${need} 才跟得上進度。」信任 -${DOUBT_TRUST}。`];},
   ()=>{S.wallet+=1500;return ['外包案尾款入帳','個人錢包 +NT$1,500，可以拿來養 token。'];},
 ];
 

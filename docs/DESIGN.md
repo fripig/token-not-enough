@@ -71,6 +71,8 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
    → OpenAI 訂閱新增 Pro 500（NT$16,250／月，每日 12,500k、每週 50,000k，Plus 的 25 倍），原本的 Pro 改名 Pro 200（id `pro`、價格與額度不動）；不做 Pro 100 與 Astra Ultrafast。按鈕上的 12,500k 原本會四捨五入成「13M」，改成 10M 以上的 token 數留一位小數（12.5M）。月底總分的個人花費下限量了 12k／15k／20k，從 NT$12,000 提到 NT$20,000，讓 Pro 500 的月費全部算進分數（都是使用者從選項裡選的）。設計紀錄在 Spectra change `gh-19-01-openai-pro-500`（#19）。
 25. 「執行紀錄看不到 對話關掉就沒了」（回報 #24 時找不到第 1 天下班扣信任的原因）、「且所做的決策都詳細記錄」、「到時候可以用紀錄復盤」、「乾脆加入播放功能」
    → 彈窗裡的訊息補進現有的執行紀錄（不另做每日報告畫面），紀錄整個月都保留（拿掉 80 筆上限）；派工記完整決策（含單線模式、派工台看到的成功率、一鍵／批次用了哪個方案），結果與評估寫付費方式，記等待、隨機事件、逾期扣多少信任、新的一週，每天下班一行總結（都是使用者從選項裡選的）。播放功能選了「紀錄逐筆播放」（不做完整重播整局），另開 change `gh-27-01-log-replay`（#27）。設計紀錄在 Spectra change `gh-25-01-log-history`（#25）。
+26. 「我沒額外買電腦就因為沒用ＡＩ被扣信任度」（#24，新局、沒申請採購、第 1 天下班就被扣）
+   → 重現（目前版本各 1,000 局）沒有觸發電腦閒置扣分，最可能是第 2 天早上的事件「主管問進度怎麼這麼慢／「不是有買 AI 嗎？」信任 -4」：「買 AI」被讀成採購電腦，也沒寫出扣分是因為 KPI 沒超過天數 × 7。事件文字改成寫出目前 KPI 與門檻、拿掉「買 AI」，第 1 週（第 6 天前）沒達標只提醒不扣分，後面不補（都是使用者從選項裡選的）。change 原名 `gh-24-01-hw-idle-without-purchase`，根因確認後改名。設計紀錄在 Spectra change `gh-24-01-slow-progress-event`（#24）。
 
 介面文字一律繁體中文（台灣用語）。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
@@ -400,7 +402,16 @@ SRE、DevOps 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；�
 - 畫面顯示的成功率是 `pe = p + (1-p) × c`，並附原始機率。
 
 ### 隨機事件（`EVENTS`，每天 55% 機率抽一個）
-API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度縮水 20%、流量暴增（兩張事故單；第 6 天前抽到只顯示「新聞流量比平常高一點」，沒有效果，理由見「工單」的每日進件）、主管稱讚或質疑、外包尾款 +NT$1,500、全公司禁中國雲端。
+API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度縮水 20%、流量暴增（兩張事故單；第 6 天前抽到只顯示「新聞流量比平常高一點」，沒有效果，理由見「工單」的每日進件）、主管稱讚或質疑（見下）、外包尾款 +NT$1,500、全公司禁中國雲端。
+
+主管事件（`PACE_KPI`、`PRAISE_TRUST`、`DOUBT_TRUST`）看 KPI 有沒有超過「當天天數 × 7」（嚴格大於）：
+- 超過：「主管在週會上點名稱讚」，「KPI 已經 40，超過 35，AI 工具用得很有效率。」信任 +6（上限 100）。
+- 沒超過、第 6 天起：「主管問進度怎麼這麼慢」，「KPI 才 42，要超過 42 才跟得上進度。」信任 −4（下限 0）。
+- 沒超過、第 6 天前：「主管在週會上提醒進度」，「KPI 目前 0。第一週先熟悉工具，之後 KPI 要超過天數 × 7。」沒有其他變化。理由和流量暴增一樣，讓第 1 週有時間熟悉；少扣的不在後面補。
+
+舊文字「不是有買 AI 嗎？」會被讀成沒買電腦也被扣（#24），所以文字一定要寫出 KPI 和門檻。
+
+實測（2026-10-10，`SIM_N=100`，每格 300 局，`SIM_SEED=101`、`202` 各跑一次）：改動前後輸出逐行相同。種子 101 的 3,600 局裡第 2–5 天抽到主管事件 993 次，957 次已經達標，只有 36 次落到「只提醒」；那幾局的信任後來也歸零，少扣的 4 分被下限吃掉。自動玩家第 1 週進度遠超過門檻，量不到這次改動，受影響的是第 1 週進度慢的真人玩家。沒有調數值。
 
 ### 結算（`showEnd`、`monthScore`、`SPEND_FLOOR`）
 總分（`monthScore(floor = SPEND_FLOOR)`，`showEnd` 與模擬器的 `SIM_FLOOR` 共用）= KPI × 10 + 信任 × 4 + (8000 − 個人花費) ÷ 8（下限 −12000 ÷ 8，也就是個人花費超過 NT$20,000 才不再多扣）− 稽核次數 × 80。個人花費 = 訂閱費 + 個人 API + 外包違約金 − 外包收入。下限原本是 NT$12,000，比 Pro 500 的月費 NT$16,250 低，訂了它有 NT$4,250 不扣分，`gh-19-01-openai-pro-500` 提到 NT$20,000。
@@ -466,7 +477,7 @@ Pro 500 每一格都比 Pro 200 差（平行 12k 時 −5.2%～−8.3%、20k 時
 | `data.js` | 資料與工具函式，沒有狀態：`GAME_VERSION`、`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP`、`INV_KEYS`、`HOOK_PR`、`SCAN_AUDIT`、`FASTLANE_REJECT`、`MONITOR_LATE`、`MONITOR_KPI`、`HW`、`HW_KEYS`、`PC_SPEED`、`HW_REQ_HRS`、`HW_SETUP_HRS`、`HW_IDLE`；規則係數 `CATCH`、`REVEAL`、`BIG`、`RETRY`、`MANUAL_HRS`、`UNFAMILIAR_HRS`、`STACK_HRS`、`STORE_RATE`、`INC_KPI`、`HARD_KPI`、`LATE_KPI`、`CONFLICT`、`CI_CONFLICT`、`PR_HRS`、`PR_REVIEWED`、`EVAL_HRS`、`MCP_EVAL_HRS`、`RESCOPE`（`SEAT.review` 是席位審核天數） |
 | `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件、存檔：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`SAVE_KEY`、`SAVE_VER`、`saveGame`、`clearSave`、`readSave`、`loadGame`、`daySnap`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`hardStack`、`unfamiliar`、`makeIssue`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs`、`START`（起始錢包、公司預算、信任、每日工時） |
 | `calc.js` | 計算（`est(is, v, mid, rv, ef)` 會套推理強度）：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`hasHw`、`manualBlocked`、`hwBlock`、`localSpeed`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log`、`P_STEP`（成功率階梯） |
-| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`RV_ID`、`jobChoice`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`hwReqBlock`、`requestHw`、`useHw`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`intakeIssue`、`daySummary`、`endDay`、`AUDIT_ODDS`、`AUDIT_TRUST`、`OVERDRAFT_TRUST`、`CORP_DAY_LIMIT`、`CORP_DAY_TRUST`、`LATE_TRUST`、`INC_LATE_TRUST`、`EVENT_RATE`、`OVERNIGHT_HRS` |
+| `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`RV_ID`、`jobChoice`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`hwReqBlock`、`requestHw`、`useHw`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`intakeIssue`、`daySummary`、`endDay`、`AUDIT_ODDS`、`AUDIT_TRUST`、`OVERDRAFT_TRUST`、`CORP_DAY_LIMIT`、`CORP_DAY_TRUST`、`LATE_TRUST`、`INC_LATE_TRUST`、`EVENT_RATE`、`OVERNIGHT_HRS`、`PACE_KPI`、`PRAISE_TRUST`、`DOUBT_TRUST` |
 | `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`quickBtn`、`invPanel`、`hwRow`、`qbox`、`dispatchPanel` |
 | `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showResume`、`showBadSave`、`SPEND_FLOOR`、`monthScore`、`showEnd`、`SCORE`、`GRADES`、`PAR_GRADE` |
 | `rules.js` | 規則 modal（`showRules(back)`，`back` 是關閉後回到原彈窗的函式）與六個分頁的內容（`rulesTab(id)`），數字全部從其他模組的常數插值：`RULE_TABS`、`ruleTab`（只在這個模組改）、`pct`、`rtag`、`rtable`、`rlist`、`rsec`、`rulesTab`、`showRules` |

@@ -1303,10 +1303,16 @@ function tests(){
   S.corp=10000; ev=EVENTS[3](); ok(ev[0]==='年度預算凍結'&&near(S.corp,7000),'random-events：預算凍結 -30%');
   S.subs.anthropic='pro'; S.used.sub.anthropic={d:0,w:0}; ev=withRand(0,EVENTS[4]); ok(ev[0]==='Anthropic 調整訂閱用量政策'&&near(S.capMod.anthropic,.8)&&near(quotaLeft('sub','anthropic'),360),'random-events：訂閱額度縮水 20%');
   S.issues=[]; ev=EVENTS[5](); ok(ev[0]==='大新聞爆發，流量暴增'&&S.issues.length===2&&S.issues.every(i=>i.inc),'random-events：流量暴增進兩張事故單');
-  S.day=5; S.kpi=40; S.trust=70; ev=EVENTS[6](); ok(ev[0]==='主管在週會上點名稱讚'&&S.trust===76,'random-events：KPI 40 > 35 時主管稱讚 +6');
-  S.kpi=35; S.trust=70; ev=EVENTS[6](); ok(ev[0]==='主管問進度怎麼這麼慢'&&S.trust===66,'random-events：KPI 35 時主管質疑 -4');
-  S.kpi=40; S.trust=98; EVENTS[6](); ok(S.trust===100,'random-events：稱讚後信任上限 100');
-  S.kpi=0; S.trust=2; EVENTS[6](); ok(S.trust===0,'random-events：質疑後信任下限 0');
+  /* 主管事件（gh-24-01-slow-progress-event）：KPI 要超過 天數 × 7；第 6 天前沒達標只提醒 */
+  S.day=5; S.kpi=40; S.trust=70; ev=EVENTS[6]();
+  ok(ev[0]==='主管在週會上點名稱讚'&&ev[1]==='「KPI 已經 40，超過 35，AI 工具用得很有效率。」信任 +6。'&&S.trust===76,'random-events：第 5 天 KPI 40 主管稱讚 +6',ev.join('｜'));
+  S.day=5; S.kpi=35; S.trust=70; ev=EVENTS[6]();
+  ok(ev[0]==='主管在週會上提醒進度'&&ev[1]==='「KPI 目前 35。第一週先熟悉工具，之後 KPI 要超過天數 × 7。」沒有其他變化。'&&S.trust===70,'random-events：第 5 天 KPI 35 只提醒不扣分',ev.join('｜'));
+  S.day=6; S.kpi=42; S.trust=70; ev=EVENTS[6]();
+  ok(ev[0]==='主管問進度怎麼這麼慢'&&ev[1]==='「KPI 才 42，要超過 42 才跟得上進度。」信任 -4。'&&S.trust===66,'random-events：第 6 天 KPI 42 主管質疑 -4',ev.join('｜'));
+  for(const [day,kpi,t0,title,t1] of [[2,0,70,'主管在週會上提醒進度',70],[2,15,70,'主管在週會上點名稱讚',76],[5,35,70,'主管在週會上提醒進度',70],[6,43,98,'主管在週會上點名稱讚',100],[6,42,70,'主管問進度怎麼這麼慢',66],[7,0,2,'主管問進度怎麼這麼慢',0]]){
+    S.day=day; S.kpi=kpi; S.trust=t0; ev=EVENTS[6](); ok(ev[0]===title&&S.trust===t1,`random-events：第 ${day} 天 KPI ${kpi} 信任 ${t0} → ${title}、信任 ${t1}`,`${ev[0]} ${S.trust}`);}
+  ok(!EVENTS.some(f=>String(f).includes('不是有買 AI')),'random-events：事件文字不再有「不是有買 AI」');
   S.wallet=1000; ev=EVENTS[7](); ok(ev[0]==='外包案尾款入帳'&&S.wallet===2500,'random-events：尾款 +NT$1,500');
   }
 
@@ -1683,6 +1689,7 @@ function tests(){
   press({rtab:'invest'}); press({act:'close'}); ok(els.ov.hidden,'rules-reference：從標頭打開，關閉後隱藏彈窗');
   Ru.showRules(); ok(selTab()==='invest','rules-reference：同一次開頁記住上次的分頁');
   ok(Ru.rulesTab('nope')===Ru.rulesTab('basic'),'rules-reference：未知分頁退回基本');
+  ok(Ru.rulesTab('basic').includes('天數 × 7')&&Ru.rulesTab('basic').includes('第 6 天前'),'rules-reference：基本分頁說明主管事件的 KPI 門檻與第一週只提醒');
   press({rtab:'nope'}); ok(selTab()==='basic','rules-reference：點到未知分頁 id 時選中基本');
   press({act:'close'});
   }
@@ -1770,7 +1777,7 @@ function tests(){
   ok(wi>ri&&ri>=0,'action-log：等待那行比等待期間的結果舊',S.log.slice(0,4).map(l=>l.msg).join(' / '));
   /* 隨機事件、新的一週、逾期總數 */
   newRun('laravel'); S.day=6; S.kpi=0; withRand([0,.8,.5],endDay);
-  ok(S.log.some(l=>l.msg==='D07 ◆ 主管問進度怎麼這麼慢｜「不是有買 AI 嗎？」信任 -4。'),'action-log：隨機事件寫進紀錄',line('◆'));
+  ok(S.log.some(l=>l.msg==='D07 ◆ 主管問進度怎麼這麼慢｜「KPI 才 0，要超過 49 才跟得上進度。」信任 -4。'),'action-log：隨機事件寫進紀錄',line('◆'));
   newRun('laravel'); S.day=5; withRand(.99,endDay); ok(/^D06 — 第 6 天開工・新的一週，每週額度重置，新進 \d+ 張工單(，外包 \d+ 張)? —$/.test(S.log[0].msg),'action-log：第 6 天開工寫新的一週',S.log[0].msg);
   newRun('laravel'); S.day=6; withRand(.99,endDay); ok(!S.log[0].msg.includes('新的一週'),'action-log：第 7 天不寫新的一週');
   newRun('laravel'); S.day=4; S.issues=[ticket('laravel',2,{due:4}),ticket('laravel',3,{due:4,inc:true,kpi:13})]; withRand(.99,endDay);
