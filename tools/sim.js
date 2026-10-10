@@ -52,6 +52,7 @@ if(!EXTRA.every(k=>['fastlane','monitor','scan'].includes(k))){ console.error(`S
 const CONFSIM=process.env.SIM_CONF==='1';
 const SDD2=process.env.SIM_SDD2==='1', SDD_PICK=process.env.SIM_SDD_PICK==='1';
 if(CONFSIM&&!INV){ console.error('SIM_CONF 要搭配 SIM_INVEST=1 或 2'); process.exit(1); }
+if(SDD2&&!INV){ console.error('SIM_SDD2 要搭配 SIM_INVEST=1 或 2'); process.exit(1); }
 const COMBOS=process.env.SIM_COMBOS==='1';
 const OUT=process.env.SIM_OUTSOURCE==='1';
 const EFF=process.env.SIM_EFFORT==='1';
