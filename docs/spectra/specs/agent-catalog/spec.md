@@ -109,14 +109,14 @@ Subscription plans SHALL be as follows, with daily and weekly quotas in k tokens
 - **WHEN** a token amount of 1,000k or more is shown (plan buttons, quota boxes, logs)
 - **THEN** it is rounded to one decimal in M, and once the rounded value is 10 or more a trailing .0 is dropped: 10,000k shows 10M, 10,004k shows 10M, 9,960k shows 10M, 12,500k shows 12.5M, 10,234k shows 10.2M and 50,000k shows 50M; amounts that round below 10M show as before (9,940k shows 9.9M, 8,000k shows 8.0M, 450k shows 450k)
 
-#### Scenario: Pro 500 at month start overdraws the wallet
+#### Scenario: Pro 500 does not fit the starting wallet
 
-- **WHEN** the player picks only OpenAI Pro 500 at month start and confirms, with the starting personal wallet of NT$8,000
-- **THEN** the modal shows 這次要從個人錢包付 NT$16,250 and 付完剩 -NT$8,250, and after confirming the wallet is -NT$8,250, the subscription fee total is NT$16,250 and OpenAI's plan id is `pro500`
+- **WHEN** the player picks only OpenAI Pro 500 at month start, with the starting personal wallet of NT$8,000
+- **THEN** the modal shows 這次要從個人錢包付 NT$16,250, 付完剩 -NT$8,250 and 錢包不夠付這次的訂閱, 開始第 1 天 is disabled, and clicking it charges nothing and leaves OpenAI at 不訂閱
 
 #### Scenario: Monday upgrade from Pro 200 to Pro 500
 
-- **WHEN** on day 11 the player holding OpenAI Pro 200 changes it to Pro 500 and confirms
+- **WHEN** on day 11 the player holding OpenAI Pro 200 with at least NT$4,875 in the wallet changes it to Pro 500 and confirms
 - **THEN** the player pays NT$4,875 ((16,250 − 6,500) × 2/4) and OpenAI's daily and weekly quotas become 12,500k and 50,000k
 
 ---

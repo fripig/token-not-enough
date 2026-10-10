@@ -1,10 +1,4 @@
-# billing-methods Specification
-
-## Purpose
-
-Defines who pays for an agent's tokens — the player's subscription quota, the player's own API card, the company's API budget, or a local GPU — and the trust and security consequences of each choice.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Billing options per vendor
 
@@ -50,81 +44,8 @@ When an agent finishes or stops, its tokens SHALL be charged by billing method: 
 - **WHEN** 個人 API is selected and the upper estimate exceeds the wallet
 - **THEN** the panel warns 錢包可能不夠，跑到一半會停下來。 and the dispatch button stays enabled
 
----
-### Requirement: Quota exhaustion
+## ADDED Requirements
 
-If the quota needed exceeds the quota left, the agent SHALL use up the remaining quota and stop: the attempt SHALL fail with the note 撞到用量上限，agent 停在一半, recorded tokens SHALL scale by the fraction of quota available, and the hours SHALL be max(0.3, hours × max(0.3, fraction)). Self-review SHALL NOT rescue this failure. The dispatch panel SHALL warn 剩餘額度可能不夠，跑到一半會被限流。 when the upper estimate exceeds the quota left.
-
-#### Scenario: Half the quota
-
-- **WHEN** a subscription agent needs 400k quota and 200k is left
-- **THEN** 200k quota is used, the ticket stays in the queue with one more failed try, and the log reads 撞到用量上限，agent 停在一半
-
-
-<!-- @trace
-source: gh-09-01-core-rules-specs
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - tools/check.js
-  - tools/fake-dom.js
--->
-
----
-### Requirement: Company spend limits
-
-After any charge, if the company budget is below 0, trust SHALL drop by 8 (not below 0), the company budget SHALL be set to 0, and the log SHALL record ! 公司 API 預算透支，財務來信關切. At the end of a day, if today's company spend (API charges and investments) exceeds NT$1,500, trust SHALL drop by 6 and the day summary SHALL report it.
-
-#### Scenario: Daily overspend
-
-- **WHEN** the player spends NT$1,600 on company API in one day and ends the day with trust 70
-- **THEN** trust is 64 and the next day summary includes 今天公司 API 刷了 NT$1,600，主管在 Slack 問你在幹嘛（信任 -6）。
-
-#### Scenario: Overdraft
-
-- **WHEN** the company budget is NT$100 and a company API charge of NT$300 settles with trust 70
-- **THEN** the company budget is NT$0 and trust is 62
-
-
-<!-- @trace
-source: gh-09-01-core-rules-specs
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - tools/check.js
-  - tools/fake-dom.js
--->
-
----
-### Requirement: Security audit on sensitive tickets
-
-When a sensitive ticket (機敏) is billed to 個人訂閱 or 個人 API, the game SHALL roll an audit after the attempt settles, whatever its outcome: 35% for a non-Chinese vendor and 60% for a Chinese vendor (secret scanning modifies these, see `engineering-investments`). An audit SHALL drop trust by 12 (not below 0), count one audit, and log ! 資安稽核. Company API, company seat and local GPU billing SHALL NOT be audited. The dispatch panel SHALL show the audit probability as a warning for a risky combination.
-
-#### Scenario: Personal API on a sensitive ticket
-
-- **WHEN** a sensitive ticket is billed to Sonnet on 個人 API
-- **THEN** the panel warns 機敏工單用個人帳號：有 35% 機率被資安稽核抓到。
-
-#### Scenario: Chinese cloud on a sensitive ticket
-
-- **WHEN** a sensitive ticket is billed to DeepSeek Chat on 個人 API
-- **THEN** the panel warns 機敏工單送到中國雲端：有 60% 機率被資安稽核抓到。
-
-#### Scenario: Company API is safe
-
-- **WHEN** a sensitive ticket is billed to 公司 API
-- **THEN** no audit roll happens
-
-<!-- @trace
-source: gh-09-01-core-rules-specs
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - tools/check.js
-  - tools/fake-dom.js
--->
-
----
 ### Requirement: Wallet exhaustion
 
 If a 個人 API charge exceeds the wallet, the agent SHALL use up the remaining wallet and stop: the wallet SHALL become NT$0, the personal API total SHALL rise by the amount actually paid, the attempt SHALL fail with the note 錢包見底，agent 停在一半, recorded tokens SHALL scale by the fraction paid (paid ÷ cost, 0 when nothing was left), and the hours SHALL be max(0.3, hours × max(0.3, fraction)). Self-review SHALL NOT rescue this failure. An architecture evaluation billed to 個人 API that runs out SHALL be interrupted and SHALL NOT mark the ticket as evaluated, and an agent research billed to 個人 API that runs out SHALL be interrupted without splitting the ticket; both SHALL log 錢包見底 instead of 額度不夠. A charge to 個人 API SHALL never take the wallet below NT$0.
