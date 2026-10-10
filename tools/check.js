@@ -26,7 +26,7 @@ const pristine=await import('../public/js/state.js?pristine');
 
 let pass=0,fail=0;
 /* 已經把字串搬進字典的模組（gh-34-01-i18n 逐批加，4.1 改成全部模組） */
-const I18N_DONE=['view.js','modals.js','actions.js','calc.js','main.js'];
+const I18N_DONE=['view.js','modals.js','actions.js','calc.js','main.js','state.js'];
 function ok(cond,name,detail=''){if(cond){pass++;}else{fail++;console.log('✗',name,detail);}}
 function near(a,b,eps=1e-9){return Math.abs(a-b)<=eps;}
 /* 去掉 JS 註解（保留字串、模板字串與 ${} 裡的程式），換行照留；i18n 檢查用 */
@@ -2380,6 +2380,15 @@ function tests(){
       ok(!CJK.test(e.join(''))&&!/[{}]/.test(e.join('')),`i18n：英文事件 ${k}（第 ${day} 天${mon?'、有監控':''}）`,e.join(' / '));
     }
     I.setLang('zh-TW');}
+   /* 資料欄位跟著語言：工作內容名稱、電腦說明帶入常數 */
+   I.setLang('en');
+   ok(dataModule.companyName(['laravel','rust'])==='Laravel backend + Rust infrastructure','i18n：英文工作內容名稱用 + 串起來',dataModule.companyName(['laravel','rust']));
+   ok(dataModule.HW.pc.desc.includes(String(dataModule.PC_SPEED))&&!CJK.test(dataModule.HW.pc.desc),'i18n：英文電腦說明帶入 PC_SPEED',dataModule.HW.pc.desc);
+   const texts=[...Object.values(dataModule.INVEST).flatMap(v=>[v.name,v.desc,v.lv2?.desc||'']),...Object.values(dataModule.HW).flatMap(v=>[v.name,v.price,v.desc]),...Object.values(dataModule.CONF).map(v=>v.name),...Object.values(dataModule.CONF_CATS),...dataModule.CLIENTS.map(c=>c.name),St.GIG_CLIENT.name,...Object.values(dataModule.BILL_LABEL),...dataModule.EFFORT.map(e=>e.name),...[0,1,2].map(i=>dataModule.SDD_NAME[i]+dataModule.SDD_EG[i]),...Object.values(STACKS).flatMap(v=>[v.name,v.company,v.desc]),...Object.values(VENDORS).flatMap(v=>[v.name,v.agent,...v.plans.map(p=>p.name),...v.models.map(m=>m.name)]),...C.REVIEW.map(r=>r.name)];
+   const zhLeft=texts.filter(x=>CJK.test(x));
+   ok(!zhLeft.length,'i18n：英文模式的資料欄位沒有中文',zhLeft.join(' / '));
+   I.setLang('zh-TW');
+   ok(dataModule.companyName(['laravel','rust'])==='Laravel 後端＋Rust 基礎設施','i18n：繁中工作內容名稱不變');
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);

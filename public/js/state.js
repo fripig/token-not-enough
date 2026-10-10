@@ -1,5 +1,6 @@
 import {CONF,HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,lv,normCompanies,objOf,pick,pickClient,presetsOf,rnd} from './data.js';
 import {SLOT_CHOICES} from './actions.js';
+import {t} from './i18n.js';
 
 /* ===== 狀態 ===== */
 export let S, sel, uid=0;
@@ -112,7 +113,7 @@ export function makeIssue(inc,st){
 
 /* 外包單：每種工作內容加前端平均抽，只能自己付 token，做完拿現金（KPI × GIG_PAY）不拿 KPI */
 export const GIG_PAY=250, GIG_LATE=.3, GIG_STACKS=[...COMPANIES,'fe'];
-export const GIG_CLIENT={name:'外包案主',ban:null};
+export const GIG_CLIENT={id:'gig',get name(){return t('client.gig');},ban:null};
 export function makeGig(){
   const is=makeIssue(false,pick(GIG_STACKS));
   return Object.assign(is,{out:true,sens:false,client:GIG_CLIENT,pay:is.kpi*GIG_PAY});
