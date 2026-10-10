@@ -58,7 +58,7 @@ Helpers in `state.js`: `confStacks()` returns the set of stacks covered by atten
 
 ### Personal spend includes conference fees
 
-`monthScore` personal spend becomes subscription + personal API + outsourcing penalties + conference fees − outsourcing income. The 自費養 AI 的勇者 title uses the same personal spend, so fees count toward it. The receipt adds 研討會 N 場 and 研討會報名費 NT$X when at least one registration happened.
+`monthScore` personal spend becomes subscription + personal API + outsourcing penalties + conference fees − outsourcing income. The 自費養 AI 的勇者 title uses the same personal spend, so fees count toward it. Supersedes the original assumption that fees lower the score: gh-26-01-money-off-score (archived 2026-10-10, merged into this branch) removed personal spend from the score, so fees are shown and drive titles only. The receipt adds 研討會 N 場 and 研討會報名費 NT$X when at least one registration happened.
 
 ### GA events without new dimensions
 
@@ -88,6 +88,6 @@ Registration sends `invest` with `investment` `conf_<key>` and `stack` `none`. A
 
 - [Conferences cost no hours and no trust; COSCUP is free] → they can become a must-pick every weekend. `SIM_CONF` measures it; if parallel mode exceeds +15%, raise fees or lower `AI_P` / level 2 values and record the change.
 - [Two ticket fees are estimates] → labeled in `docs/DESIGN.md`.
-- [Measured below target] → parallel mode measured −4.4% to +1.3% after two tuning rounds (target +3% to +15%); the player chose to keep the tuned values and real self-paid fees.
+- [Measured below target] → parallel mode measured −4.4% to +1.3% after two tuning rounds (target +3% to +15%); the player chose to keep the tuned values and real self-paid fees. After merging `gh-26-01-money-off-score` (money out of the score) it measured −9.9% to +4.0% in parallel and −1.7% to +20.4% in serial (`SIM_N=100`, seeds 101/202); still below the parallel target, values unchanged. That measurement was taken while fees still lowered the score; after merging gh-26-01-money-off-score the fee no longer costs points, so task 6.3 re-measures on the merged code before any value is changed.
 - [Levels change the shape of `S.inv`] → `loadGame` normalization plus a check assertion that loads a save with boolean investments.
 - [Auto player trust usually reaches 0 early] → conferences do not depend on trust, so the measurement is not blocked by it.
