@@ -26,7 +26,7 @@ const pristine=await import('../public/js/state.js?pristine');
 
 let pass=0,fail=0;
 /* 已經把字串搬進字典的模組（gh-34-01-i18n 逐批加，4.1 改成全部模組） */
-const I18N_DONE=['view.js','modals.js'];
+const I18N_DONE=['view.js','modals.js','actions.js','calc.js','main.js'];
 function ok(cond,name,detail=''){if(cond){pass++;}else{fail++;console.log('✗',name,detail);}}
 function near(a,b,eps=1e-9){return Math.abs(a-b)<=eps;}
 /* 去掉 JS 註解（保留字串、模板字串與 ${} 裡的程式），換行照留；i18n 檢查用 */
@@ -569,7 +569,7 @@ function tests(){
     S.inv.monitor=true; const m5=makeIssue(true); S.day=20; const m20=makeIssue(true);
     ok(q.kpi===Math.round(KPI[4]*1.6*(hardStack('laravel')?1.3:1))&&m5.kpi===Math.round(KPI[4]*1.2),'有監控：之後的事故單 KPI 加成 ×1.6 → ×1.2',`${q.kpi} ${m5.kpi}`);
     ok(m5.due===6&&m20.due===20&&q.due===5,'有監控：第 5 天的事故單第 6 天到期、第 20 天仍是 20，已在佇列的不變',`${m5.due} ${m20.due}`);
-    const spike=EVENTS.find(f=>String(f).includes('流量暴增'));
+    const spike=EVENTS.find(f=>String(f).includes('ev.traffic'));
     newRun('laravel'); S.day=6; S.issues=[]; let txt=spike(); ok(txt[1].includes('今天下班前'),'沒有監控：流量暴增寫今天');
     S.inv.monitor=true; S.issues=[]; txt=spike(); ok(txt[1].includes('明天下班前')&&S.issues.every(i=>i.due===S.day+1),'有監控：流量暴增寫明天、事故單隔天到期');
     const lateInc=withMon=>{newRun('laravel'); S.hours=0; S.trust=70; S.inv.monitor=withMon; S.issues=[ticket('laravel',4,{inc:true,due:S.day})];
@@ -1476,7 +1476,7 @@ function tests(){
   S.day=7; ev=EVENTS[2](); ok(ev[0]==='主管在週會上提醒'&&!S.cnBan,'random-events：第 8 天前不會禁中國雲端');
   S.day=8; ev=EVENTS[2](); ok(ev[0]==='主管宣布：全公司暫停把程式碼送到中國雲端模型'&&S.cnBan,'random-events：第 8 天起可能禁中國雲端');
   ev=EVENTS[2](); ok(ev[0]==='主管在週會上提醒'&&S.cnBan,'random-events：已經禁了就只是提醒');
-  {const spike=EVENTS.find(f=>String(f).includes('流量暴增'));
+  {const spike=EVENTS.find(f=>String(f).includes('ev.traffic'));
     newRun('laravel'); S.day=5; S.issues=[ticket('fe',1),ticket('fe',2),ticket('fe',3)]; let sp=spike();
     ok(sp[0]==='新聞流量比平常高一點'&&S.issues.length===3,'random-events：第 6 天前流量暴增沒有效果',sp[0]);
     S.day=6; sp=spike(); ok(sp[0]==='大新聞爆發，流量暴增'&&S.issues.length===5&&S.issues.slice(3).every(i=>i.inc),'random-events：第 6 天起流量暴增加兩張事故單',sp[0]);}
@@ -1492,7 +1492,7 @@ function tests(){
   ok(ev[0]==='主管問進度怎麼這麼慢'&&ev[1]==='「KPI 才 42，要超過 42 才跟得上進度。」信任 -4。'&&S.trust===66,'random-events：第 6 天 KPI 42 主管質疑 -4',ev.join('｜'));
   for(const [day,kpi,t0,title,t1] of [[2,0,70,'主管在週會上提醒進度',70],[2,15,70,'主管在週會上點名稱讚',76],[5,35,70,'主管在週會上提醒進度',70],[6,43,98,'主管在週會上點名稱讚',100],[6,42,70,'主管問進度怎麼這麼慢',66],[7,0,2,'主管問進度怎麼這麼慢',0]]){
     S.day=day; S.kpi=kpi; S.trust=t0; ev=EVENTS[6](); ok(ev[0]===title&&S.trust===t1,`random-events：第 ${day} 天 KPI ${kpi} 信任 ${t0} → ${title}、信任 ${t1}`,`${ev[0]} ${S.trust}`);}
-  ok(!EVENTS.some(f=>String(f).includes('不是有買 AI')),'random-events：事件文字不再有「不是有買 AI」');
+  ok(!Object.values(I.LANGS[0].dict).some(v=>typeof v==='string'&&v.includes('不是有買 AI')),'random-events：事件文字不再有「不是有買 AI」');
   S.wallet=1000; ev=EVENTS[7](); ok(ev[0]==='外包案尾款入帳'&&S.wallet===2500,'random-events：尾款 +NT$1,500');
   }
 
@@ -2372,6 +2372,14 @@ function tests(){
    newRun('laravel','parallel'); S.issues=[makeIssue(false)]; sel.issue=S.issues[0].id; I.setLang('en'); render();
    ok(/<button class="btn ghost rbtn" data-act="rules">Rules<\/button>/.test(els.app.innerHTML),'i18n：英文模式標頭的規則按鈕是 Rules');
    I.setLang('zh-TW'); resetStore();
+   /* 英文模式逐一觸發隨機事件（亂數固定 0：廠商是 Anthropic），標題與內容沒有中文、沒有剩下的 {} */
+   {const rnd0=Math.random; I.setLang('en'); const seen=[];
+    for(const day of [3,9]) for(const mon of [false,true]) for(let k=0;k<EVENTS.length;k++){
+      newRun('laravel'); S.day=day; S.kpi=day===3?0:500; S.inv.monitor=mon; Math.random=()=>0; let e; try{e=EVENTS[k]();}finally{Math.random=rnd0;}
+      seen.push(e.join(' '));
+      ok(!CJK.test(e.join(''))&&!/[{}]/.test(e.join('')),`i18n：英文事件 ${k}（第 ${day} 天${mon?'、有監控':''}）`,e.join(' / '));
+    }
+    I.setLang('zh-TW');}
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);

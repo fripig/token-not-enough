@@ -1,6 +1,6 @@
 import {S,addGigs,clearSave,fresh,makeIssue,readSave,resetIds,sel} from './state.js';
 import {log} from './calc.js';
-import {batch,cancelJob,dispatch,endDay,evaluate,research,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait,registerConf} from './actions.js';
+import {batch,cancelJob,dispatch,endDay,evaluate,research,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait,registerConf,dayStartLine} from './actions.js';
 import {app,armCancel,cancelArm,render,toggleInvFold} from './view.js';
 import {showBadSave,showResume,showSetup} from './modals.js';
 import {showRules} from './rules.js';
@@ -44,7 +44,7 @@ export function firstIssues(){
   resetIds(); S.issues=[]; S.log=[];
   for(let i=0;i<4;i++)S.issues.push(makeIssue(false));
   const g=addGigs();
-  log('dim',`— 第 1 天開工，新進 4 張工單${g?`，外包 ${g} 張`:''} —`);
+  log('dim',dayStartLine(1,false,4,g));
 }
 export function start(){
   clearSave(); fresh(); firstIssues();
