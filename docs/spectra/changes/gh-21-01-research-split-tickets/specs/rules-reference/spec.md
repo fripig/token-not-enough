@@ -1,0 +1,37 @@
+## MODIFIED Requirements
+
+### Requirement: Rules tabs
+
+The rules modal SHALL be titled 遊戲規則 and SHALL show six tab buttons in this order: 基本, 派工與成功率, 付費與稽核, 工單與陷阱, 投資與電腦, 結算, and a 關閉 button. Exactly one tab SHALL be selected and its content shown. Clicking a tab SHALL show that tab's content. The first open in a page load SHALL select 基本; later opens in the same page load SHALL select the tab that was selected when the modal was last closed. The selected tab SHALL NOT be written to storage or the save slot.
+
+The tabs SHALL cover, at minimum:
+
+- 基本: days, weeks and hours; starting wallet, company budget and trust; Monday quota reset and subscription changes; single-line and parallel mode including slot choices, PR review time and merge conflicts; the 進階模式 reasoning-effort table.
+- 派工與成功率: the success-rate table by ability minus complexity; the big-codebase adjustment; the self-review table; stack effects; presets and 一鍵派工.
+- 付費與稽核: the billing methods; company API daily limit and overdraft penalties; audit odds and penalty; team seats; client bans on Chinese models.
+- 工單與陷阱: complexity with base tokens and KPI; incident tickets; late penalties; unfamiliar stacks; traps, 評估架構 and 找主管重新評估; research tickets with their rate, direct-dispatch token premium, agent and self research costs and split table; outsourcing.
+- 投資與電腦: every engineering investment with its hours, cost and effect; every hardware purchase with its price text, trust threshold, delivery days and effect; the idle penalty.
+- 結算: the score formula, grade thresholds for both modes, best score per mode and work content, and the day-start save.
+
+Lines that apply only to 平行模式, 進階模式 or 接外包 SHALL be labeled with that setting. All rules SHALL be shown regardless of the current run's settings.
+
+#### Scenario: Default tab
+
+- **WHEN** the player opens the rules modal for the first time after the page loads
+- **THEN** six tab buttons appear in the listed order and 基本 is selected
+
+#### Scenario: Switching tabs
+
+- **WHEN** the player clicks 結算
+- **THEN** 結算 is selected and the score formula is shown
+
+#### Scenario: Last tab remembered in the page session
+
+- **WHEN** the player selects 投資與電腦, closes the modal and opens it again
+- **THEN** 投資與電腦 is selected
+
+#### Scenario: Research tickets in the tickets tab
+
+- **WHEN** the player selects 工單與陷阱
+- **THEN** the tab shows the research ticket rate 30%, the direct-dispatch premium ×4, agent research 40k tokens and 0.5h × model speed, self research 1.5h, and the splits 4 → 2＋3 and 5 → 3＋3
+

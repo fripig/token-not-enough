@@ -1,5 +1,5 @@
-import {APIV,BIG,BILL_LABEL,CATCH,CI_CONFLICT,CLIENTS,CONFLICT,EFFORT,EVAL_HRS,FASTLANE_REJECT,HARD_KPI,HOOK_PR,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INC_KPI,INVEST,INV_KEYS,KPI,BASE,LATE_KPI,MANUAL_HRS,MCP_EVAL_HRS,MCP_REVEAL,MONITOR_KPI,MONITOR_LATE,PN,PR_HRS,PR_REVIEWED,RESCOPE,RETRY,REVEAL,SCAN_AUDIT,SDD_TRAP_STOP,SEAT,STACK_HRS,STORE_RATE,UNFAMILIAR_HRS,VENDORS,kt,nt} from './data.js';
-import {GIG_LATE,GIG_PAY,START,TRAP_RATE} from './state.js';
+import {RESEARCH_DIRECT_TK,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,APIV,BIG,BILL_LABEL,CATCH,CI_CONFLICT,CLIENTS,CONFLICT,EFFORT,EVAL_HRS,FASTLANE_REJECT,HARD_KPI,HOOK_PR,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INC_KPI,INVEST,INV_KEYS,KPI,BASE,LATE_KPI,MANUAL_HRS,MCP_EVAL_HRS,MCP_REVEAL,MONITOR_KPI,MONITOR_LATE,PN,PR_HRS,PR_REVIEWED,RESCOPE,RETRY,REVEAL,SCAN_AUDIT,SDD_TRAP_STOP,SEAT,STACK_HRS,STORE_RATE,UNFAMILIAR_HRS,VENDORS,kt,nt} from './data.js';
+import {GIG_LATE,GIG_PAY,RESEARCH_RATE,START,TRAP_RATE} from './state.js';
 import {P_STEP,REVIEW,STORE_REJECT} from './calc.js';
 import {AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_TRUST,DOUBT_TRUST,EVAL_TK,EVENT_RATE,INC_LATE_TRUST,INC_RAMP,INC_RATE,LATE_TRUST,OVERDRAFT_TRUST,OVERNIGHT_HRS,PACE_KPI,PRAISE_TRUST,RESCOPE_TRUST,REVIEW_LOAD,SLOT_CHOICES,TRAP_STOP} from './actions.js';
 import {GRADES,PAR_GRADE,SCORE} from './modals.js';
@@ -57,6 +57,12 @@ export function rulesTab(id){
       `派工時能力夠就照真實複雜度硬做完；不夠就燒掉真實用量的 ${pct(TRAP_STOP)} 後停下來（導入 SDD 只燒 ${pct(SDD_TRAP_STOP)}），算失敗。自己手寫會花完時數後曝光。`,
       `評估架構：花 ${EVAL_TK}k × token 倍率、${EVAL_HRS}h × 速度，識破率 ${REVEAL.base} + ${REVEAL.per} × 能力，上限 ${pct(REVEAL.max)}（接 MCP 文件 +${pct(MCP_REVEAL)}、評估時間 ×${MCP_EVAL_HRS}）。`,
       `找主管重新評估（曝光後每張一次）：信任 ≥ ${RESCOPE_TRUST} 時信任 −${RESCOPE.ok}、KPI 照真實複雜度、期限 +${RESCOPE.days} 天；否則信任 −${RESCOPE.no}。`]))
+    +rsec('研究單',rlist([
+      `複雜度 4–5 的非事故工單有 ${pct(RESEARCH_RATE)} 是研究單，卡片標「需研究」。外包單也可能是研究單。`,
+      `直接派工：token ×${RESEARCH_DIRECT_TK}，成功率與時間不變。`,
+      `讓 agent 研究：花 ${RESEARCH_TK}k × token 倍率、${RESEARCH_HRS}h × 速度，扣款與資安稽核照評估架構；額度不夠時研究沒做完、不拆單。`,
+      `自己研究：花 ${RESEARCH_SELF_HRS}h（不熟的技術線 ×${UNFAMILIAR_HRS}），不花 token；本地 GPU 卡住不能手寫時也不能自己研究。`,
+      `研究完一定拆成兩張：${Object.entries(RESEARCH_SPLIT).map(([c,[a,b]])=>`複雜度 ${c} → ${a}＋${b}`).join('、')}。KPI（外包報酬）照複雜度比例分、總和不變，期限、案主、機敏照舊；拆出來的單不是陷阱、也不能再拆。研究單不能評估架構。`]))
     +rsec(`接外包 ${rtag('接外包')}`,rlist([
       `每天多 0–2 張外包單，報酬 = KPI × ${GIG_PAY}，做完進個人錢包，不加 KPI、不動信任。`,
       `逾期賠報酬的 ${pct(GIG_LATE)}，不扣 KPI 與信任。`]));
