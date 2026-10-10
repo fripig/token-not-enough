@@ -48,7 +48,7 @@ A value is a string; `{name}` is replaced by `params.name` (missing param leaves
 
 ### Pools move into the dictionaries, picked by position
 
-`STACKS[k].pool` is removed from data.js; `makeIssue()` calls `pick(tl('pool.<stack>.<cx|inc|trap>'))` and `pick(tl('pool.<stack>.research'))`. Because every language's pool has the zh-TW length (checked by check.js), the same `Math.random` value picks the same position, so the draw sequence and every number are identical across languages and fixed-seed output stays the same.
+The pool literals are removed from data.js; `STACKS[k].pool` stays as a getter, `poolOf(k)`, that builds `{1..5, trap, research, inc}` from `tl('pool.<stack>.<n>')` (`POOL_KEYS`), so `makeIssue()`, `splitResearch()` and tools/check.js keep reading `STACKS[stack].pool` unchanged. Because every language's pool has the zh-TW length (checked by check.js), the same `Math.random` value picks the same position, so the draw sequence and every number are identical across languages and fixed-seed output stays the same.
 
 ### Footer: both languages in index.html
 

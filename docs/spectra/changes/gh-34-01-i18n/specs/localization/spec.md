@@ -51,7 +51,7 @@ On page load the game SHALL pick the current language in this order: a valid sto
 
 ### Requirement: Language switch
 
-The game header SHALL show one button per registered language, labelled with its display name, with the current language highlighted. The setup modal, both at run start and for the Monday 調整訂閱, SHALL show the same buttons; a click there SHALL apply the same effects, redraw the setup modal in the new language and keep every choice already made in it (work content, mode, slots, freelance, advanced, plans, seat request). Clicking a language that is not current SHALL set it as the current language, write its id to `localStorage` key `tokgame-lang` (write wrapped in try/catch; a failed write SHALL keep the choice for this page only), set `<html lang>` to the language id, set `document.title` from the dictionary, show only that language's footer and redraw the game screen. The switch SHALL NOT change the game state, SHALL NOT write the save, SHALL NOT send a GA event and SHALL NOT write a log entry. It SHALL be usable at any point of a run, including mid-day with agents running.
+The game header SHALL show one button per registered language, labelled with its display name, with the current language highlighted. The setup modal, both at run start and for the Monday 調整訂閱, SHALL show the same buttons; a click there SHALL apply the same effects, redraw the setup modal in the new language and keep every choice already made in it (work content, mode, slots, freelance, advanced, plans, seat request). Clicking the current language SHALL do nothing (no stored preference). Clicking a language that is not current SHALL set it as the current language, write its id to `localStorage` key `tokgame-lang` (write wrapped in try/catch; a failed write SHALL keep the choice for this page only), set `<html lang>` to the language id, set `document.title` from the dictionary, show only that language's footer and redraw the game screen. The switch SHALL NOT change the game state, SHALL NOT write the save, SHALL NOT send a GA event and SHALL NOT write a log entry. It SHALL be usable at any point of a run, including mid-day with agents running.
 
 #### Scenario: Switching mid-run
 
@@ -75,15 +75,15 @@ The game header SHALL show one button per registered language, labelled with its
 
 ### Requirement: Dictionary lookup
 
-Every user-visible string the game script writes SHALL come from the dictionary of the current language through `t(key, params)`, where `key` is an English semantic id (for example `header.rules`, `log.dayStart`) and `params` fills `{name}` placeholders. A key missing from the current language SHALL fall back to the zh-TW value; a key missing from zh-TW too SHALL return the key itself. Brand and product names (vendor, agent, model and plan names such as Claude Code, Sonnet, Max 5×) SHALL stay as they are in every language and need no dictionary entry. Money SHALL be shown as `NT$` with the same amounts in every language. GA event names and parameters SHALL NOT be translated.
+Every user-visible string the game script writes SHALL come from the dictionary of the current language through `t(key, params)`, where `key` is an English semantic id (for example `ui.rules`, `log.dayStart`) and `params` fills `{name}` placeholders. A key missing from the current language SHALL fall back to the zh-TW value; a key missing from zh-TW too SHALL return the key itself. Brand and product names (vendor, agent, model and plan names such as Claude Code, Sonnet, Max 5×) SHALL stay as they are in every language and need no dictionary entry. Money SHALL be shown as `NT$` with the same amounts in every language. GA event names and parameters SHALL NOT be translated.
 
 ##### Example: lookup
 
 | Current language | Call | Result |
 | --- | --- | --- |
-| zh-TW | `t('header.rules')` | 規則 |
-| en | `t('header.rules')` | Rules |
-| en | `t('log.dayStart', {d: 6})` with zh-TW `— 第 {d} 天開工 —` and en `— Day {d} starts —` | — Day 6 starts — |
+| zh-TW | `t('ui.rules')` | 規則 |
+| en | `t('ui.rules')` | Rules |
+| en | `t('ui.week', {w: 2})` with zh-TW `第 {w} 週` and en `Week {w}` | Week 2 |
 | en | a key that only zh-TW has | the zh-TW text |
 | en | `t('no.such.key')` | no.such.key |
 

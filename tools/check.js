@@ -2341,6 +2341,7 @@ function tests(){
    ok(I.t('test.day',{d:6})==='— Day 6 starts —','i18n：en 參數填入 {d}',I.t('test.day',{d:6}));
    ok(I.t('test.only')==='只有中文','i18n：en 缺 key 退回 zh-TW');
    ok(I.t('no.such.key')==='no.such.key','i18n：兩邊都沒有就回傳 key');
+   ok(I.t('ui.rules')==='Rules'&&I.t('ui.week',{w:2})==='Week 2','i18n：en t(ui.rules) → Rules、t(ui.week,{w:2}) → Week 2');
    newRun('laravel'); S.day=6; C.log('dim',I.t('test.day',{d:S.day}));
    ok(S.log[0].msg==='D06 — Day 6 starts —'&&!S.log[0].msg.includes('{'),'i18n：紀錄填好數字、沒有留下 {d}',S.log[0].msg);
    delete zh['test.rules']; delete en['test.rules']; delete zh['test.day']; delete en['test.day']; delete zh['test.only'];
@@ -2350,13 +2351,21 @@ function tests(){
   /* 字典一致性：key 集合、程式裡寫死的 key、題庫長度 */
   {
    const zh=I.LANGS[0].dict, zk=new Set(Object.keys(zh));
-   for(const L of I.LANGS.slice(1)){
-     const extra=Object.keys(L.dict).filter(k=>!zk.has(k));
-     ok(!extra.length,`i18n 字典：${L.id} 沒有 zh-TW 沒有的 key`,extra.join(', '));
-     if(L.id==='en'){const miss=[...zk].filter(k=>!(k in L.dict)); ok(!miss.length,'i18n 字典：en 有 zh-TW 的每個 key',miss.join(', '));}
-     const badPool=Object.keys(L.dict).filter(k=>k.startsWith('pool.')&&(!Array.isArray(L.dict[k])||L.dict[k].length!==(zh[k]||[]).length));
-     ok(!badPool.length,`i18n 字典：${L.id} 題庫長度與 zh-TW 相同`,badPool.join(', '));
-   }
+   /* 回傳各語言字典和 zh-TW 對不上的地方（多的 key、en 缺的 key、題庫長度不同） */
+   const dictProblems=langs=>{const z=langs[0].dict, k0=new Set(Object.keys(z)), out=[];
+     for(const L of langs.slice(1)){
+       for(const k of Object.keys(L.dict)) if(!k0.has(k)) out.push(`${L.id} 多了 ${k}`);
+       if(L.id==='en') for(const k of k0) if(!(k in L.dict)) out.push(`en 缺 ${k}`);
+       for(const k of Object.keys(L.dict)) if(k.startsWith('pool.')&&(!Array.isArray(L.dict[k])||L.dict[k].length!==(z[k]||[]).length)) out.push(`${L.id} 題庫長度不同 ${k}`);
+     }
+     return out;};
+   const dp=dictProblems(I.LANGS);
+   ok(!dp.length,'i18n 字典：各語言 key 與題庫長度都和 zh-TW 一致',dp.join(', '));
+   /* 失敗的情況也要擋得下來：zh-TW 多一個 key、題庫少一條（記憶體裡的複本，不動檔案） */
+   {const extraZh=[{id:'zh-TW',dict:{...zh,'tmp.only':'x'}},...I.LANGS.slice(1)];
+    ok(dictProblems(extraZh).includes('en 缺 tmp.only'),'i18n 字典：en 少了 zh-TW 的 key 會被抓到');
+    const en=I.LANGS[1].dict, shortPool=[I.LANGS[0],{id:'en',dict:{...en,'pool.laravel.1':en['pool.laravel.1'].slice(1)}}];
+    ok(dictProblems(shortPool).includes('en 題庫長度不同 pool.laravel.1'),'i18n 字典：題庫長度不同會被抓到');}
    const dir=new URL('../public/js/',import.meta.url), used=[];
    for(const f of readdirSync(dir).filter(f=>f.endsWith('.js'))){
      const src=stripComments(readFileSync(new URL(f,dir),'utf8'));
@@ -2365,10 +2374,13 @@ function tests(){
    ok(!used.length,'i18n 字典：程式裡寫死的 t()/tl() key 都在 zh-TW',used.join(', '));
    /* 搬完字串的模組：註解以外不能有中文（CJK 標點、漢字、全形字） */
    const CJK=/[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uff00-\uffef]/;
+   const cjkLines=src=>stripComments(src).split('\n').map((l,n)=>CJK.test(l)?n+1:0).filter(Boolean);
    for(const f of I18N_DONE){
-     const bad=stripComments(readFileSync(new URL(f,dir),'utf8')).split('\n').map((l,n)=>CJK.test(l)?n+1:0).filter(Boolean);
+     const bad=cjkLines(readFileSync(new URL(f,dir),'utf8'));
      ok(!bad.length,`i18n：${f} 註解以外沒有中文`,`第 ${bad.slice(0,8).join(', ')} 行`);
    }
+   /* 失敗的情況：字面值裡的中文會被抓到，註解裡的不算 */
+   ok(cjkLines("// 註解\nconst a=1;\nconst b='規則';").join()==='3'&&!cjkLines('/* 規則 */ const x=`a${1}b`; // 中文').length,'i18n：程式碼裡的中文字面值會被抓到，註解不算');
    /* 英文模式的遊戲畫面 */
    newRun('laravel','parallel'); S.issues=[makeIssue(false)]; sel.issue=S.issues[0].id; I.setLang('en'); render();
    ok(/<button class="btn ghost rbtn" data-act="rules">Rules<\/button>/.test(els.app.innerHTML),'i18n：英文模式標頭的規則按鈕是 Rules');
@@ -2440,6 +2452,9 @@ function tests(){
    /* 語言切換（標頭按鈕） */
    {const clickLang=id=>els.app.on.click({target:{closest:()=>({dataset:{lang:id},disabled:false})}});
     const ge=[]; globalThis.gtag=(k,n,p)=>ge.push({n,p});
+    /* 點目前的語言：什麼都不做、不存偏好 */
+    I.setLang('zh-TW'); resetStore(); newRun('laravel'); clickLang('zh-TW');
+    ok(I.lang==='zh-TW'&&!(I.LANG_KEY in store),'i18n：點目前的語言不存偏好');
     /* 遊戲中途切換：狀態、存檔不變，不送 GA、不寫紀錄，兩個 agent 照跑 */
     resetStore(); I.setLang('zh-TW'); resetStore(); newRun('laravel','parallel'); S.day=7; S.issues=[makeIssue(false),makeIssue(false),makeIssue(false)];
     for(const is of S.issues.slice(0,2)){sel.issue=is.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0}); dispatch();}

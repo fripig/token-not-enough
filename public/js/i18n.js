@@ -38,7 +38,7 @@ export function initLang(){
   lang=pickLang(stored,list); applyLang();
 }
 export function setLang(id){
-  if(!LANGS.some(l=>l.id===id)) return;
+  if(!LANGS.some(l=>l.id===id)||id===lang) return;  // 點目前的語言不算選擇，不存偏好
   lang=id; try{localStorage.setItem(LANG_KEY,id);}catch(e){}
   applyLang();
 }
