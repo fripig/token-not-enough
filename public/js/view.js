@@ -70,11 +70,16 @@ export function render(){
   </div>
   ${invPanel()}
   <section class="panel">
-    <div class="foot"><div class="ph"><h2>${t('ui.log.title')}</h2></div>
-      <div class="actions">${PAR()?`<button class="btn ghost" data-act="wait1" ${S.hours<=0?'disabled':''}>${t('ui.wait1')}</button><button class="btn ghost" data-act="waitn" ${!S.jobs.length||S.hours<=0?'disabled':''}>${t('ui.waitn')}</button>`:''}${((S.day-1)%5===0)?`<button class="btn ghost" data-act="adjust">${t('ui.adjust')}</button>`:''}<button class="btn" data-act="end">${t('ui.endDay',{d:S.day})}</button></div></div>
-    <div class="log">${S.log.map(l=>`<p class="${l.cls}">${l.msg}</p>`).join('')||`<p class="dim">${t('ui.log.empty')}</p>`}</div>
+    <div class="ph"><h2>${t('ui.log.title')}</h2></div>
+    <div class="log">${logLines(S.log)||`<p class="dim">${t('ui.log.empty')}</p>`}</div>
     <small style="color:var(--muted);font-size:12px">${t('ui.disclaimer')}</small>
-  </section>`;
+  </section>
+  ${dayDock()}`;
+}
+/* 畫面底部的動作列：等待、調整訂閱、下班，捲到哪裡都按得到 */
+export function dayDock(){
+  const time=PAR()?clock(8-S.hours):`${h1(S.hours)}h`;
+  return `<div class="dock"><span class="dst num">${t('ui.dock.status',{d:S.day,time})}</span><div class="actions">${PAR()?`<button class="btn ghost" data-act="wait1" ${S.hours<=0?'disabled':''}>${t('ui.wait1')}</button><button class="btn ghost" data-act="waitn" ${!S.jobs.length||S.hours<=0?'disabled':''}>${t('ui.waitn')}</button>`:''}${((S.day-1)%5===0)?`<button class="btn ghost" data-act="adjust">${t('ui.adjust')}</button>`:''}<button class="btn" data-act="end">${t('ui.endDay',{d:S.day})}</button></div></div>`;
 }
 /* 標頭的語言切換：每個註冊的語言一顆按鈕，名稱用該語言自己寫，目前的語言亮起來 */
 export const langSwitch=()=>LANG_SWITCH?`<div class="lang" role="group" aria-label="${t('ui.lang')}">${LANGS.map(l=>`<button class="${l.id===lang?'on':''}" data-lang="${l.id}" lang="${l.id}" aria-pressed="${l.id===lang}">${l.dict['lang.name']}</button>`).join('')}</div>`:'';
@@ -136,9 +141,13 @@ export function qbox(name,sub,dl,dc,wl,wc){
     <label>${t('ui.q.week')}</label><div><div class="bar"><i class="${wp<20?'lo':''}" style="width:${wp}%"></i></div><span class="num" style="font-size:11px;color:var(--muted)">${kt(wl)} / ${kt(wc)}</span></div></div>`;
 }
 
+/* 紀錄行：執行紀錄與派工台的「剛剛」共用，顏色 class 照紀錄 */
+export const logLines=a=>a.map(l=>`<p class="${l.cls}">${l.msg}</p>`).join('');
+/* 派工台沒選工單時顯示最新幾筆紀錄，派完單看得到剛剛發生什麼 */
+export const DP_RECENT=3;
 export function dispatchPanel(){
   const is=S.issues.find(i=>i.id===sel.issue), sp=t('sep'), ls=t('sep.list');
-  if(!is) return `<div class="ph"><h2>${t('ui.dp.title')}</h2></div><div class="empty">${t('ui.dp.empty1')}<br>${t('ui.dp.empty2')}</div>`;
+  if(!is) return `<div class="ph"><h2>${t('ui.dp.title')}</h2></div><div class="empty">${t('ui.dp.empty1')}<br>${t('ui.dp.empty2')}</div>${S.log.length?`<div class="recent"><label>${t('ui.dp.recent')}</label>${logLines(S.log.slice(0,DP_RECENT))}</div>`:''}`;
   // ensure billing valid
   const avail=(v,M)=>S.outage!==v&&!cnBlock(is,v,M)&&!hwBlock(M);
   if(!avail(sel.v,model(sel.v,sel.m))){for(const v in VENDORS){const M=VENDORS[v].models.find(M=>avail(v,M));if(M){sel.v=v;sel.m=M.id;break;}}if(sel.v==='local')sel.b='local';else if(sel.b==='local')sel.b='api';}
