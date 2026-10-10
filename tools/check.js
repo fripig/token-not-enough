@@ -25,6 +25,8 @@ import * as I from '../public/js/i18n.js';
 const pristine=await import('../public/js/state.js?pristine');
 
 let pass=0,fail=0;
+/* 已經把字串搬進字典的模組（gh-34-01-i18n 逐批加，4.1 改成全部模組） */
+const I18N_DONE=['view.js'];
 function ok(cond,name,detail=''){if(cond){pass++;}else{fail++;console.log('✗',name,detail);}}
 function near(a,b,eps=1e-9){return Math.abs(a-b)<=eps;}
 /* 去掉 JS 註解（保留字串、模板字串與 ${} 裡的程式），換行照留；i18n 檢查用 */
@@ -2360,6 +2362,16 @@ function tests(){
      for(const m of src.matchAll(/(?<![\w.$])tl?\('([^']+)'/g)) if(!zk.has(m[1])) used.push(`${f}: ${m[1]}`);
    }
    ok(!used.length,'i18n 字典：程式裡寫死的 t()/tl() key 都在 zh-TW',used.join(', '));
+   /* 搬完字串的模組：註解以外不能有中文（CJK 標點、漢字、全形字） */
+   const CJK=/[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uff00-\uffef]/;
+   for(const f of I18N_DONE){
+     const bad=stripComments(readFileSync(new URL(f,dir),'utf8')).split('\n').map((l,n)=>CJK.test(l)?n+1:0).filter(Boolean);
+     ok(!bad.length,`i18n：${f} 註解以外沒有中文`,`第 ${bad.slice(0,8).join(', ')} 行`);
+   }
+   /* 英文模式的遊戲畫面 */
+   newRun('laravel','parallel'); S.issues=[makeIssue(false)]; sel.issue=S.issues[0].id; I.setLang('en'); render();
+   ok(/<button class="btn ghost rbtn" data-act="rules">Rules<\/button>/.test(els.app.innerHTML),'i18n：英文模式標頭的規則按鈕是 Rules');
+   I.setLang('zh-TW'); resetStore();
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);
