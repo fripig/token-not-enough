@@ -8,7 +8,7 @@ Defines how company tickets are generated each day, what they are worth, how lon
 
 ### Requirement: Ticket generation
 
-A non-incident ticket SHALL get complexity from r = random + day ÷ 20 × 0.38: r < 0.28 → 1, < 0.6 → 2, < 0.9 → 3, < 1.12 → 4, otherwise 5. An incident ticket SHALL have complexity 4. Base tokens SHALL be BASE[complexity] × a uniform factor in [0.85, 1.15] with BASE = 60, 180, 350, 550, 850 k for complexity 1–5. KPI SHALL be round(KPI[complexity] × incident factor × stack factor) with KPI = 3, 6, 10, 16, 24, incident factor 1.6 (see `engineering-investments` for monitoring) and stack factor from `stack-agent-effects`. The deadline SHALL be today for an incident, today + 1–3 days for complexity 1–2, and today + 2–5 days otherwise, plus the stack extension from `stack-agent-effects`, capped at day 20. A ticket SHALL be sensitive with probability 55% for incidents and 25% otherwise, and SHALL be large codebase with probability 45% when complexity is at least 3. Stack, trap and store-review fields come from `company-tech-stack`, `trap-tickets` and `stack-agent-effects`.
+A non-incident ticket SHALL get complexity from r = random + day ÷ 20 × 0.38: r < 0.28 → 1, < 0.6 → 2, < 0.9 → 3, < 1.12 → 4, otherwise 5. An incident ticket SHALL have complexity 4. Base tokens SHALL be BASE[complexity] × a uniform factor in [0.85, 1.15] with BASE = 60, 180, 350, 550, 850 k for complexity 1–5. KPI SHALL be round(KPI[complexity] × incident factor × stack factor) with KPI = 3, 6, 10, 16, 24, incident factor 1.6 (see `engineering-investments` for monitoring) and stack factor from `stack-agent-effects`. The deadline SHALL be today for an incident, today + 1–3 days for complexity 1–2, and today + 2–5 days otherwise, plus the stack extension from `stack-agent-effects`, capped at day 20. A ticket SHALL be sensitive with probability 55% for incidents and 25% otherwise, and SHALL be large codebase with probability 45% when complexity is at least 3. Stack, trap, research and store-review fields come from `company-tech-stack`, `trap-tickets`, `research-tickets` and `stack-agent-effects`.
 
 #### Scenario: Complexity by day
 
@@ -26,16 +26,6 @@ A non-incident ticket SHALL get complexity from r = random + day ÷ 20 × 0.38: 
 
 - **WHEN** an incident is generated for a Laravel company without monitoring
 - **THEN** its complexity is 4, its KPI is 26 (round(16 × 1.6)) and its deadline is today
-
-
-<!-- @trace
-source: gh-09-01-core-rules-specs
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - tools/check.js
-  - tools/fake-dom.js
--->
 
 ---
 ### Requirement: Daily ticket intake
@@ -149,7 +139,7 @@ code:
 ---
 ### Requirement: Overdue tickets
 
-At the end of each day every company ticket with a deadline on or before today SHALL be removed. Each SHALL lose ceil(KPI × 0.5) from KPI, drop trust by 4 (8 for an incident, see `engineering-investments` for monitoring), add 1 to the overdue count, and log `⌛ 逾期：<title>｜KPI -<n>｜信任 -<t>`, where `<t>` is that ticket's trust drop amount. The next day summary SHALL report `<n> 張工單逾期，主管信任 -<sum>。`, where `<sum>` is the total of those amounts. The ticket card SHALL show 今天到期 when the deadline is today and 剩 N 天 otherwise.
+At the end of each day every company ticket with a deadline on or before today SHALL be removed. Each SHALL lose ceil(KPI × 0.5) from KPI, drop trust by 4 (8 for an incident, see `engineering-investments` for monitoring; 0 for the second overdue part of the same researched ticket, see `research-tickets`), add 1 to the overdue count, and log `⌛ 逾期：<title>｜KPI -<n>｜信任 -<t>`, where `<t>` is that ticket's trust drop amount. The next day summary SHALL report `<n> 張工單逾期，主管信任 -<sum>。`, where `<sum>` is the total of those amounts. The ticket card SHALL show 今天到期 when the deadline is today and 剩 N 天 otherwise.
 
 #### Scenario: Overdue incident
 
