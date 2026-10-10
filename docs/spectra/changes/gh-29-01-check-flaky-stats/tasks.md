@@ -1,0 +1,11 @@
+## 1. Seeded check runs
+
+- [x] 1.1 Before any change, save the fixed-seed simulator baseline `SIM_SEED=7 SIM_N=10 node tools/sim.js` output to the scratchpad. Verify: the run exits 0 and the file exists.
+- [x] 1.2 Seeding function exported from seed.js: `tools/seed.js` exports `seedRandom(seed)` with the existing mulberry32 generator and still seeds from `SIM_SEED` (same validation and error message) when it is set. Verify: `SIM_SEED=7 SIM_N=10 node tools/sim.js` output is byte-identical to the 1.1 baseline (`diff` empty), and `SIM_SEED=x node tools/sim.js` still exits 1 with the existing message. [after: 1.1]
+- [x] 1.3 Default check seed in check-seed.js: new `tools/check-seed.js` seeds `Math.random` with `CHECK_SEED_DEFAULT` unless `CHECK_SEED` is an integer (use it) or `random` (leave the real generator), and exits 1 with `CHECK_SEED 必須是整數或 random，收到「…」` otherwise; `tools/check.js` imports it right after `fake-dom.js` and before `public/js/main.js`; pick a default seed whose run passes. Verify: `node tools/check.js` run twice gives byte-identical output ending in `0 failed` with exit 0; `CHECK_SEED=random node tools/check.js` and `CHECK_SEED=2 node tools/check.js` run to completion; `CHECK_SEED=abc node tools/check.js` exits 1 with the message. [after: 1.2]
+- [x] 1.4 SIM_SEED read only by the simulator: move the `SIM_SEED` block from `tools/seed.js` to new `tools/sim-seed.js` and change the import in `tools/sim.js` to `./sim-seed.js`. Verify: `SIM_SEED=7 SIM_N=10 node tools/sim.js` output is byte-identical to the same command at `bb3cf08`; `SIM_SEED=x node tools/sim.js` exits 1 with the existing message; `SIM_SEED=x node tools/check.js` exits 0 with output identical to plain `node tools/check.js`. [after: 1.3]
+
+## 2. Docs
+
+- [x] 2.1 Update `docs/DESIGN.md`: the `tools/check.js` description states the run is seeded by default, names the default seed, `CHECK_SEED=<integer>` and `CHECK_SEED=random`, and what to do when a later change makes the seeded run fail on a borderline assertion. Verify: content review against design.md and `node tools/check.js` exits 0. [after: 1.3]
+- [x] 2.2 Update `docs/DESIGN.md`: the `tools/sim.js` description and the module import rule name `tools/sim-seed.js` where the simulator's seeding is meant. Verify: `grep -n "seed.js" docs/DESIGN.md` shows no stale mention. [after: 1.4]
