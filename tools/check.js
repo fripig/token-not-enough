@@ -1914,11 +1914,14 @@ function tests(){
   newRun('laravel'); Object.assign(S,{kpi:300,trust:50}); Object.assign(S.st,{subFee:2000,api:0,outPenalty:0,outIncome:0,audits:1,confFee:0});
   ok(monthScore().score===3870,'month-end-scoring：KPI 300、信任 50、個人花費 2,000、稽核 1 → 3,870');
   S.st.confFee=3000; {const m=monthScore(); ok(m.self===5000&&m.score===3495,'month-end-scoring：報名費 3,000 算進個人花費 → 5,000、總分 3,495',JSON.stringify(m));}
-  newRun('laravel'); S.day=20; S.conf.went=['coscup','hitcon']; S.st.confFee=5500; showEnd();
-  ok(els.mo.innerHTML.includes('<span>研討會</span><span>2 場</span>')&&els.mo.innerHTML.includes('<span>研討會報名費</span><span>NT$5,500</span>'),'month-end-scoring：結算顯示研討會 2 場與報名費');
+  newRun('laravel'); S.day=5; A.registerConf('coscup'); withRand(.99,endDay); S.day=10; A.registerConf('hitcon'); withRand(.99,endDay); S.day=20; showEnd();
+  ok(S.conf.went.join()==='coscup,hitcon'&&els.mo.innerHTML.includes('<span>研討會</span><span>2 場</span>')&&els.mo.innerHTML.includes('<span>研討會報名費</span><span>NT$6,000</span>'),'month-end-scoring：去過 COSCUP 與 HITCON，結算顯示研討會 2 場、報名費 NT$6,000',S.st.confFee);
   newRun('laravel'); S.day=20; showEnd(); ok(!els.mo.innerHTML.includes('研討會'),'month-end-scoring：沒報名不顯示研討會兩行');
   /* 投資面板 */
   newRun('laravel'); S.inv.md.laravel=1; S.inv.tests=2; S.inv.ci=1; ok(invCount()===4,'engineering-investments：CLAUDE.md、單元測試 Lv1＋Lv2、CI 算 4 項');
+  S.day=20; showEnd(); ok(els.mo.innerHTML.includes('<span>工程投資</span><span>4 項</span>'),'engineering-investments：結算顯示工程投資 4 項');
+  newRun('laravel'); S.hours=8; invest('monitor'); Vw.resetInvFold(); resetStore(); render();
+  ok(/data-inv="monitor"\s+disabled><b>監控告警<\/b><small>已完成/.test(els.app.innerHTML),'engineering-investments：買過監控告警的按鈕顯示已完成');
   newRun(['rails','app']); Vw.resetInvFold(); resetStore(); render();
   {const order=[...els.app.innerHTML.matchAll(/data-inv="md" data-st="(\w+)"/g)].map(m=>m[1]).join();
    ok(order==='rails,app,laravel,rust,sre,devops,fe','engineering-investments：CLAUDE.md 按鈕順序 rails、app、laravel、rust、sre、devops、fe',order);}

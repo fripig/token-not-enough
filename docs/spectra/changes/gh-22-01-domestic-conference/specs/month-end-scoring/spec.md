@@ -37,5 +37,5 @@ After day 20 ends, the receipt modal SHALL show the grade, title, 個人訂閱�
 
 #### Scenario: Conference lines
 
-- **WHEN** the run ends after attending COSCUP and HITCON with fees NT$0 and NT$5,500
-- **THEN** the receipt shows 研討會 2 場 and 研討會報名費 NT$5,500; a run without registrations shows neither line
+- **WHEN** the run ends after attending COSCUP and HITCON with fees NT$0 and NT$6,000
+- **THEN** the receipt shows 研討會 2 場 and 研討會報名費 NT$6,000; a run without registrations shows neither line

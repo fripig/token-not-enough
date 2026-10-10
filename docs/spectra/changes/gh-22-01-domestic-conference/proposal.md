@@ -39,6 +39,6 @@ The player (issue #22) asked for 「投資新增國內研討會」, then added �
 
 - Affected specs: engineering-investments, company-tech-stack, ticket-lifecycle, month-end-scoring, play-analytics, rules-reference
 - Affected code:
-  - Modified: public/js/data.js, public/js/state.js, public/js/calc.js, public/js/actions.js, public/js/view.js, public/js/modals.js, public/js/main.js, public/js/rules.js, public/css/style.css, tools/check.js, tools/sim.js, docs/DESIGN.md
+  - Modified: public/js/data.js, public/js/state.js, public/js/calc.js, public/js/actions.js, public/js/view.js, public/js/modals.js, public/js/main.js, public/js/rules.js, tools/check.js, tools/sim.js, docs/DESIGN.md
   - New: none
   - Removed: none
