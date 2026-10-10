@@ -55,7 +55,9 @@
 </main>
 </div>
 <!-- 常駐的遊戲介紹：在 #app 外面，render() 不會換掉，爬蟲執行 JS 後也看得到 -->
-<footer class="about">
+<footer class="about" id="about">
+<!-- 每種語言一份，script 只顯示目前語言那份；全部留在原始碼裡給爬蟲看。新增語言時加一份 data-lang 區塊 -->
+<div data-lang="zh-TW" lang="zh-Hant">
 <section>
 <h2>關於 Token 撐到月底</h2>
 <p>你是一位工程師，開局選一到兩項工作內容（Laravel 後端、Rails 後端、Rust 基礎設施、App 開發、SRE、DevOps），在 20 個工作天內用有限的錢和額度，把每天進來的工單交給不同廠商的 AI code agent 處理。免安裝、免註冊，打開瀏覽器就能玩。</p>
@@ -78,6 +80,31 @@
 </ol>
 </section>
 <p class="repo">專案原始碼在 <a href="https://github.com/fripig/token-not-enough" rel="noopener">GitHub</a>，歡迎開 issue 回報問題或提建議。</p>
+</div>
+<div data-lang="en" lang="en" hidden>
+<section>
+<h2>About Token Not Enough</h2>
+<p>You are an engineer. Pick one or two kinds of work (Laravel backend, Rails backend, Rust infrastructure, App development, SRE, DevOps), then spend 20 workdays handing each day's tickets to AI code agents from different vendors with limited money and quota. No install, no sign-up: it runs in your browser.</p>
+<ul>
+<li>Choose agents and models: Claude Code, Codex CLI, Gemini CLI, DeepSeek, Zhipu GLM, Kimi, or Qwen and Gemma on a local GPU; ask the company to buy a DGX Spark or Mac Studio to run bigger models such as GLM-5.3.</li>
+<li>Decide who pays: a personal plan, personal API, company API, a company team seat, or your own hardware.</li>
+<li>Mind client contracts (some clients forbid Chinese models), security audits and your manager's trust.</li>
+<li>Watch out for trap tickets that look like a one-line change but turn out to touch the whole architecture.</li>
+<li>Big tickets marked "Needs research" burn tokens if dispatched directly; research first to split them into two smaller tickets.</li>
+<li>Run 2–6 agents at once in parallel mode, or focus on one ticket at a time in serial mode.</li>
+</ul>
+</section>
+<section>
+<h2>How to play</h2>
+<ol>
+<li>At the start, pick your work, parallel or serial mode, and which plans to subscribe to this month.</li>
+<li>Each day, pick a ticket and choose the vendor, model, payment method and review level on the dispatch desk; you can also write it yourself, have an agent assess the architecture first, or research a big ticket and split it.</li>
+<li>Spend hours and company budget on engineering investments (CLAUDE.md, unit tests, CI, SDD…) to make later dispatches cheaper and safer; you can also request hardware to speed up local models, but your manager gets unhappy if it sits unused.</li>
+<li>Make it to the month-end report on day 20: KPI, manager trust and security audits decide your score and S–D grade; money is just a resource and does not score.</li>
+</ol>
+</section>
+<p class="repo">The source code is on <a href="https://github.com/fripig/token-not-enough" rel="noopener">GitHub</a>; issues with bugs or ideas are welcome.</p>
+</div>
 </footer>
 <div class="ov" id="ov" hidden><div class="mo" id="mo"></div></div>
 <script type="module" src="js/main.js"></script>

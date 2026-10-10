@@ -214,6 +214,7 @@ button:disabled{cursor:not-allowed;opacity:.42}
 .about ul,.about ol{margin:0 0 8px;padding-left:1.4em}
 .about li{margin-bottom:2px}
 .about .repo{grid-column:1/-1;margin:8px 0 0}
+.about>[data-lang]{display:contents} /* 語言區塊不打斷 grid；隱藏時 [hidden] 優先 */
 .about a{color:var(--accent)}
 
 /* 規則 modal：分頁列、段落、小表格（窄螢幕時表格在自己的框裡橫向捲動） */
