@@ -16,6 +16,8 @@
 // SIM_SUB=pro200|pro500 讓自動玩家改訂 OpenAI 的 Pro 200 或 Pro 500（不訂 Anthropic Max 5×，照價付月費）：OpenAI 沒當機、今日訂閱額度還超過 300k 時，
 // 每張單（公司與外包）都派 Codex Sol 走個人訂閱；額度不夠才照舊（能用 DeepSeek 就用，否則 Sonnet，沒有 Anthropic 訂閱所以走公司 API）。
 // SIM_FLOOR=<NT$> 換掉月底總分的個人花費下限（遊戲是 20000）：每局結束時用遊戲的 monthScore(SIM_FLOOR) 重算總分與評等，只是 (8000 − 個人花費) ÷ 8 的下限改成 (8000 − SIM_FLOOR) ÷ 8，遊戲本身的下限不變。
+// SIM_RESEARCH_RATE=<比例> 可覆寫研究單比例（例如 SIM_RESEARCH_RATE=0 關掉研究單，亂數序列和沒有研究單時一樣）。
+// SIM_RESEARCH=agent|self 讓自動玩家遇到研究單時先研究再派工：agent 用它本來要派的廠商、模型與付費方式研究，self 自己研究；不能研究（例如工時不夠）時照舊直接派工。預設的自動玩家一律直接派工。
 // SIM_COMBOS=1 改跑十五種雙選組合（另跑單選 Laravel 當對照）。
 // SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
 // SIM_LOG=1 每種模式額外印出月底執行紀錄的筆數（平均、最多）與存檔 JSON 的字元數（平均、最多），量紀錄整月保留後的大小。
@@ -24,9 +26,9 @@ import './seed.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {firstIssues,start} from '../public/js/main.js';
 import {COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model} from '../public/js/data.js';
-import {S,sel,setTrapRate} from '../public/js/state.js';
+import {S,sel,setResearchRate,setTrapRate} from '../public/js/state.js';
 import {est,hwBlock,localBusy,quotaLeft} from '../public/js/calc.js';
-import {PAR,dispatch,endDay,invest,requestHw,wait} from '../public/js/actions.js';
+import {PAR,dispatch,endDay,invest,requestHw,research,researchBlock,wait} from '../public/js/actions.js';
 import {dispatchPanel} from '../public/js/view.js';
 import {monthScore} from '../public/js/modals.js';
 // 自動玩家不記最高分（和改成模組前一樣）
@@ -34,6 +36,10 @@ globalThis.localStorage={getItem(){return null},setItem(){}};
 
 const TRAP=process.env.SIM_TRAP===undefined?undefined:Number(process.env.SIM_TRAP);
 if(TRAP!==undefined&&(process.env.SIM_TRAP.trim()===''||!Number.isFinite(TRAP))){ console.error(`SIM_TRAP 必須是數字，收到「${process.env.SIM_TRAP}」`); process.exit(1); }
+const RRATE=process.env.SIM_RESEARCH_RATE===undefined?undefined:Number(process.env.SIM_RESEARCH_RATE);
+if(RRATE!==undefined&&(process.env.SIM_RESEARCH_RATE.trim()===''||!Number.isFinite(RRATE)||RRATE<0||RRATE>1)){ console.error(`SIM_RESEARCH_RATE 必須是 0–1 的數字，收到「${process.env.SIM_RESEARCH_RATE}」`); process.exit(1); }
+const RSCH=process.env.SIM_RESEARCH;
+if(RSCH!==undefined&&!['agent','self'].includes(RSCH)){ console.error(`SIM_RESEARCH 只能是 agent 或 self，收到「${RSCH}」`); process.exit(1); }
 const N=+process.env.SIM_N||100;
 const INV=['1','2'].includes(process.env.SIM_INVEST)?+process.env.SIM_INVEST:0;
 const EXTRA=(process.env.SIM_INV_EXTRA||'fastlane,monitor,scan').split(',');
@@ -70,6 +76,7 @@ const LOG=process.env.SIM_LOG==='1', logs={};
 
 function sim(){
   if(TRAP!==undefined) setTrapRate(TRAP);
+  if(RRATE!==undefined) setResearchRate(RRATE);
   const sum={};
   for(const mode of ['parallel','serial']){
     const runs=COMBOS?['laravel',...COMPANIES.flatMap((a,i)=>COMPANIES.slice(i+1).map(b=>a+'+'+b))]:COMPANIES;
@@ -105,6 +112,8 @@ function sim(){
               if(EFF){const gap=model(sel.v,sel.m).cap-free[0].cx; sel.ef=gap<=-1?2:gap>=2?0:1;}
               if(subOk)sel.b='sub'; else if(hm)sel.b='local'; else if(seatV)sel.b='seat'; else if(dsOk||free[0].out||LUNA)sel.b='api'; else sel.b=quotaLeft('sub','anthropic')>300?'sub':'corp';
               if(sel.b==='corp'&&S.corp<=0) sel.b='api';
+              /* SIM_RESEARCH：研究單先研究，拆出來的單下一輪照順序派 */
+              if(RSCH&&free[0].research&&!researchBlock(free[0],RSCH)){ research(RSCH); acted=true; continue; }
               const before=S.hours; dispatch(); acted=S.hours!==before||PAR();
               if(!PAR()&&S.hours===before)acted=false;
             } else if(PAR()&&S.jobs.length&&S.hours>0){ wait(true); acted=true; }
