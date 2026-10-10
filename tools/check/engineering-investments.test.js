@@ -86,7 +86,7 @@ section("secret scanning／脫敏效果",()=>{
   {
     S.hours=8; S.presets=DEFAULT_PRESETS.map(p=>({...p,v:'anthropic',m:'sonnet',b:'api'}));
     const sn=ticket('laravel',2,{sens:true}); S.issues=[sn]; render();
-    ok(els.app.innerHTML.includes('18% 機率被資安稽核'),'一鍵派工的稽核警告顯示減半後的 18%');
+    ok(els.app.innerHTML.includes('稽核 18%'),'一鍵派工按鈕的稽核機率顯示減半後的 18%');
     const realRand=Math.random, t0=S.trust;
     Math.random=()=>.2; sel.issue=sn.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'api',rv:0});
     auditRoll(sn,'api','anthropic'); Math.random=realRand;

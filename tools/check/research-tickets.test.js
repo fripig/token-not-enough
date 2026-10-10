@@ -42,7 +42,9 @@ section("研究單（gh-21-01-research-split-tickets）",()=>{
    const er=est(tr,'anthropic','sonnet',0,1), en=est(tn,'anthropic','sonnet',0,1);
    ok(near(er.tk,2200)&&near(en.tk,550)&&er.p===en.p&&near(er.hrs,en.hrs),'research：Sonnet 估前端複雜度 4 研究單 2,200k，成功率與時數不變',er.tk);
    S.presets=[{v:'anthropic',m:'sonnet',b:'api',rv:0,ef:1},...S.presets.slice(1)]; S.wallet=en.hi*.45*S.priceMod.anthropic+1;
-   ok(presetBlock(tn,S.presets[0])===''&&presetBlock(tr,S.presets[0])==='錢包不夠','research：錢包夠 1 倍、不夠 4 倍時方案 A 被略過（錢包不夠）');}
+   ok(presetBlock(tn,S.presets[0])===''&&presetBlock(tr,S.presets[0])==='錢包不夠','research：錢包夠 1 倍、不夠 4 倍時方案 A 被略過（錢包不夠）');
+   S.issues=[tr]; S.hours=8; render(); {const b0=(els.app.innerHTML.match(new RegExp(`<button class="qk" data-quick="${tr.id}" data-p="0"[^>]*>[\\s\\S]*?</button>`))||[''])[0];
+   ok(/ disabled>/.test(b0)&&b0.includes('錢包不夠'),'research：卡片的方案 A 按鈕停用並寫錢包不夠',b0);}}
   const rjob=(is,x={})=>({issue:is,v:'anthropic',m:'sonnet',ef:1,b:'corp',M:model('anthropic','sonnet'),rv:0,tk:100,hrs:1,ok:true,caught:false,left:0,hidden:false,stop:false,sdd:false,...x});
   /* research 2.4 合併衝突留下的單不是研究單 */
   {newRun('laravel','parallel'); const tr=rt('laravel',4); S.issues=[tr]; rand(0,()=>settle(rjob(tr),{conflict:1}));

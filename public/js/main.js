@@ -20,7 +20,7 @@ app.addEventListener('click',e=>{
   else if(t.dataset.rv){sel.rv=+t.dataset.rv;render();}
   else if(t.dataset.ef){sel.ef=+t.dataset.ef;render();}
   else if(t.dataset.sdd){sel.sdd=+t.dataset.sdd;render();}
-  else if(t.dataset.quick)quick(+t.dataset.quick);
+  else if(t.dataset.quick)quick(+t.dataset.quick,'quick',+t.dataset.p);
   else if(t.dataset.inv){invest(t.dataset.inv,t.dataset.st);render();}
   else if(t.dataset.hw){requestHw(t.dataset.hw);render();}
   else if(t.dataset.conf){registerConf(t.dataset.conf);render();}

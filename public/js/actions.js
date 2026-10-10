@@ -1,6 +1,6 @@
 import {RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
 import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardStack,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks,issueTitle} from './state.js';
-import {REVIEW,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
+import {REVIEW,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetBlock,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
 import {render,setTab} from './view.js';
 import {showDay,showEnd} from './modals.js';
 import {t} from './i18n.js';
@@ -53,11 +53,12 @@ export function dispatch(via='panel',preset='none'){
   S.hours=Math.max(0,S.hours-r.hrs);
   render();
 }
-/* 一鍵派工：用第一個能用的派工方案，照派工台的流程派出去 */
+/* 一鍵派工：照派工台的流程派出去；用哪個方案見 quick() 的 pi */
 export const canQuick=()=>S.hours>=.2&&(!PAR()||S.jobs.length<S.slots);
-export function quick(id,via='quick'){
+/* pi：卡片上按的方案（0–2），只用那個方案、不往下找；不給 pi（批次派工）照 A→B→C 用第一個能用的 */
+export function quick(id,via='quick',pi=null){
   const is=S.issues.find(i=>i.id===id); if(!is||is.running||!canQuick()) return false;
-  const {i,skip}=presetFor(is); if(i<0) return false;
+  const {i,skip}=pi===null?presetFor(is):{i:S.presets[pi]&&!presetBlock(is,S.presets[pi])?pi:-1,skip:[]}; if(i<0) return false;
   Object.assign(sel,S.presets[i],{issue:id});
   if(skip.length) log('dim',t('log.quickSkip',{p:PN[i],list:skip.map(s=>t('log.skipItem',{p:PN[s.i],r:s.r})).join(t('sep.list'))}));
   dispatch(via,PN[i]); return true;

@@ -80,7 +80,11 @@ section("outsource-gigs：外包單只能自己付",()=>{
   const pf=presetFor(g1);
   ok(pf.i===1&&pf.skip.length===1&&pf.skip[0].r==='外包不能用公司資源','一鍵派工：外包單略過公司 API 方案，改用方案 B',JSON.stringify(pf));
   ok(presetBlock(g1,S.presets[2])==='外包不能用公司資源','公司席位方案對外包單的原因也是外包不能用公司資源');
+  render(); {const b0=(els.app.innerHTML.match(new RegExp(`<button class="qk" data-quick="${g1.id}" data-p="0"[^>]*>[\\s\\S]*?</button>`))||[''])[0];
+   ok(/ disabled>/.test(b0)&&b0.includes('外包不能用公司資源'),'外包單卡片：方案 A（公司 API）按鈕停用並寫外包不能用公司資源',b0);}
   ok(quick(g1.id)&&S.jobs[0]?.issue===g1&&S.jobs[0].b==='api'&&S.log.some(l=>l.msg.includes('略過 A：外包不能用公司資源')),'一鍵派工紀錄寫出略過方案 A 的原因');
+  {const g2=gig('laravel',2); S.issues.push(g2); const nl=S.log.length;
+   ok(quick(g2.id,'quick',1)&&S.jobs.at(-1)?.issue===g2&&S.jobs.at(-1).b==='api'&&!S.log.slice(0,S.log.length-nl).some(l=>l.msg.includes('略過')),'外包單按卡片的方案 B 用個人 API 派工、紀錄沒有略過');}
   newRun('laravel','parallel'); S.hours=8; S.inv.skills=true; S.presets=DEFAULT_PRESETS.map(p=>({...p,v:'anthropic',m:'sonnet',b:'corp'}));
   const bc=ticket('fe',1,{due:5}), bg=gig('fe',1,{due:5}); S.issues=[bc,bg]; batch();
   ok(bc.running===true&&bg.running!==true&&S.log.some(l=>l.msg.includes('派出 1 張，略過 1 張')),'批次派工：方案都刷公司 API 時派出公司單、略過外包單');

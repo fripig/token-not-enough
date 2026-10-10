@@ -201,11 +201,15 @@ button:disabled{cursor:not-allowed;opacity:.42}
 /* 工單卡片：選單按鈕＋一鍵派工 */
 .issw{display:flex;flex-direction:column;gap:0}
 .issw .iss{border-bottom-left-radius:0;border-bottom-right-radius:0}
-.qk{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;text-align:left;background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 6px 6px;padding:6px 12px;font-size:12px;color:var(--muted);width:100%}
+.qkrow{display:flex;gap:6px;align-items:stretch;background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 6px 6px;padding:6px 8px}
+.qkl{align-self:center;font-size:11px;font-weight:700;color:var(--muted);flex:none}
+.qk{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;background:var(--paper);border:1px solid var(--line);border-radius:5px;padding:4px 8px;font-size:11px;line-height:1.3;color:var(--muted)}
 .qk b{color:var(--ink);font-size:13px}
-.qk .why{flex-basis:100%;color:var(--bad)}
-.qk:not(:disabled):hover{border-color:var(--muted)}
+.qk span{overflow-wrap:anywhere}
+.qk .why{color:var(--bad)}
+.qk:not(:disabled):hover{border-color:var(--accent)}
 .qk:disabled{opacity:.6}
+@media (max-width:480px){.qkl{display:none}}
 
 /* 工程投資 */
 .invs{display:flex;flex-direction:column;gap:10px}
@@ -269,3 +273,5 @@ button:disabled{cursor:not-allowed;opacity:.42}
 .tp{display:flex;flex-direction:column;gap:12px}
 .dpt{margin:0;font-weight:700}
 .tabbed .inv{grid-template-columns:1fr}
+/* 派工台：上面是方案、預估與派出，下面是細調 */
+.dptune{margin:4px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:11px;letter-spacing:.1em;color:var(--muted)}

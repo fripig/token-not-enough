@@ -87,7 +87,7 @@ export function effModel(M,ef){
 export const efOf=ef=>S.advanced&&EFFORT[ef]?ef:1;
 export const planOf=v=>VENDORS[v].plans.find(p=>p.id===S.subs[v])||{id:'none',price:0,day:0,week:0};
 
-/* 派工方案：三組常用的廠商／模型／付費方式／審核等級／推理強度，一鍵派工照 A→B→C 用第一個能用的 */
+/* 派工方案：三組常用的廠商／模型／付費方式／審核等級／推理強度，卡片一鍵派工按哪組用哪組，批次派工照 A→B→C 用第一個能用的 */
 export const PN=['A','B','C'];
 export const DEFAULT_PRESETS=[{v:'deepseek',m:'chat',b:'api',rv:1,ef:1,sdd:0},{v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:1,sdd:2},{v:'anthropic',m:'opus',b:'corp',rv:2,ef:1,sdd:2}];
 export const BILL_LABEL={get sub(){return t('bill.sub');},get seat(){return t('bill.seat');},get api(){return t('bill.api');},get corp(){return t('bill.corp');},get local(){return t('bill.local');}};

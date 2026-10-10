@@ -46,23 +46,37 @@ section("方案能不能用：原因與優先順序",()=>{
 });
 
 section("一鍵派工",()=>{
-  /* 一鍵派工 */
+  /* 一鍵派工：卡片上 A／B／C 三顆按鈕，按哪顆用哪個方案，不往下找 */
+  const qb=(id,p)=>(els.app.innerHTML.match(new RegExp(`<button class="qk" data-quick="${id}" data-p="${p}"[^>]*>[\\s\\S]*?</button>`))||[''])[0];
   newRun('laravel'); S.presets=presetsOf(); S.hours=8;
   const f2=fin(); S.issues=[f2]; render();
-  ok(els.app.innerHTML.includes('一鍵派工：方案 B')&&els.app.innerHTML.includes('A 不能用：金融客戶禁用'),'金融客戶卡片顯示方案 B 與 A 的原因');
-  ok(quick(f2.id)&&sel.v==='anthropic'&&sel.m==='sonnet'&&sel.b==='corp','金融客戶一鍵派工用方案 B');
-  ok(S.log.some(l=>l.msg.includes('一鍵派工用方案 B（略過 A：金融客戶禁用）')),'紀錄寫出略過 A 的原因');
+  ok(/ disabled>/.test(qb(f2.id,0))&&qb(f2.id,0).includes('金融客戶禁用')&&qb(f2.id,1)!==''&&!/ disabled>/.test(qb(f2.id,1))&&qb(f2.id,1).includes('Sonnet'),'金融客戶卡片：A 停用寫原因，B 可按、寫 Sonnet',qb(f2.id,0));
+  {const snap=JSON.stringify(S); ok(!quick(f2.id,'quick',0)&&JSON.stringify(S)===snap,'按不能用的方案 A 什麼都不做');}
+  ok(quick(f2.id,'quick',1)&&sel.v==='anthropic'&&sel.m==='sonnet'&&sel.b==='corp','按方案 B 用 Sonnet／公司 API 派工');
+  ok(S.log.some(l=>l.msg.includes('一鍵派工方案 B'))&&!S.log.some(l=>l.msg.includes('略過')),'紀錄寫一鍵派工方案 B，沒有略過');
   newRun('laravel'); S.hours=8; S.presets=DEFAULT_PRESETS.map(p=>({...p,v:'deepseek',m:'chat',b:'api'}));
   const f3=fin(); S.issues=[f3]; render();
-  ok(/<button class="qk" disabled><b>沒有可用方案/.test(els.app.innerHTML),'都不能用時按鈕停用、顯示沒有可用方案');
-  ok(!quick(f3.id)&&S.issues.includes(f3),'都不能用時一鍵派工不動作');
+  ok([0,1,2].every(p=>/ disabled>/.test(qb(f3.id,p))&&qb(f3.id,p).includes('金融客戶禁用')),'三組都不能用時三顆都停用、各寫原因');
+  ok(!quick(f3.id)&&S.issues.includes(f3),'都不能用時（不指定方案）一鍵派工不動作');
   newRun('laravel'); S.hours=8; S.presets=presetsOf();
   const sens=ticket('fe',2,{sens:true}); S.issues=[sens]; render();
-  ok(els.app.innerHTML.includes('一鍵派工：方案 A')&&els.app.innerHTML.includes('60% 機率被資安稽核'),'機敏工單不跳過個人 API，改顯示稽核風險');
+  ok(!/ disabled>/.test(qb(sens.id,0))&&qb(sens.id,0).includes('稽核 60%'),'機敏工單：方案 A（個人 API）可按，寫稽核 60%',qb(sens.id,0));
   newRun('laravel','parallel'); S.hours=8; S.slots=2; const fj=()=>({v:'anthropic',M:model('anthropic','sonnet'),b:'api',left:1,hrs:1,issue:{title:'x',due:20}}); S.jobs=[fj(),fj()];
   const full=ticket('fe',2); S.issues=[full]; render();
-  ok(new RegExp(`data-quick="${full.id}" disabled`).test(els.app.innerHTML)&&!quick(full.id),'工作槽滿了一鍵派工停用');
-  newRun('laravel'); S.hours=.1; const late=ticket('fe',1); S.issues=[late]; ok(!quick(late.id),'不到 0.2h 不能一鍵派工');
+  ok([0,1,2].every(p=>/ disabled>/.test(qb(full.id,p)))&&!quick(full.id)&&!quick(full.id,'quick',1),'工作槽滿了三顆都停用');
+  newRun('laravel'); S.hours=.1; const late=ticket('fe',1); S.issues=[late]; ok(!quick(late.id)&&!quick(late.id,'quick',1),'不到 0.2h 不能一鍵派工');
+  /* 不指定方案時（批次派工走這條）照舊 A→B→C 往下找、寫略過原因 */
+  newRun('laravel'); S.presets=presetsOf(); S.hours=8; const f4=fin(); S.issues=[f4];
+  ok(quick(f4.id)&&sel.m==='sonnet'&&S.log.some(l=>l.msg.includes('一鍵派工用方案 B（略過 A：金融客戶禁用）')),'不指定方案時照舊用第一個能用的並寫略過原因');
+});
+
+section("載入方案在派工台上方、目前選擇對應的方案亮起來",()=>{
+  newRun('laravel'); S.presets=presetsOf(); S.hours=8; const tk=ticket('fe',2); S.issues=[tk]; sel.issue=tk.id;
+  loadPreset(1); render();
+  const lit=()=>[...els.app.innerHTML.matchAll(/class="sb sel" data-load="(\d)"/g)].map(m=>m[1]).join();
+  ok(lit()==='1','選擇等於方案 B 時只有載入方案 B 亮起來',lit());
+  loadPreset(2); render(); ok(lit()==='2','載入方案 C 後只有 C 亮起來',lit());
+  sel.rv=0; render(); ok(lit()==='','改了審核等級後沒有方案亮起來',lit());
 });
 
 section("存成／載入方案",()=>{

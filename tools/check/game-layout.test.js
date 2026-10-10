@@ -88,3 +88,12 @@ section('game-layout：派工台與工程投資是同一欄的兩個分頁',()=>
   clickApp({tab:'invest'}); clickApp({tab:'dispatch'}); clickApp({tab:'invest'}); saveGame(null); globalThis.gtag=g0;
   ok(JSON.stringify(S)===snap&&store[SAVE_KEY]===sv&&S.log.length===n&&ev.length===0,'game-layout：切分頁不改狀態、存檔、紀錄，不送 GA');
 });
+
+section('game-layout：派工台先放方案、預估與派出，下面才是細調',()=>{
+  newRun('laravel'); S.hours=8; const is=ticket('fe',2); S.issues=[is]; sel.issue=is.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0}); render();
+  const h=dispatchPanel(), at=k=>h.indexOf(k);
+  ok(at('data-load=')>0&&at('data-load=')<at('class="est"')&&at('class="est"')<at('data-act="go"')&&at('data-act="go"')<at('data-v=')&&at('data-v=')<at('data-save='),'game-layout：載入方案 → 預估 → 派出 → 模型 → 存成方案',[at('data-load='),at('class="est"'),at('data-act="go"'),at('data-v='),at('data-save=')].join());
+  clickApp({v:'google',m:'pro'});
+  const h2=dispatchPanel(), top=h2.slice(0,h2.indexOf('data-v='));
+  ok(top.includes('Gemini CLI')&&/data-act="go"[^>]*>[^<]*Gemini CLI/.test(top),'game-layout：在下面選 Gemini Pro，上面的派出按鈕跟著變 Gemini CLI');
+});

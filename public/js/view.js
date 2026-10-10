@@ -1,6 +1,6 @@
 import {RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
 import {S,issueTitle,sel,unfamiliar} from './state.js';
-import {REVIEW,sddLevel,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetFor,quotaLeft,stackHint} from './calc.js';
+import {REVIEW,sddLevel,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetBlock,quotaLeft,stackHint} from './calc.js';
 import {INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
 import {LANGS,LANG_SWITCH,lang,t} from './i18n.js';
 
@@ -89,13 +89,12 @@ export function sddRow(){
   const b=L=>`<button class="sb ${cur===L?'sel':''}" data-sdd="${L}">${L?t('ui.sdd.lv',{name:SDD_NAME[L],L}):SDD_NAME[0]}<small>${L?t('ui.sdd.desc',{eg:SDD_EG[L],tk:SDD_TK[L],p:pc(SDD_P[L]),stop:pc(SDD_TRAP_STOP[L])}):t('ui.sdd.off',{stop:pc(TRAP_STOP)})}</small></button>`;
   return `<div class="sec"><label>${t('ui.sdd.title')}</label><div class="seg"><span class="seglbl">SDD</span>${[0,1,2].filter(L=>L<=own).map(b).join('')}</div></div>`;
 }
-/* 工單卡片上的一鍵派工按鈕：顯示會用哪個方案、前面的方案為什麼不能用 */
+/* 工單卡片上的一鍵派工：A／B／C 各一顆，不能用的停用並寫原因；機敏單用個人付費的寫稽核機率 */
 export function quickBtn(is){
-  const {i,skip}=presetFor(is);
-  const why=skip.length?`<span class="why">${t('ui.quick.skip',{p:PN[skip[0].i],r:skip[0].r})}</span>`:'';
-  if(i<0) return `<button class="qk" disabled><b>${t('ui.quick.none')}</b>${why}</button>`;
-  const p=S.presets[i], risk=auditRisk(is,p.b);
-  return `<button class="qk" data-quick="${is.id}" ${canQuick()?'':'disabled'}><b>${t('ui.quick.go',{p:PN[i]})}</b><span>${VENDORS[p.v].agent} / ${model(p.v,p.m).name}${t('sep')}${BILL_LABEL[p.b]}</span>${why}${risk?`<span class="why">${t('ui.quick.audit',{p:Math.round(auditOdds(p.v)*100)})}</span>`:''}</button>`;
+  const can=canQuick();
+  const b=(p,i)=>{const why=presetBlock(is,p), risk=!why&&auditRisk(is,p.b);
+    return `<button class="qk" data-quick="${is.id}" data-p="${i}" ${why||!can?'disabled':''}><b>${PN[i]}</b><span>${model(p.v,p.m).name}${t('sep')}${BILL_LABEL[p.b]}</span>${why?`<span class="why">${why}</span>`:risk?`<span class="why">${t('ui.quick.auditShort',{p:Math.round(auditOdds(p.v)*100)})}</span>`:''}</button>`;};
+  return `<div class="qkrow"><span class="qkl">${t('ui.quick.label')}</span>${S.presets.map(b).join('')}</div>`;
 }
 export function invPanel(){
   /* 有等級的投資按鈕寫下一級（買滿寫最高級）；鎖住時寫要先做什麼 */
@@ -139,6 +138,8 @@ export function qbox(name,sub,dl,dc,wl,wc){
 export const logLines=a=>a.map(l=>`<p class="${l.cls}">${l.msg}</p>`).join('');
 /* 派工台沒選工單時顯示最新幾筆紀錄，派完單看得到剛剛發生什麼 */
 export const DP_RECENT=3;
+/* 目前選擇跟方案一樣時，載入方案按鈕亮起來；強度只在進階模式比 */
+export const presetIs=p=>p.v===sel.v&&p.m===sel.m&&p.b===sel.b&&p.rv===sel.rv&&(!S.advanced||p.ef===sel.ef)&&sddLevel(p.sdd)===sddLevel();
 export function dispatchPanel(){
   const is=S.issues.find(i=>i.id===sel.issue), sp=t('sep'), ls=t('sep.list');
   if(!is) return `<div class="empty">${t('ui.dp.empty1')}<br>${t('ui.dp.empty2')}</div>${S.log.length?`<div class="recent"><label>${t('ui.dp.recent')}</label>${logLines(S.log.slice(0,DP_RECENT))}</div>`:''}`;
@@ -168,13 +169,7 @@ export function dispatchPanel(){
   const mh=manualHrs(is), ec=evalCost(model(sel.v,sel.m),sel.v), rc=researchCost(model(sel.v,sel.m),sel.v);
   const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m))||!!hwBlock(model(sel.v,sel.m))||(sel.b==='local'&&localBusy());
   return `<p class="dpt">${issueTitle(is)}</p>
-  <div class="sec"><label>${t('ui.dp.pick')}</label>${rows}</div>
-  <div class="sec"><label>${t('ui.dp.bill')}</label><div class="seg">${segs}</div>${S.seats.length&&!S.seats.includes(sel.v)?`<p class="hint">${t('ui.dp.seatHint',{seats:S.seats.map(v=>VENDORS[v].name).join(ls),agents:S.seats.map(v=>VENDORS[v].agent).join(ls)})}</p>`:''}</div>
-  <div class="sec"><label>${t('ui.dp.review')}</label><div class="seg">${REVIEW.map((r,i)=>`<button class="sb ${sel.rv===i?'sel':''}" data-rv="${i}">${r.name}<small>${i?t('ui.dp.reviewDesc',{tk:r.tk,p:Math.round(catchRate(i,M)*100)}):t('ui.dp.reviewNone')}</small></button>`).join('')}</div></div>
-  ${S.advanced?`<div class="sec"><label>${t('ui.dp.effort')}</label><div class="seg">${EFFORT.map((f,i)=>`<button class="sb ${sel.ef===i?'sel':''}" data-ef="${i}">${f.name}<small>${f.cap?t('ui.dp.effortDesc',{sign:f.cap>0?'+':'−',n:Math.abs(f.cap),tk:f.tk,hrs:f.hrs}):t('ui.dp.effortMid')}</small></button>`).join('')}</div></div>`:''}
-  ${sddRow()}
-  <div class="sec"><label>${t('ui.dp.presets')}</label><div class="seg">${S.presets.map((p,i)=>`<button class="sb" data-load="${i}">${t('ui.dp.load',{p:PN[i]})}<small>${model(p.v,p.m).name}${S.advanced&&p.ef!==1?`${sp}${t('ui.dp.effortTag',{name:EFFORT[p.ef].name})}`:''}${sp}${BILL_LABEL[p.b]}${sp}${REVIEW[p.rv].name}${lv(S.inv.sdd)?`${sp}SDD ${SDD_NAME[sddLevel(p.sdd)]}`:''}</small></button>`).join('')}</div>
-    <div class="seg">${PN.map((n,i)=>`<button class="sb" data-save="${i}">${t('ui.dp.save',{p:n})}<small>${t('ui.dp.saveSub')}</small></button>`).join('')}</div></div>
+  <div class="sec"><label>${t('ui.dp.presets')}</label><div class="seg">${S.presets.map((p,i)=>`<button class="sb ${presetIs(p)?'sel':''}" data-load="${i}">${t('ui.dp.load',{p:PN[i]})}<small>${model(p.v,p.m).name}${S.advanced&&p.ef!==1?`${sp}${t('ui.dp.effortTag',{name:EFFORT[p.ef].name})}`:''}${sp}${BILL_LABEL[p.b]}${sp}${REVIEW[p.rv].name}${lv(S.inv.sdd)?`${sp}SDD ${SDD_NAME[sddLevel(p.sdd)]}`:''}</small></button>`).join('')}</div></div>
   <div class="est">
     <div><label>${t('ui.dp.estTk')}</label><b>${kt(e.lo)}–${kt(e.hi)}</b></div>
     <div><label>${cl.t}</label><b>${cl.unit==='q'?`${kt(cl.lo)}–${kt(cl.hi)}`:cl.hi?`${nt(cl.lo)}–${nt(cl.hi)}`:'NT$0'}</b></div>
@@ -192,6 +187,13 @@ export function dispatchPanel(){
     <button class="btn ghost" data-act="selfresearch" ${researchBlock(is,'self')?'disabled':''}>${t('ui.dp.selfResearch',{h:h1(selfResearchHrs(is))})}</button>`:''}
     ${canEvaluate(is)?`<button class="btn ghost" data-act="eval" ${blocked||ec.hrs>S.hours?'disabled':''}>${t('ui.dp.eval',{tk:kt(ec.tk),h:h1(ec.hrs)})}</button>`:''}
     ${is.revealed&&!is.rescoped&&!is.out?`<button class="btn ghost" data-act="rescope">${t('ui.dp.rescope')}</button>`:''}
-  </div>`;
+  </div>
+  <p class="dptune">${t('ui.dp.tune')}</p>
+  <div class="sec"><label>${t('ui.dp.pick')}</label>${rows}</div>
+  <div class="sec"><label>${t('ui.dp.bill')}</label><div class="seg">${segs}</div>${S.seats.length&&!S.seats.includes(sel.v)?`<p class="hint">${t('ui.dp.seatHint',{seats:S.seats.map(v=>VENDORS[v].name).join(ls),agents:S.seats.map(v=>VENDORS[v].agent).join(ls)})}</p>`:''}</div>
+  <div class="sec"><label>${t('ui.dp.review')}</label><div class="seg">${REVIEW.map((r,i)=>`<button class="sb ${sel.rv===i?'sel':''}" data-rv="${i}">${r.name}<small>${i?t('ui.dp.reviewDesc',{tk:r.tk,p:Math.round(catchRate(i,M)*100)}):t('ui.dp.reviewNone')}</small></button>`).join('')}</div></div>
+  ${S.advanced?`<div class="sec"><label>${t('ui.dp.effort')}</label><div class="seg">${EFFORT.map((f,i)=>`<button class="sb ${sel.ef===i?'sel':''}" data-ef="${i}">${f.name}<small>${f.cap?t('ui.dp.effortDesc',{sign:f.cap>0?'+':'−',n:Math.abs(f.cap),tk:f.tk,hrs:f.hrs}):t('ui.dp.effortMid')}</small></button>`).join('')}</div></div>`:''}
+  ${sddRow()}
+  <div class="sec"><label>${t('ui.dp.savePresets')}</label><div class="seg">${PN.map((n,i)=>`<button class="sb" data-save="${i}">${t('ui.dp.save',{p:n})}<small>${t('ui.dp.saveSub')}</small></button>`).join('')}</div></div>`;
 }
 

@@ -95,6 +95,8 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
    → 在瀏覽器玩第 1 天找出的問題裡先修四項：「等 1 小時」「等到下一個 agent 完成」「調整訂閱」「下班」原本在執行紀錄標題列、排在 1,141px 高的投資面板下面（手機在 4,276px），改成畫面底部的動作列（`dayDock`，`position:sticky; bottom:0`，左邊寫第幾天與時間，400px 寬時按鈕排一列，平常三顆、高 87px，英文星期一四顆、高 102px）；派工、手寫後選取清掉、派工台縮成空白提示，改成空白時在提示下面顯示最新 3 筆紀錄（「剛剛」，`DP_RECENT`），不自動選下一張（避免連點把下一張用同樣設定派出去）；深色模式彈窗遮罩原本用淺色的 `--ink`、反而讓畫面變白，改用 `--scrim` token（深色是黑色 60%）；選項按鈕 `.sb` 文字靠左。手機點工單自動捲到派工台、派工台預估列黏底、開局彈窗精簡、早上報告帶下班總結、付費方式預設這次不做。設計紀錄在 Spectra change `gh-39-01-play-flow-ui`（#39），規則以 `docs/spectra/specs/game-layout/` 為準。
 37. 「工程投資應該可以用Tab的形式 跟派工台放在一起」（#40）
    → 右欄改成「派工台／工程投資」兩個分頁，投資分頁標籤寫「已做 N 項」，頁面總高（第 1 天）從 2,852px 降到 1,753px。使用者選了：在投資分頁點工單自動切回派工台、拿掉投資面板收合（`tokgame-invfold`）由分頁取代、分頁不記住（載入、開新局、換日都回派工台）。兩個分頁都會產生、沒選到的用 `hidden` 藏起來，所以檢查主畫面 HTML 的既有斷言不用切分頁。設計紀錄在 Spectra change `gh-40-01-dispatch-invest-tabs`（#40）。
+38. 「把派工方案的載入跟最後決策移到上方 有機會直接套用 不用卷到最下面」、「一鍵派工直接給ＡＢＣ三個選項的按鈕」（#41）
+   → 派工台改成先放載入方案、預估、警告與派出按鈕，下面才是細調與存成方案（桌機選了工單後派出按鈕底部在 606px，不用捲動）；目前選擇跟方案一樣時那組載入按鈕亮起來。卡片的一鍵派工改成 A／B／C 三顆，不能用的停用並寫原因、機敏單個人付費的寫稽核機率，按哪顆用哪組、不往下找；批次派工照舊用 A→B→C 第一個能用的（三項都是使用者從選項裡選的）。設計紀錄在 Spectra change `gh-41-01-preset-first-dispatch`（#41）。
 
 介面預設語言是繁體中文（台灣用語），所有介面文字都放在字典（見「多語系」），程式碼裡註解以外不能有中文。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
@@ -319,9 +321,9 @@ SRE、DevOps 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；�
 
 ### 派工方案（`S.presets`、`presetBlock`、`presetFor`、`quick`）
 - 三組方案 A／B／C，各存廠商、模型、付費方式、審核等級、推理強度（`ef`，0／1／2）、SDD 等級（`sdd`，0 不用／1 markdown／2 框架；套用時取已買等級的較小值，沒買到就降級、不略過方案；舊方案沒有 `sdd` 補成 2，不是 0–2 就三組退回預設）。預設三組都是中強度；舊方案沒有 `ef` 時補成中，`ef` 不是 0–2 就三組退回預設。一般模式下方案存的強度不生效；進階模式下強度不是中的方案，載入按鈕標籤會顯示「高強度／低強度」。預設 A：DeepSeek Chat＋個人 API＋自審＋SDD 不用；B：Sonnet＋公司 API＋自審＋SDD 2；C：Opus＋公司 API＋嚴格審核＋SDD 2。買了 SDD 之後載入按鈕標籤寫「SDD 不用／markdown／框架」。跨 `fresh()` 保留，有任何一組不合法就三組都退回預設（`presetsOf`）。不存 localStorage。
-- 派工台可「載入方案」（`loadPreset`）與「存成方案」（`savePreset`）。
-- 工單卡片下方的「一鍵派工」照 A→B→C 用第一個能用的方案。不能用的原因依序：今日當機、案主禁用（`cnBlock` 文字）、付費方式不能用（帳單註記，或「沒有公司席位」）、本地 GPU 忙、額度不夠（預估上限 × w 超過剩餘額度）、錢包不夠（預估上限超過錢包）。卡片顯示第一個被略過的方案和原因，紀錄寫出所有略過的方案。工作槽滿或剩不到 0.2h 時停用；三組都不能用時顯示「沒有可用方案」。
-- 機敏工單不會因為個人付費而跳過方案，卡片改顯示稽核機率。
+- 派工台可「載入方案」（`loadPreset`）與「存成方案」（`savePreset`）。派工台先放決策（#41）：工單標題 → 載入方案 A／B／C → 預估 → 提示 → 警告 → 派出／手寫等按鈕，下面才是「細調」（agent 與模型、付費方式、審核、推理強度、SDD），最後是存成方案。目前選擇跟某組方案一樣時（廠商、模型、付費、審核、套用的 SDD，進階模式再比強度），那組的載入按鈕亮起來（`presetIs`）。
+- 工單卡片下方的「一鍵派工」是 A／B／C 三顆按鈕（#41），每顆寫方案的模型與付費方式；按哪顆就用哪個方案（`quick(id, via, pi)`），不往下找、紀錄不寫略過。方案不能用時那顆停用並寫原因，原因依序：今日當機、案主禁用（`cnBlock` 文字）、付費方式不能用（帳單註記，或「沒有公司席位」）、本地 GPU 忙、額度不夠（預估上限 × w 超過剩餘額度）、錢包不夠（預估上限超過錢包）。工作槽滿或剩不到 0.2h 時三顆都停用。批次派工（`batch`，不帶 `pi`）照舊 A→B→C 用第一個能用的方案，紀錄寫出略過的方案。
+- 機敏工單不會因為個人付費而停用方案，那顆按鈕改寫稽核機率（「稽核 60%」）。
 
 ### 工程投資（`INVEST`、`invest`、`investBlock`、`batch`、`invHint`）
 花自己的工時加公司 API 預算（計入當日公司花費與月底公司帳單），效果維持到月底，每局歸零。工程投資是派工台旁邊的分頁（`tabPanel`，見 `game-layout` spec）：分頁標籤寫「已做 N 項」，在投資分頁點工單會切回派工台，載入、開新局、換日都回派工台，選哪頁不進存檔、不存 localStorage。原本的收合功能（`tokgame-invfold`）在 #40 拿掉。平行模式下投資會推進時鐘，背景 agent 照跑（期間有 agent 完成時，審 PR 的時間另外加上去）；本地 GPU 忙也能投資。
@@ -636,7 +638,7 @@ Pro 500 每一格都比 Pro 200 差（平行 12k 時 −5.2%～−8.3%、20k 時
 | `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件、存檔：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`SAVE_KEY`、`SAVE_VER`、`saveGame`、`clearSave`、`readSave`、`loadGame`、`daySnap`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`RESEARCH_RATE`、`setResearchRate`、`hardStack`、`unfamiliar`、`makeIssue`、`issueTitle`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs`、`START`（起始錢包、公司預算、信任、每日工時）、`confStacks`、`confCat`、`confCount` |
 | `calc.js` | 計算（`est(is, v, mid, rv, ef, sd)` 會套推理強度與 SDD 等級）：`sddLevel`、`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`hasHw`、`manualBlocked`、`hwBlock`、`localSpeed`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log`、`P_STEP`（成功率階梯） |
 | `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`TRAP_NOTE`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`RV_ID`、`SDD_ID`、`jobChoice`、`billOk`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`CANCEL_MIN`、`cancelFrac`、`cancelJob`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`researchCost`、`selfResearchHrs`、`researchBlock`、`splitResearch`、`research`、`invCount`、`investBlock`、`invest`、`hwReqBlock`、`requestHw`、`useHw`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`intakeIssue`、`daySummary`、`dayStartLine`、`endDay`、`who`、`ev`、`AUDIT_ODDS`、`AUDIT_TRUST`、`OVERDRAFT_TRUST`、`CORP_DAY_LIMIT`、`CORP_DAY_TRUST`、`LATE_TRUST`、`INC_LATE_TRUST`、`EVENT_RATE`、`OVERNIGHT_HRS`、`PACE_KPI`、`PRAISE_TRUST`、`DOUBT_TRUST`、`invLevel`、`invMax`、`invCost`、`invLock`、`confBlock`、`registerConf`、`attendConf` |
-| `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`cancelArm`、`armCancel`、`cancelBtn`、`quickBtn`、`sddRow`、`invPanel`、`tab`、`setTab`、`tabPanel`（派工台／工程投資分頁）、`hwRow`、`qbox`、`logLines`（執行紀錄與「剛剛」共用的紀錄行）、`DP_RECENT`、`dispatchPanel`、`confRow`、`langSwitch`、`dayDock`（畫面底部的動作列：等待、調整訂閱、下班） |
+| `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`cancelArm`、`armCancel`、`cancelBtn`、`quickBtn`、`sddRow`、`invPanel`、`tab`、`setTab`、`tabPanel`（派工台／工程投資分頁）、`hwRow`、`qbox`、`logLines`（執行紀錄與「剛剛」共用的紀錄行）、`DP_RECENT`、`presetIs`、`dispatchPanel`、`confRow`、`langSwitch`、`dayDock`（畫面底部的動作列：等待、調整訂閱、下班） |
 | `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showResume`、`showBadSave`、`planShort`、`monthScore`、`showEnd`、`SCORE`、`GRADES`、`PAR_GRADE` |
 | `rules.js` | 規則 modal（`showRules(back)`，`back` 是關閉後回到原彈窗的函式）與六個分頁的內容（`rulesTab(id)`），數字全部從其他模組的常數插值：`RULE_TABS`、`ruleTab`（只在這個模組改）、`pct`、`rtag`、`rtable`、`rlist`、`rsec`、`rulesTab`、`showRules` |
 
