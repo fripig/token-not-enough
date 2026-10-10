@@ -1380,8 +1380,8 @@ function tests(){
   /* 評等門檻 */
   /* 個位數用信任補（信任 × 4），才能測到 4,099 這種 spec 例子的確切值 */
   const gradeAt=(mode,score)=>endRun(mode,()=>{S.kpi=Math.floor(score/10); S.trust=score%10/4;}).grade;
-  ok([[4100,'S'],[4099,'A'],[3300,'A'],[2500,'B'],[1700,'C'],[1699,'D']].every(([s,g])=>gradeAt('serial',s)===g),'month-end-scoring：單線門檻 4,100／3,300／2,500／1,700');
-  ok([[6560,'S'],[6559,'A'],[5280,'A'],[4000,'B'],[2720,'C'],[2719,'D']].every(([s,g])=>gradeAt('parallel',s)===g),'month-end-scoring：平行門檻 ×1.6（6,560／5,280／4,000／2,720）');
+  ok([[4300,'S'],[4299,'A'],[3300,'A'],[2500,'B'],[1700,'C'],[1699,'D']].every(([s,g])=>gradeAt('serial',s)===g),'month-end-scoring：單線門檻 4,300／3,300／2,500／1,700');
+  ok([[6880,'S'],[6879,'A'],[5280,'A'],[4000,'B'],[2720,'C'],[2719,'D']].every(([s,g])=>gradeAt('parallel',s)===g),'month-end-scoring：平行門檻 ×1.6（6,880／5,280／4,000／2,720）');
   ok(endRun('serial',base).grade==='B'&&endRun('parallel',base).grade==='C','month-end-scoring：3,120 分單線 B、平行 C');
   /* 稱號 */
   const titleOf=set=>endRun('serial',()=>{S.kpi=120; S.trust=0; set();}).title;
@@ -1753,7 +1753,7 @@ function tests(){
   {
   const plain=id=>Ru.rulesTab(id).replace(/ data-h="[^"]*"/g,''); // 窄螢幕卡片用的欄名屬性不影響比對
   const sc=plain('score'), bi=plain('billing'), iv=plain('invest'), D=dataModule;
-  ok(M.GRADES.join()==='4100,3300,2500,1700'&&M.PAR_GRADE===1.6&&M.GRADES.every(t=>sc.includes(`<td>${t}</td>`)&&sc.includes(`<td>${Math.round(t*M.PAR_GRADE)}</td>`))&&sc.includes('<td>6560</td>'),'rules-reference：結算分頁列出單線與平行模式的評等門檻');
+  ok(M.GRADES.join()==='4300,3300,2500,1700'&&M.PAR_GRADE===1.6&&M.GRADES.every(t=>sc.includes(`<td>${t}</td>`)&&sc.includes(`<td>${Math.round(t*M.PAR_GRADE)}</td>`))&&sc.includes('<td>6880</td>'),'rules-reference：結算分頁列出單線與平行模式的評等門檻');
   ok(['kpi','trust','audit'].every(k=>sc.includes(`× ${M.SCORE[k]}`)),'rules-reference：結算分頁的總分權重來自 SCORE');
   ok(plain('tickets').includes(`評估時間 ×${D.MCP_EVAL_HRS}`),'rules-reference：MCP 評估時間倍率來自常數');
   ok(bi.includes(D.nt(A.CORP_DAY_LIMIT))&&bi.includes(`信任 −${A.AUDIT_TRUST}`)&&bi.includes(SEAT.trust.join('／')),'rules-reference：付費分頁的公司單日上限、稽核扣分、席位門檻來自常數');

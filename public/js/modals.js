@@ -138,7 +138,7 @@ export function showBadSave(){
   mo.onclick=e=>{const t=e.target.closest('button');if(!t)return;if(t.dataset.act==='new')start();};
 }
 /* 總分權重與評等門檻（平行模式門檻 ×PAR_GRADE）；錢不算分，個人花費只顯示與判定稱號 */
-export const SCORE={kpi:10,trust:4,audit:80}, GRADES=[4100,3300,2500,1700], PAR_GRADE=1.6;
+export const SCORE={kpi:10,trust:4,audit:80}, GRADES=[4300,3300,2500,1700], PAR_GRADE=1.6;
 /* 月底總分與評等；self 是你自己掏的錢 */
 export function monthScore(){
   const self=S.st.subFee+S.st.api+S.st.outPenalty-S.st.outIncome;
