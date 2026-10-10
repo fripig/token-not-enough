@@ -26,8 +26,8 @@ import * as I from '../public/js/i18n.js';
 const pristine=await import('../public/js/state.js?pristine');
 
 let pass=0,fail=0;
-/* 已經把字串搬進字典的模組（gh-34-01-i18n 逐批加，4.1 改成全部模組） */
-const I18N_DONE=['view.js','modals.js','actions.js','calc.js','main.js','state.js','data.js','rules.js'];
+/* 字典檔以外的遊戲模組：註解以外不能有中文（gh-34-01-i18n） */
+const I18N_DONE=readdirSync(new URL('../public/js/',import.meta.url)).filter(f=>f.endsWith('.js'));
 function ok(cond,name,detail=''){if(cond){pass++;}else{fail++;console.log('✗',name,detail);}}
 function near(a,b,eps=1e-9){return Math.abs(a-b)<=eps;}
 /* 去掉 JS 註解（保留字串、模板字串與 ${} 裡的程式），換行照留；i18n 檢查用 */
