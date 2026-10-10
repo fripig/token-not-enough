@@ -182,6 +182,7 @@ export const DICT={
   'log.setup.subs':'· 訂閱：{names}{paid}',
   'log.setup.subsNone':'無',
   'log.setup.paid':'（付 {c}）',
+  'ui.day.sum':'第 {d} 天下班',
   'ui.day.title':'第 {d} 天',
   'ui.day.newWeek':'新的一週',
   'ui.day.monday':'每週額度已重置。今天可以調整訂閱方案。',

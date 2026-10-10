@@ -423,11 +423,17 @@ export function intakeIssue(){
 }
 
 /* 下班總結：KPI、信任、錢包、公司預算的當天變化（目前值）；沒有變化寫 ±0 */
-export function daySummary(){
-  const b=S.dayStart||daySnap(), sg=d=>d>0?'+':d<0?'-':'±';
-  const n=(k,lab)=>{const d=Math.round(S[k]-b[k]);return t('log.sumItem',{lab,d:`${sg(d)}${Math.abs(d)}`,cur:Math.round(S[k])});};
-  const m=(k,lab)=>{const d=Math.round(S[k]-b[k]);return t('log.sumItem',{lab,d:`${sg(d)}${nt(Math.abs(d))}`,cur:nt(S[k])});};
-  return t('log.daySum',{d:S.day,kpi:n('kpi','KPI'),trust:n('trust',t('log.lab.trust')),wallet:m('wallet',t('log.lab.wallet')),corp:m('corp',t('log.lab.corp'))});
+/* 這一天的變化與現值（[差值, 現值]，都四捨五入到整數）；下班那行和隔天早上報告的四格共用 */
+export function daySum(){
+  const b=S.dayStart||daySnap(), v=k=>[Math.round(S[k]-b[k]),Math.round(S[k])];
+  return {d:S.day,kpi:v('kpi'),trust:v('trust'),wallet:v('wallet'),corp:v('corp')};
+}
+/* 帶正負號的差值：+24、-8、±0；錢加 NT$ */
+export const sumDelta=(d,money)=>`${d>0?'+':d<0?'-':'±'}${money?nt(Math.abs(d)):Math.abs(d)}`;
+export function daySummary(sum=daySum()){
+  const n=(k,lab)=>t('log.sumItem',{lab,d:sumDelta(sum[k][0]),cur:sum[k][1]});
+  const m=(k,lab)=>t('log.sumItem',{lab,d:sumDelta(sum[k][0],true),cur:nt(sum[k][1])});
+  return t('log.daySum',{d:sum.d,kpi:n('kpi','KPI'),trust:n('trust',t('log.lab.trust')),wallet:m('wallet',t('log.lab.wallet')),corp:m('corp',t('log.lab.corp'))});
 }
 /* 開工那行（第 1 天在 main.js 的 firstIssues） */
 export const dayStartLine=(d,monday,n,g)=>t('log.dayStart',{d,week:monday?t('log.newWeek'):'',n,gig:g?t('log.dayGigs',{g}):''});
@@ -451,7 +457,7 @@ export function endDay(){
   /* 買了電腦沒用：每台每天信任 -2 */
   const idle=HW_KEYS.filter(k=>S.hw[k]&&!S.hwUsed[k]);
   if(idle.length){const n=HW_IDLE*idle.length;S.trust=Math.max(0,S.trust-n);const msg=t('rep.hwIdle',{names:idle.map(k=>HW[k].name).join(t('sep.list')),n});rep.push(msg);log('warn',`! ${msg}`);}
-  log('dim',daySummary());
+  const sum=daySum(); log('dim',daySummary(sum));
   if(S.day>=20){render();return showEnd();}
   S.day++; S.hours=START.hours; S.corpDay=0; S.outage=null; S.dayStart=daySnap();
   for(const k of ['sub','seat'])for(const v in S.used[k])S.used[k][v].d=0;
@@ -481,7 +487,7 @@ export function endDay(){
   log('dim',dayStartLine(S.day,monday,n,g));
   sel.issue=null; setTab('dispatch');
   track('day_reached');
-  saveGame({rep,ev:e,monday});
-  render(); showDay(rep,e,monday);
+  saveGame({rep,ev:e,monday,sum});
+  render(); showDay(rep,e,monday,sum);
 }
 

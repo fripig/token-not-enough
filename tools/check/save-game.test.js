@@ -61,6 +61,9 @@ section("Day-start save",()=>{
   S.day=3; endDay();
   const d4=saved();
   ok(d4.S.day===4&&d4.S.issues.map(i=>i.id).join()===S.issues.map(i=>i.id).join()&&Array.isArray(d4.morning.rep)&&typeof d4.morning.monday==='boolean','save-game：換到第 4 天存當天早上的佇列與報告');
+  ok(d4.morning.sum&&d4.morning.sum.d===3&&['kpi','trust','wallet','corp'].every(k=>Array.isArray(d4.morning.sum[k])&&d4.morning.sum[k].length===2),'save-game：早上報告存了第 3 天下班的四格數字',JSON.stringify(d4.morning.sum));
+  {const snap=store[SV]; fresh(); boot(); clickMo({act:'resume'}); store[SV]=snap;
+   ok(S.day===4&&els.mo.innerHTML.includes('class="daysum"')&&els.mo.innerHTML.includes('第 3 天下班'),'save-game：開頁按繼續，早上報告顯示存下來的四格');}
   const is=S.issues.find(i=>!i.out); sel.issue=is.id; sel.v='deepseek'; sel.m='chat'; sel.b='api'; dispatch();
   ok(S.jobs.length===1&&saved().S.jobs.length===d4.S.jobs.length&&store[SV]===JSON.stringify(d4),'save-game：派工後存檔不變');
   /* 週一調整訂閱不存 */
@@ -105,6 +108,7 @@ section("Resume on page load",()=>{
   clickMo({act:'resume'});
   ok(S.day===7&&S.jobs.length===1&&S.jobs[0].issue===S.issues.find(i=>i.id===t2.id)&&els.app.innerHTML.includes(t2.title),'save-game：繼續後第 7 天、過夜 agent 還在、job 的工單就是佇列裡那張');
   ok(els.mo.innerHTML.includes('第 7 天')&&els.mo.innerHTML.includes('2 個 agent 跑了一整晚')&&els.mo.innerHTML.includes('事件標題')&&!els.ov.hidden,'save-game：繼續後打開存下來的早上報告');
+  ok(!els.mo.innerHTML.includes('class="daysum"'),'save-game：舊存檔的早上報告沒有下班總結時照常打開、不顯示四格');
   ok(ev.length===0,'save-game：繼續不送 GA 事件',ev.join());
   ok(SV in store,'save-game：繼續後存檔保留');
   /* 第 1 天的存檔：繼續後沒有彈窗 */

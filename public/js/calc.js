@@ -70,6 +70,17 @@ export function bills(v,is){
   out.push({id:'corp',label:t('bill.corp'),note:!V.corp?t('bill.noContract'):S.corp<=0?t('bill.budgetOut'):t('bill.dept'),ok:V.corp&&S.corp>0});
   return out.map(b=>gigBlocked(is,b.id)?{...b,note:GIG_NOTE(),ok:false}:b);
 }
+/* 換廠商時的預設付費：有席位且額度夠用席位，否則有訂閱且額度夠用訂閱，都不行回傳 null（維持原本）；機敏單不自動換成個人訂閱（會被稽核） */
+export function prefBill(v,is,m){
+  if(v==='local') return null;
+  const bl=bills(v,is), M=model(v,m);
+  for(const k of is?.sens?['seat']:['seat','sub']){
+    if(!bl.find(b=>b.id===k&&b.ok)) continue;
+    const need=is?costLine(k,M,v,est(is,v,m)).hi:0;
+    const q=quotaLeft(k,v); if(q>0&&q>=need) return k;
+  }
+  return null;
+}
 export function costLine(b,M,v,e){
   if(b==='sub'||b==='seat') return {t:t('cost.quota'),lo:e.lo*M.w,hi:e.hi*M.w,unit:'q'};
   if(b==='local') return {t:t('cost.spend'),lo:0,hi:0,unit:'$'};

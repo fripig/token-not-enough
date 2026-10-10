@@ -1,10 +1,12 @@
 // billing-methods 的規則檢查：docs/spectra/specs/billing-methods/spec.md
-import {ok,near,section,newRun,ticket,withRand,job} from './lib.js';
+import {ok,near,section,newRun,ticket,withRand,job,clickApp,clickMo} from './lib.js';
 import {els} from '../fake-dom.js';
 import {model} from '../../public/js/data.js';
 import {S,sel} from '../../public/js/state.js';
 import {auditOdds,charge,endDay,evaluate,settle} from '../../public/js/actions.js';
 import {render} from '../../public/js/view.js';
+import {showSetup} from '../../public/js/modals.js';
+import {GIG_CLIENT} from '../../public/js/state.js';
 import * as A from '../../public/js/actions.js';
 import * as C from '../../public/js/calc.js';
 
@@ -71,4 +73,26 @@ section("billing-methods：付費選項",()=>{
   ok(warnFor('deepseek','chat','api').includes('機敏工單送到中國雲端：有 60% 機率被資安稽核抓到。'),'billing-methods：中國雲端稽核警告');
   ok(warnFor('anthropic','sonnet','corp').includes('<div class="warnline"></div>'),'billing-methods：公司 API 沒有稽核警告');
   }
+});
+
+section("billing-methods：換廠商時預設先選席位、再選訂閱",()=>{
+  const setup=(o={})=>{newRun('laravel'); S.hours=8; const is=ticket('fe',2,o.tk||{}); S.issues=[is]; sel.issue=is.id; Object.assign(sel,{v:'google',m:'pro',b:o.b||'corp',rv:0}); if(o.plan)S.subs.anthropic='pro'; if(o.seat)S.seats=['anthropic']; render(); return is;};
+  setup({plan:true}); clickApp({v:'anthropic',m:'sonnet'});
+  ok(sel.b==='sub','有 Anthropic Pro 訂閱、從 Gemini Pro 換到 Sonnet → 個人訂閱',sel.b);
+  setup({plan:true,seat:true}); clickApp({v:'anthropic',m:'sonnet'});
+  ok(sel.b==='seat','有 Anthropic 席位也有訂閱 → 公司席位',sel.b);
+  setup({}); clickApp({v:'anthropic',m:'sonnet'});
+  ok(sel.b==='corp','沒有訂閱也沒有席位 → 維持公司 API',sel.b);
+  setup({plan:true}); clickApp({v:'anthropic',m:'sonnet'}); sel.b='api'; render(); clickApp({v:'anthropic',m:'opus'});
+  ok(sel.b==='api','同一家換模型維持玩家選的個人 API',sel.b);
+  setup({plan:true}); S.used.sub.anthropic={d:445,w:445}; clickApp({v:'anthropic',m:'sonnet'});
+  ok(sel.b==='corp','訂閱額度不夠這張單的預估 → 維持公司 API',sel.b);
+  setup({seat:true,b:'api',tk:{out:true,client:GIG_CLIENT,pay:1000}}); clickApp({v:'anthropic',m:'sonnet'});
+  ok(sel.b==='api','外包單不會因為有席位改成公司席位',sel.b);
+  setup({plan:true,tk:{sens:true}}); clickApp({v:'anthropic',m:'sonnet'});
+  ok(sel.b==='corp','機敏單有訂閱沒席位 → 維持公司 API，不自動換成個人訂閱',sel.b);
+  setup({plan:true,seat:true,tk:{sens:true}}); clickApp({v:'anthropic',m:'sonnet'});
+  ok(sel.b==='seat','機敏單有席位 → 公司席位',sel.b);
+  newRun('laravel'); showSetup(false); clickMo({pv:'anthropic',pp:'pro'}); clickMo({act:'confirm'});
+  ok(S.subs.anthropic==='pro'&&sel.v==='anthropic'&&sel.b==='sub','開局訂了 Anthropic、預設 Sonnet → 第 1 天就是個人訂閱',`${S.subs.anthropic} ${sel.v} ${sel.b}`);
 });

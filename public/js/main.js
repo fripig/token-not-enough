@@ -1,5 +1,5 @@
 import {S,addGigs,clearSave,fresh,makeIssue,readSave,resetIds,sel} from './state.js';
-import {log} from './calc.js';
+import {log,prefBill} from './calc.js';
 import {batch,cancelJob,dispatch,endDay,evaluate,research,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait,registerConf,dayStartLine} from './actions.js';
 import {app,armCancel,cancelArm,render,setTab} from './view.js';
 import {showBadSave,showResume,showSetup} from './modals.js';
@@ -15,7 +15,7 @@ app.addEventListener('click',e=>{
   if(t.dataset.cancel){const id=+t.dataset.cancel; if(cancelArm===id){armCancel(null);cancelJob(id);}else armCancel(id); render();}
   else if(t.dataset.iss){sel.issue=+t.dataset.iss;setTab('dispatch');render();}
   else if(t.dataset.tab){setTab(t.dataset.tab);render();}
-  else if(t.dataset.v){sel.v=t.dataset.v;sel.m=t.dataset.m;if(sel.v==='local')sel.b='local';else if(sel.b==='local')sel.b='api';render();}
+  else if(t.dataset.v){const nv=t.dataset.v!==sel.v;sel.v=t.dataset.v;sel.m=t.dataset.m;if(sel.v==='local')sel.b='local';else{if(sel.b==='local')sel.b='api';if(nv)sel.b=prefBill(sel.v,S.issues.find(i=>i.id===sel.issue),sel.m)??sel.b;}render();}
   else if(t.dataset.b){sel.b=t.dataset.b;render();}
   else if(t.dataset.rv){sel.rv=+t.dataset.rv;render();}
   else if(t.dataset.ef){sel.ef=+t.dataset.ef;render();}

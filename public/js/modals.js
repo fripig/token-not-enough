@@ -1,7 +1,7 @@
 import {COMPANIES,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
-import {S,addGigs,clearSave,daySnap,loadGame,saveGame,track} from './state.js';
-import {log} from './calc.js';
-import {PAR,REVIEW_LOAD,SLOT_CHOICES,invCount} from './actions.js';
+import {S,addGigs,clearSave,daySnap,loadGame,saveGame,sel,track} from './state.js';
+import {log,prefBill} from './calc.js';
+import {PAR,REVIEW_LOAD,SLOT_CHOICES,invCount,sumDelta} from './actions.js';
 import {app,langSwitch,mo,ov,render} from './view.js';
 import {firstIssues,start} from './main.js';
 import {showRules} from './rules.js';
@@ -91,6 +91,8 @@ export function showSetup(adjust){
       }
       const changed=SUBV.filter(v=>draft.subs[v]!==S.subs[v]);
       for(const v of changed) S.subs[v]=draft.subs[v];
+      /* 第 1 天開工：預設的廠商有席位或訂閱就先用它 */
+      if(!adjust) sel.b=prefBill(sel.v,null,sel.m)??sel.b;
       /* GA：開局送每家有訂閱的方案（都沒有就送一筆 none），週一只送有改的 */
       if(!adjust){
         track('game_start');
@@ -107,8 +109,11 @@ export function showSetup(adjust){
   };
   draw(); ov.hidden=false; mo.onclick=onClick;
 }
-export function showDay(rep,ev,monday){
+/* sum：昨天下班的四格（舊存檔沒有就不顯示） */
+export function showDay(rep,ev,monday,sum=null){
+  const cell=(k,lab,money)=>`<div class="dsc"><label>${lab}</label><b class="${money?'':sum[k][0]>0?'ok':sum[k][0]<0?'bad':''}">${sumDelta(sum[k][0],money)}</b><span>${money?nt(sum[k][1]):sum[k][1]}</span></div>`;
   mo.innerHTML=`<h2>${t('ui.day.title',{d:S.day})}${monday?t('sep')+t('ui.day.newWeek'):''}</h2>
+  ${sum?`<div class="daysum"><p class="dscap">${t('ui.day.sum',{d:sum.d})}</p>${cell('kpi','KPI')}${cell('trust',t('log.lab.trust'))}${cell('wallet',t('log.lab.wallet'),true)}${cell('corp',t('log.lab.corp'),true)}</div>`:''}
   ${monday?`<p class="lead">${t('ui.day.monday')}</p>`:''}
   ${ev?`<div class="evt"><b>${ev[0]}</b>${ev[1]}</div>`:''}
   ${rep.length?`<ul class="rules">${rep.map(r=>`<li>${r}</li>`).join('')}</ul>`:''}
@@ -126,7 +131,7 @@ export function showResume(d){
   <div class="actions"><button class="btn primary" data-act="resume">${t('ui.resume.go')}</button><button class="btn ghost" data-act="new">${t('ui.resume.new')}</button></div>`;
   ov.hidden=false;
   mo.onclick=e=>{const bt=e.target.closest('button');if(!bt)return;
-    if(bt.dataset.act==='resume'){loadGame(d);render();const m=d.morning;if(m)showDay(m.rep,m.ev,m.monday);else ov.hidden=true;}
+    if(bt.dataset.act==='resume'){loadGame(d);render();const m=d.morning;if(m)showDay(m.rep,m.ev,m.monday,m.sum??null);else ov.hidden=true;}
     if(bt.dataset.act==='new')start();};
 }
 export function showBadSave(){

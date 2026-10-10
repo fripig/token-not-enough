@@ -67,6 +67,8 @@ section("執行紀錄（gh-25-01-log-history）",()=>{
   /* 下班總結 */
   newRun('laravel'); S.day=3; S.dayStart={kpi:37,trust:70,wallet:7360,corp:11310}; Object.assign(S,{kpi:61,trust:62,wallet:7240,corp:10900,corpDay:0}); withRand(.99,endDay);
   ok(line('═ 第 3 天下班')==='D03 ═ 第 3 天下班｜KPI +24（61）｜信任 -8（62）｜錢包 -NT$120（NT$7,240）｜公司 -NT$410（NT$10,900）','action-log：下班總結的格式與差值',line('═'));
+  {const h=els.mo.innerHTML, c=(lab,cls,d,v)=>h.includes(`<div class="dsc"><label>${lab}</label><b class="${cls}">${d}</b><span>${v}</span></div>`);
+   ok(h.includes('<div class="daysum">')&&h.includes('第 3 天下班')&&c('KPI','ok','+24','61')&&c('信任','bad','-8','62')&&c('錢包','','-NT$120','NT$7,240')&&c('公司','','-NT$410','NT$10,900'),'action-log：早上報告最上面有第 3 天下班的四格：KPI +24（61）、信任 -8（62，扣分樣式）、錢包、公司',h.slice(0,600));}
   ok(S.dayStart.kpi===S.kpi&&S.dayStart.wallet===S.wallet,'action-log：換日後重設當天基準');
   newRun('laravel'); S.day=20; withRand(.99,endDay); ok(line('═ 第 20 天下班').startsWith('D20 ')&&els.mo.innerHTML.includes('再玩一個月'),'action-log：第 20 天下班也有總結、之後開結算');
   newRun('laravel'); S.day=7; S.wallet=5000; withRand([0,.9,.5],endDay);

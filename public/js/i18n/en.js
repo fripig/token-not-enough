@@ -182,6 +182,7 @@ export const DICT={
   'log.setup.subs':'· Plans: {names}{paid}',
   'log.setup.subsNone':'none',
   'log.setup.paid':' (paid {c})',
+  'ui.day.sum':'Day {d} wrap-up',
   'ui.day.title':'Day {d}',
   'ui.day.newWeek':'new week',
   'ui.day.monday':'Weekly quotas are reset. You can change your plans today.',
