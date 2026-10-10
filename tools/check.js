@@ -1076,6 +1076,10 @@ function tests(){
   ok(els.app.innerHTML.includes('錢包可能不夠，跑到一半會停下來。')&&!/data-act="go" disabled/.test(els.app.innerHTML),'billing-methods：錢包不夠只警告、派工按鈕可按');
   for(const w of [0,-350]){S.wallet=w; const nb=C.bills('anthropic',tw).find(b=>b.id==='api'); ok(!nb.ok&&nb.note==='錢包見底','billing-methods：錢包 NT$'+w+' 時個人 API 停用、註記錢包見底'); render(); ok(sel.b!=='api'&&/data-b="api" disabled/.test(els.app.innerHTML),'billing-methods：錢包見底時派工台的個人 API 按鈕停用、自動換掉');}
   S.wallet=1; ok(C.bills('anthropic',tw).find(b=>b.id==='api').ok,'billing-methods：錢包 NT$1 時個人 API 還能用');
+  /* 繞過畫面直接呼叫也擋得住（review：模擬器曾在錢包見底時照派個人 API） */
+  newRun('laravel','parallel'); S.hours=8; S.wallet=0; const tg0=ticket('fe',2); S.issues=[tg0]; Object.assign(sel,{issue:tg0.id,v:'anthropic',m:'sonnet',b:'api',rv:0});
+  A.dispatch(); ok(S.jobs.length===0&&S.hours===8&&S.issues.includes(tg0)&&!tg0.running,'billing-methods：錢包見底時直接呼叫 dispatch() 也不派工');
+  A.evaluate(); ok(S.hours===8&&!tg0.evaluated,'billing-methods：錢包見底時直接呼叫 evaluate() 也不評估');
   /* 額度用完 */
   newRun('laravel'); S.subs.anthropic='pro'; S.used.sub.anthropic={d:250,w:250}; const tq=ticket('fe',2); S.issues=[tq];
   const rq=settle(job(tq,'anthropic','sonnet','sub',{tk:400,hrs:2}));

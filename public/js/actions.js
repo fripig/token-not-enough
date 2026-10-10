@@ -1,6 +1,6 @@
 import {RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd} from './data.js';
 import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardStack,makeIssue,saveGame,sel,track,unfamiliar} from './state.js';
-import {REVIEW,bills,est,gigBlocked,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetFor,quotaLeft,storeReject,useQuota} from './calc.js';
+import {REVIEW,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetFor,quotaLeft,storeReject,useQuota} from './calc.js';
 import {render} from './view.js';
 import {showDay,showEnd} from './modals.js';
 
@@ -23,9 +23,11 @@ export function makeJob(is){
 /* GA：派工與結果共用的選擇參數；舊存檔的 job 沒有 m、ef */
 export const RV_ID=['none','self','strict'];
 export const jobChoice=j=>({vendor:j.v,model:j.m??'unknown',bill:j.b,review:RV_ID[j.rv],effort:EFFORT[j.ef??1].id});
+/* 目前選的付費方式能不能用（錢包見底、沒訂閱、外包不能用公司資源等，同派工台的按鈕） */
+export const billOk=is=>bills(sel.v,is).some(b=>b.id===sel.b&&b.ok);
 /* via：panel（派工按鈕）、quick（一鍵派工）、batch（批次派工）；preset 是方案字母 */
 export function dispatch(via='panel',preset='none'){
-  const is=S.issues.find(i=>i.id===sel.issue); if(!is||gigBlocked(is,sel.b)||hwBlock(model(sel.v,sel.m))) return;
+  const is=S.issues.find(i=>i.id===sel.issue); if(!is||!billOk(is)||hwBlock(model(sel.v,sel.m))) return;
   const pe=est(is,sel.v,sel.m).pe, j=makeJob(is);
   if(PAR()&&(S.jobs.length>=S.slots||(j.b==='local'&&localBusy()))) return;
   useHw(j.v,j.m);
@@ -181,7 +183,7 @@ export const canEvaluate=is=>!is.inc&&!is.merge&&!is.research&&!is.evaluated&&!i
 export const evalCost=(M,v=sel.v)=>({tk:EVAL_TK*M.verb,hrs:EVAL_HRS*M.speed*localSpeed(v)*(S.inv.mcp?MCP_EVAL_HRS:1)});
 export const revealRate=M=>Math.min(REVEAL.max,REVEAL.base+REVEAL.per*M.cap+(S.inv.mcp?MCP_REVEAL:0));
 export function evaluate(){
-  const is=S.issues.find(i=>i.id===sel.issue); if(!is||!canEvaluate(is)||gigBlocked(is,sel.b)) return;
+  const is=S.issues.find(i=>i.id===sel.issue); if(!is||!canEvaluate(is)||!billOk(is)) return;
   const M=model(sel.v,sel.m), {tk,hrs}=evalCost(M,sel.v), cx=is.cx; if(hwBlock(M)) return;
   if(hrs>S.hours||(sel.b==='local'&&localBusy())) return;
   if(PAR()){ is.running=true; advance(hrs); is.running=false; if(!S.issues.includes(is)){render();return;} }
