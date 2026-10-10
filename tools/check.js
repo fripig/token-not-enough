@@ -27,7 +27,7 @@ const pristine=await import('../public/js/state.js?pristine');
 
 let pass=0,fail=0;
 /* 已經把字串搬進字典的模組（gh-34-01-i18n 逐批加，4.1 改成全部模組） */
-const I18N_DONE=['view.js','modals.js','actions.js','calc.js','main.js','state.js','data.js'];
+const I18N_DONE=['view.js','modals.js','actions.js','calc.js','main.js','state.js','data.js','rules.js'];
 function ok(cond,name,detail=''){if(cond){pass++;}else{fail++;console.log('✗',name,detail);}}
 function near(a,b,eps=1e-9){return Math.abs(a-b)<=eps;}
 /* 去掉 JS 註解（保留字串、模板字串與 ${} 裡的程式），換行照留；i18n 檢查用 */
@@ -2426,6 +2426,17 @@ function tests(){
     ok(S.log.length>50,`i18n：英文整局（${mode}）有寫紀錄`,S.log.length);
     I.setLang('zh-TW');
    }
+   /* 規則 modal 英文：每個分頁沒有中文，數字跟繁中版一樣 */
+   {const nums=h=>(h.replace(/<[^>]+>/g,' ').match(/\d+(\.\d+)?/g)||[]).sort().join(',');
+    for(const tb of Ru.RULE_TABS){
+      /* 電腦價格換了單位（12 萬 → 120,000），不比 */
+      const noPrice=h=>dataModule.HW_KEYS.reduce((x,k)=>x.split(dataModule.HW[k].price).join(''),h);
+      I.setLang('zh-TW'); const zhH=noPrice(Ru.rulesTab(tb.id)); I.setLang('en'); const enH=noPrice(Ru.rulesTab(tb.id));
+      ok(!CJK.test(enH),`i18n：規則「${tb.id}」英文沒有中文`,(enH.replace(/<[^>]+>/g,' ').match(/.{0,30}[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uff00-\uffef].{0,30}/)||[''])[0]);
+      ok(nums(zhH)===nums(enH),`i18n：規則「${tb.id}」中英數字相同`,`${nums(zhH)} ／ ${nums(enH)}`);
+    }
+    Ru.showRules(); ok(!CJK.test(els.mo.innerHTML)&&els.mo.innerHTML.includes('Game rules'),'i18n：英文規則 modal 標題與分頁');
+    I.setLang('zh-TW');}
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);
