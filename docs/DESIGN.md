@@ -98,7 +98,7 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 
 2026-10-09 拿掉平行 token 加成之前量的平衡表（技術線、陷阱、雙選、外包、推理強度、工程投資、席位、合併衝突）都是在有 token 加成時量的；拿掉後平行模式平均分差在 ±2% 內，舊表照留、沒有重測。
 
-v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spectra change `gh-09-01-core-rules-specs`）：`work-calendar`（時間與資源、週一調整訂閱）、`agent-catalog`（廠商與模型、派工台選模型）、`billing-methods`（付費方式、透支、資安稽核）、`client-restrictions`（案主與中國模型限制）、`ticket-lifecycle`（工單產生、完成、失敗、手寫、逾期）、`dispatch-outcome`（成功率、token、時間、結算）、`self-review`（自我審核）、`game-modes`（單線／平行模式）、`random-events`（隨機事件）、`month-end-scoring`（結算與評等）。後來加入的功能各有自己的 spec，核心公式裡跟它們有關的係數只寫「見某某 spec」，同一條規則只在一份 spec 定義。這份文件保留數字與設計脈絡，spec 定義行為；改核心規則時用 Spectra change 的 delta spec 一起改，並更新 `tools/check.js` 裡對應的斷言。
+v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spectra change `gh-09-01-core-rules-specs`）：`work-calendar`（時間與資源、週一調整訂閱）、`agent-catalog`（廠商與模型、派工台選模型）、`billing-methods`（付費方式、透支、資安稽核）、`client-restrictions`（案主與中國模型限制）、`ticket-lifecycle`（工單產生、完成、失敗、手寫、逾期）、`dispatch-outcome`（成功率、token、時間、結算）、`self-review`（自我審核）、`game-modes`（單線／平行模式）、`random-events`（隨機事件）、`month-end-scoring`（結算與評等）。後來加入的功能各有自己的 spec，核心公式裡跟它們有關的係數只寫「見某某 spec」，同一條規則只在一份 spec 定義。這份文件保留數字與設計脈絡，spec 定義行為；改核心規則時用 Spectra change 的 delta spec 一起改，並更新 `tools/check/<spec>.test.js` 裡對應的斷言。
 
 ### 時間與資源
 - 20 個工作天，每週 5 天。週一重置每週額度，且可調整訂閱（升級只補剩餘週數差價，降級不退）。
@@ -629,7 +629,7 @@ Pro 500 每一格都比 Pro 200 差（平行 12k 時 −5.2%～−8.3%、20k 時
 | `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件、存檔：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`SAVE_KEY`、`SAVE_VER`、`saveGame`、`clearSave`、`readSave`、`loadGame`、`daySnap`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`RESEARCH_RATE`、`setResearchRate`、`hardStack`、`unfamiliar`、`makeIssue`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs`、`START`（起始錢包、公司預算、信任、每日工時）、`confStacks`、`confCat`、`confCount` |
 | `calc.js` | 計算（`est(is, v, mid, rv, ef, sd)` 會套推理強度與 SDD 等級）：`sddLevel`、`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`hasHw`、`manualBlocked`、`hwBlock`、`localSpeed`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log`、`P_STEP`（成功率階梯） |
 | `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`TRAP_NOTE`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`RV_ID`、`SDD_ID`、`jobChoice`、`billOk`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`CANCEL_MIN`、`cancelFrac`、`cancelJob`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`researchCost`、`selfResearchHrs`、`researchBlock`、`splitResearch`、`research`、`invCount`、`investBlock`、`invest`、`hwReqBlock`、`requestHw`、`useHw`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`intakeIssue`、`daySummary`、`dayStartLine`、`endDay`、`who`、`ev`、`AUDIT_ODDS`、`AUDIT_TRUST`、`OVERDRAFT_TRUST`、`CORP_DAY_LIMIT`、`CORP_DAY_TRUST`、`LATE_TRUST`、`INC_LATE_TRUST`、`EVENT_RATE`、`OVERNIGHT_HRS`、`PACE_KPI`、`PRAISE_TRUST`、`DOUBT_TRUST`、`invLevel`、`invMax`、`invCost`、`invLock`、`confBlock`、`registerConf`、`attendConf` |
-| `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`cancelArm`、`armCancel`、`cancelBtn`、`quickBtn`、`sddRow`、`invPanel`、`INV_FOLD_KEY`、`invFold`、`invFolded`、`toggleInvFold`、`resetInvFold`（check.js 用）、`hwRow`、`qbox`、`dispatchPanel`、`confRow`、`langSwitch` |
+| `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`cancelArm`、`armCancel`、`cancelBtn`、`quickBtn`、`sddRow`、`invPanel`、`INV_FOLD_KEY`、`invFold`、`invFolded`、`toggleInvFold`、`resetInvFold`（`tools/check/engineering-investments.test.js` 用）、`hwRow`、`qbox`、`dispatchPanel`、`confRow`、`langSwitch` |
 | `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showResume`、`showBadSave`、`planShort`、`monthScore`、`showEnd`、`SCORE`、`GRADES`、`PAR_GRADE` |
 | `rules.js` | 規則 modal（`showRules(back)`，`back` 是關閉後回到原彈窗的函式）與六個分頁的內容（`rulesTab(id)`），數字全部從其他模組的常數插值：`RULE_TABS`、`ruleTab`（只在這個模組改）、`pct`、`rtag`、`rtable`、`rlist`、`rsec`、`rulesTab`、`showRules` |
 
@@ -643,7 +643,7 @@ Pro 500 每一格都比 Pro 200 差（平行 12k 時 −5.2%～−8.3%、20k 時
 - `tools/sim.js` 要先 import `tools/fake-dom.js` 與 `tools/sim-seed.js`，`tools/check/lib.js` 要先 import `tools/fake-dom.js` 與 `tools/check-seed.js`，再 import `public/js/main.js`，順序和瀏覽器一樣；`tools/check/*.test.js` 第一行 import `./lib.js`。
 
 慣例：
-- 新增或修改介面文字：在 `public/js/i18n/zh-TW.js` 與 `en.js` 加同一個 key，程式裡用 `t()`；`tools/check.js` 會擋下缺的 key 與程式碼裡的中文。
+- 新增或修改介面文字：在 `public/js/i18n/zh-TW.js` 與 `en.js` 加同一個 key，程式裡用 `t()`；`tools/check/localization.test.js` 會擋下缺的 key 與程式碼裡的中文（`node tools/check.js` 會跑到）。
 - 畫面每次都整個重繪（`render()`），沒有框架。新增 UI 時沿用 `data-*` 加事件委派。
 - 所有顏色走 CSS token（`:root` 加兩個深色區塊），淺色、深色都要顧；廠商色是 `--anth`、`--oai`、`--goog`、`--dsk`、`--glm`、`--kimi`、`--local`。
 - 需要支援 400px 手機寬度。
