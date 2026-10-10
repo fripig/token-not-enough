@@ -1852,6 +1852,14 @@ function tests(){
   ok(idleDay(['pc','spark'],()=>{})===56,'local-hardware：PC＋Spark 都沒用 -4');
   ok(idleDay(['pc','spark','mac'],()=>{},1)===0,'local-hardware：閒置扣到 0 為止');
   ok(idleDay(['pc'],()=>{const run=ticket('laravel',3,{running:true}), t=ticket('fe',1); S.issues.push(run,t); S.jobs=[localJob(run)]; S.jobs[0].left=20; sel.issue=t.id; Object.assign(sel,{v:'local',m:'gemma',b:'local'}); dispatch();},60,'parallel')===58,'local-hardware：被擋下的本地派工不算用到');
+  /* 跑過夜的本地 agent：隔天開工就算用到（#36） */
+  const overnight=(hw,m,act=()=>{})=>{newRun('laravel','parallel'); hw.forEach(k=>S.hw[k]=true); const run=ticket('laravel',3,{running:true}); S.issues.push(run); S.jobs=[{...localJob(run),m,M:model('local',m),left:20,hrs:20}]; S.hours=0; end(); S.trust=60; act(run); S.hours=0; end(); return S.trust;};
+  ok(overnight(['pc','spark'],'qcnext')===60,'local-hardware：Qwen3-Coder-Next 跑過夜，隔天 PC、Spark 都算用到');
+  ok(overnight(['pc','spark'],'gemma')===58&&els.mo.innerHTML.includes('電腦閒置：NVIDIA DGX Spark 今天沒用到，主管覺得白買了（信任 -2）。'),'local-hardware：Gemma 4 26B A4B 跑過夜，隔天只有 Spark 閒置');
+  ok(overnight(['pc'],'gemma',run=>A.cancelJob(run.id))===60,'local-hardware：跑過夜的本地 agent 隔天被中止仍算用到');
+  ok(overnight(['pc','mac'],'glm53')===60,'local-hardware：GLM-5.3 跑過夜，隔天 PC、Mac 都算用到');
+  {newRun('laravel','parallel'); S.hw.pc=S.hw.spark=true; const run=ticket('laravel',3,{running:true}); S.issues.push(run); S.jobs=[{...localJob(run),m:'qcnext',M:model('local','qcnext'),left:20,hrs:20}]; S.hours=0; end();
+  const u=JSON.parse(store[St.SAVE_KEY]).S.hwUsed; ok(S.jobs.length===1&&u.pc&&u.spark&&!u.mac,'local-hardware：開工存檔記下過夜 agent 用到的電腦',JSON.stringify(u));}
   newRun('laravel'); S.hwReq={k:'spark',day:1}; S.day=3; S.hours=0; end(); S.hours=0; end();
   ok(S.day===5&&S.trust===68&&els.mo.innerHTML.includes('電腦閒置：NVIDIA DGX Spark'),'local-hardware：到貨當天沒用就扣 2');
   newRun('laravel'); S.hw.pc=S.hw.spark=true; S.day=5; send('gemma4')(); S.hours=0; end();

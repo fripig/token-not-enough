@@ -666,7 +666,7 @@ export const DICT={
   'rules.days':'{n} days',
   'rules.hw1':'A company purchase request, not charged to the API budget. Requesting takes {h}h, one at a time; on delivery day trust decides: enough and it is installed ({setup}h of setup that day), not enough and it is rejected at no cost.',
   'rules.hw2':'With any machine you can hand-write while a local agent runs; the local GPU still runs one agent at a time.',
-  'rules.hw3':'Idle: each machine not used that day costs trust −{n} at clock-out.',
+  'rules.hw3':'Idle: each machine not used that day costs trust −{n} at clock-out. A local agent still running from the previous night counts as using it.',
   'rules.h.score':'Total score',
   'rules.score1':'Score = KPI × {kpi} + trust × {trust} − audits × {audit}.',
   'rules.score2':'Money does not score: the report lists your own spending (plans + personal API + freelance penalties + conference fees − freelance income) and your wallet at month end, which only affect your title.',

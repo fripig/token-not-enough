@@ -1,0 +1,13 @@
+## 1. Assertions first
+
+- [x] 1.1 Add `tools/check.js` assertions for the Idle machine trust penalty overnight carry-over, next to the existing `idleDay` checks: in parallel mode with the listed machines installed, put a local job with `left` large enough to survive the night into `S.jobs`, end day N, reset trust to 60, end day N+1 with no other local use, and assert every row of the spec example "overnight carry-over" (Qwen3-Coder-Next with PC+Spark → 60; Gemma 4 26B A4B with PC+Spark → 58 and the idle line names only NVIDIA DGX Spark; Gemma 4 26B A4B cancelled with `cancelJob` on day N+1 with PC → 60; GLM-5.3 with PC+Mac → 60). Also assert the day N+1 start save (`readSave()`) stores `S.hwUsed` with `pc` and `spark` true and `mac` false for the Qwen3-Coder-Next case. Verify: `node tools/check.js` fails on exactly these new assertions before task 2.1, as intended.
+
+## 2. Mark carried-over local agents as used
+
+- [x] 2.1 [after: 1.1] In `endDay` in `public/js/actions.js`, after the overnight time reduction of running jobs and before the day-start save, call `useHw(j.v, j.m)` for every job in `S.jobs` whose bill is `local`, so local agents carried into the new day mark their machines used with the dispatch mapping; no minimum run time and no undo on later cancellation. Serial mode and days with no carried-over local job keep today's behavior. Verify: `node tools/check.js` passes, including the existing idle assertions (refused same-day dispatch still → 58, nothing local → 56).
+- [x] 2.2 [after: 2.1] Confirm no balance or random-sequence change: `SIM_N=100 SIM_SEED=101 node tools/sim.js` and `SIM_INVEST=1 SIM_N=100 SIM_SEED=101 node tools/sim.js` print byte-identical output before and after task 2.1 (compare with `diff` against output captured on the parent commit). Record the result in the issue comment.
+
+## 3. Rules text and docs
+
+- [x] 3.1 [after: 2.1] Update the rules modal idle line (`rules.hw3` in `public/js/i18n/zh-TW.js` and `public/js/i18n/en.js`) so it states that a local agent still running from the previous night counts as using the machine; keep the `{n}` placeholder. Verify: `node tools/check.js` passes its localization checks (same key set, no Chinese in `public/js/*.js`) and content review of both strings.
+- [x] 3.2 [after: 2.1] Update the hardware section of `docs/DESIGN.md` (idle bullet under 採購電腦) to describe the carry-over rule and the day-start save state, and append item 34 to the numbered list in 對話中的需求 citing issue #36 and Spectra change `gh-36-01-hw-idle-overnight-job`. Verify: content review that the bullet matches the Idle machine trust penalty requirement in the delta spec.

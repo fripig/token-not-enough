@@ -472,6 +472,8 @@ export function endDay(){
   if(e) log('dim',t('log.event',{t:e[0],b:e[1]}));
   if(S.outage){const n=cancelJobs(j=>j.v===S.outage,t('log.note.outage'));if(n)rep.push(t('rep.outage',{n,v:VENDORS[S.outage].name}));}
   if(S.jobs.length){ S.jobs.forEach(j=>j.left=Math.max(.05,j.left-OVERNIGHT_HRS)); rep.push(t('rep.overnight',{n:S.jobs.length})); }
+  /* 跑過夜的本地 agent 一早還占著 GPU，今天算用到那台電腦 */
+  S.jobs.forEach(j=>{if(j.b==='local')useHw(j.v,j.m);});
   const n=PAR()?3+rnd(4):2+rnd(3); for(let i=0;i<n;i++)S.issues.push(intakeIssue());
   const g=addGigs();
   log('dim',dayStartLine(S.day,monday,n,g));
