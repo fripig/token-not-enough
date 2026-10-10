@@ -34,6 +34,22 @@ node tools/sim.js     # 兩種模式 × 四家公司 × 三種審核等級各跑
 
 改數值後兩支都跑一次，確認不會壞、各公司沒有明顯失衡。
 
+## 新增語言 / Adding a language
+
+遊戲文字都在 `public/js/i18n/` 的字典檔，key 是英文代號。要加一種語言（例如日文 `ja`）：
+
+1. 複製 `public/js/i18n/en.js` 成 `public/js/i18n/ja.js`，只翻譯值，key 不動；`pool.*` 題庫的每個陣列數量與順序要跟原本一樣，`{名稱}` 參數保留，`lang.name` 寫該語言自己的名稱（例如 `日本語`）。
+2. 在 `public/js/i18n.js` 的 `LANGS` 加一行：`import {DICT as ja} from './i18n/ja.js';` 與 `{id:'ja',dict:ja}`。
+3. 在 `public/index.html` 的 `<footer id="about">` 加一份 `<div data-lang="ja" lang="ja" hidden>…</div>` 頁尾介紹。
+4. 跑 `node tools/check.js`，確認全部通過（缺 key、題庫長度不同都會報錯）。
+
+All game text lives in the dictionaries under `public/js/i18n/`, keyed by English ids. To add a language (say Japanese, `ja`):
+
+1. Copy `public/js/i18n/en.js` to `public/js/i18n/ja.js` and translate the values only. Keep every key, keep the length and order of each `pool.*` ticket-title array, keep `{name}` placeholders, and write `lang.name` in the language itself (e.g. `日本語`).
+2. Register it in `LANGS` in `public/js/i18n.js`: `import {DICT as ja} from './i18n/ja.js';` and `{id:'ja',dict:ja}`.
+3. Add a footer block `<div data-lang="ja" lang="ja" hidden>…</div>` inside `<footer id="about">` in `public/index.html`.
+4. Run `node tools/check.js`; it fails on missing keys or pool arrays of a different length.
+
 ## 部署
 
 推送到 `main` 後，`.github/workflows/pages.yml` 會把 `public/` 部署到 GitHub Pages。
@@ -52,6 +68,9 @@ public/
   js/actions.js  # 派工、結算、評估、投資、每日事件
   js/view.js     # 畫面重繪
   js/modals.js   # 開局、每日、月底彈窗
+  js/rules.js    # 規則 modal
+  js/i18n.js     # 多語系：語言註冊表、t()、語言切換
+  js/i18n/*.js   # 各語言字典（zh-TW 預設、en）
 tools/sim.js     # 平衡模擬器
 tools/check.js   # 規則檢查
 tools/fake-dom.js # 工具共用的假 DOM
