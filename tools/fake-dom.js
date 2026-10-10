@@ -5,5 +5,7 @@ export const els={app:el(),ov:el(),mo:el()};
 export const store={};
 /* 換掉整個 localStorage 內容（check.js 用來模擬已存的最高分） */
 export const resetStore=(seed={})=>{for(const k in store)delete store[k];Object.assign(store,seed);};
-globalThis.document={getElementById:id=>els[id]};
+globalThis.document={getElementById:id=>els[id],documentElement:{lang:''},title:''};
+/* node 自帶 navigator.language（Node 24 是 en-US）；固定成繁中，check.js、sim.js 的輸出才不會變成英文 */
+Object.defineProperty(globalThis,'navigator',{value:{language:'zh-TW',languages:['zh-TW']},configurable:true,writable:true});
 globalThis.localStorage={getItem:k=>k in store?store[k]:null,setItem:(k,v)=>{store[k]=String(v);},removeItem:k=>{delete store[k];}};

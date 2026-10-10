@@ -1,7 +1,7 @@
 // 規則檢查（非遊戲本體）
 // 用法：node tools/check.js（預設固定種子；CHECK_SEED=<整數> 換種子，CHECK_SEED=random 用真亂數）
 // 用假的 DOM 載入遊戲模組，把 spec 裡的範例數字逐條斷言；任何一條不符就以非 0 結束。
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import {els,store,resetStore} from './fake-dom.js';
 import './check-seed.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
@@ -21,11 +21,31 @@ import * as M from '../public/js/modals.js';
 import * as St from '../public/js/state.js';
 import * as Ru from '../public/js/rules.js';
 import * as Vw from '../public/js/view.js';
+import * as I from '../public/js/i18n.js';
 const pristine=await import('../public/js/state.js?pristine');
 
 let pass=0,fail=0;
 function ok(cond,name,detail=''){if(cond){pass++;}else{fail++;console.log('✗',name,detail);}}
 function near(a,b,eps=1e-9){return Math.abs(a-b)<=eps;}
+/* 去掉 JS 註解（保留字串、模板字串與 ${} 裡的程式），換行照留；i18n 檢查用 */
+function stripComments(src){
+  let out='',i=0; const st=[]; // st：'`' 在模板字串裡、數字是 ${} 內的大括號深度
+  while(i<src.length){
+    const c=src[i],n=src[i+1],top=st[st.length-1];
+    if(top==='`'){
+      out+=c; if(c==='\\'){out+=n||'';i+=2;continue;}
+      if(c==='`')st.pop(); else if(c==='$'&&n==='{'){out+=n;i+=2;st.push(0);continue;}
+      i++; continue;
+    }
+    if(c==="'"||c==='"'){let j=i+1; while(j<src.length&&src[j]!==c&&src[j]!=='\n'){if(src[j]==='\\')j++; j++;} out+=src.slice(i,j+1); i=j+1; continue;}
+    if(c==='`'){st.push('`');out+=c;i++;continue;}
+    if(c==='/'&&n==='/'){while(i<src.length&&src[i]!=='\n')i++; continue;}
+    if(c==='/'&&n==='*'){const e=src.indexOf('*/',i+2); const body=src.slice(i,e<0?src.length:e+2); out+=body.replace(/[^\n]/g,''); i+=body.length; continue;}
+    if(typeof top==='number'){if(c==='{')st[st.length-1]++; else if(c==='}'){if(top===0){st.pop();out+=c;i++;continue;} st[st.length-1]--;}}
+    out+=c; i++;
+  }
+  return out;
+}
 
 function tests(){
   // 開一局但不經過彈窗：直接設定公司與模式
@@ -2291,6 +2311,55 @@ function tests(){
    {const j5=makeJob(p5); ok(j5.shownHrs===j5.hrs,'shown-estimate：一般工單 shownHrs 等於 hrs');}
    S.issues=[p4]; sel.issue=p4.id; S.hours=8; dispatch(); const j6=S.jobs[0], dl=S.log.find(l=>l.msg.includes('→ 派出'));
    ok(dl.msg.endsWith(`預計 ${h1(j6.shownHrs)}h`)&&h1(j6.shownHrs)!==h1(j6.hrs),'shown-estimate：派工紀錄的預計時數用 shownHrs',dl.msg);}
+  }
+
+  /* 多語系（gh-34-01-i18n） */
+  {
+   ok(I.LANGS.map(l=>l.id).join()==='zh-TW,en'&&I.LANGS.map(l=>l.dict['lang.name']).join()==='繁體中文,English','i18n：註冊 zh-TW（繁體中文）與 en（English），順序固定');
+   ok(I.lang==='zh-TW','i18n：node 工具載入後是 zh-TW（fake-dom 固定 navigator）',I.lang);
+   const pk=[[null,['zh-TW'],'zh-TW'],[null,['zh-CN','en'],'zh-TW'],[null,['en-US'],'en'],[null,['ja-JP'],'en'],[null,['ja-JP','zh-TW'],'zh-TW'],['en',['zh-TW'],'en'],['xx',['zh-TW'],'zh-TW']];
+   for(const [st,list,want] of pk) ok(I.pickLang(st,list)===want,`i18n：pickLang(${st}, ${list}) → ${want}`,I.pickLang(st,list));
+   /* initLang 讀 localStorage 與 navigator；測完還原成 zh-TW */
+   const nav=globalThis.navigator;
+   globalThis.navigator={language:'en-US',languages:['en-US']}; resetStore(); I.initLang();
+   ok(I.lang==='en','i18n：沒有偏好、瀏覽器 en-US → en',I.lang);
+   resetStore({[I.LANG_KEY]:'en'}); globalThis.navigator={language:'zh-TW',languages:['zh-TW']}; I.initLang();
+   ok(I.lang==='en','i18n：存的偏好 en 勝過瀏覽器 zh-TW',I.lang);
+   resetStore({[I.LANG_KEY]:'xx'}); I.initLang();
+   ok(I.lang==='zh-TW','i18n：不認得的偏好被忽略',I.lang);
+   ok(globalThis.document.documentElement.lang==='zh-TW'&&globalThis.document.title===I.LANGS[0].dict['page.title'],'i18n：applyLang 設定 <html lang> 與分頁標題');
+   globalThis.navigator=nav; resetStore(); I.initLang();
+   /* 查字典：測試用 key 只加在載入的物件上，測完刪掉 */
+   const zh=I.LANGS[0].dict, en=I.LANGS[1].dict;
+   zh['test.rules']='規則'; en['test.rules']='Rules'; zh['test.day']='— 第 {d} 天開工 —'; en['test.day']='— Day {d} starts —'; zh['test.only']='只有中文';
+   const look=id=>{I.setLang(id);};
+   look('zh-TW'); ok(I.t('test.rules')==='規則','i18n：zh-TW t(test.rules) → 規則');
+   look('en'); ok(I.t('test.rules')==='Rules','i18n：en t(test.rules) → Rules');
+   ok(I.t('test.day',{d:6})==='— Day 6 starts —','i18n：en 參數填入 {d}',I.t('test.day',{d:6}));
+   ok(I.t('test.only')==='只有中文','i18n：en 缺 key 退回 zh-TW');
+   ok(I.t('no.such.key')==='no.such.key','i18n：兩邊都沒有就回傳 key');
+   newRun('laravel'); S.day=6; C.log('dim',I.t('test.day',{d:S.day}));
+   ok(S.log[0].msg==='D06 — Day 6 starts —'&&!S.log[0].msg.includes('{'),'i18n：紀錄填好數字、沒有留下 {d}',S.log[0].msg);
+   delete zh['test.rules']; delete en['test.rules']; delete zh['test.day']; delete en['test.day']; delete zh['test.only'];
+   look('zh-TW'); resetStore();
+  }
+
+  /* 字典一致性：key 集合、程式裡寫死的 key、題庫長度 */
+  {
+   const zh=I.LANGS[0].dict, zk=new Set(Object.keys(zh));
+   for(const L of I.LANGS.slice(1)){
+     const extra=Object.keys(L.dict).filter(k=>!zk.has(k));
+     ok(!extra.length,`i18n 字典：${L.id} 沒有 zh-TW 沒有的 key`,extra.join(', '));
+     if(L.id==='en'){const miss=[...zk].filter(k=>!(k in L.dict)); ok(!miss.length,'i18n 字典：en 有 zh-TW 的每個 key',miss.join(', '));}
+     const badPool=Object.keys(L.dict).filter(k=>k.startsWith('pool.')&&(!Array.isArray(L.dict[k])||L.dict[k].length!==(zh[k]||[]).length));
+     ok(!badPool.length,`i18n 字典：${L.id} 題庫長度與 zh-TW 相同`,badPool.join(', '));
+   }
+   const dir=new URL('../public/js/',import.meta.url), used=[];
+   for(const f of readdirSync(dir).filter(f=>f.endsWith('.js'))){
+     const src=stripComments(readFileSync(new URL(f,dir),'utf8'));
+     for(const m of src.matchAll(/(?<![\w.$])tl?\('([^']+)'/g)) if(!zk.has(m[1])) used.push(`${f}: ${m[1]}`);
+   }
+   ok(!used.length,'i18n 字典：程式裡寫死的 t()/tl() key 都在 zh-TW',used.join(', '));
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);
