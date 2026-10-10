@@ -13,7 +13,7 @@ The game SHALL write one save to `localStorage` under the key `tokgame-save` at 
 - when the player confirms the opening setup modal (開始第 1 天), after the run's settings, first-day tickets and subscription fees are applied;
 - when `endDay` moves the run to a new day, after that day's tickets, random event and seat review are applied and before the morning report modal opens.
 
-The save SHALL contain the save structure version, the run state `S`, the dispatch selection `sel`, the ticket id counter, and the morning report (`null` for day 1; otherwise the report lines, the random event and whether it is a Monday). Dispatching, waiting, manual work, evaluation, investment, presets and the weekly 調整訂閱 confirm SHALL NOT write a save. When writing fails (storage unavailable or full), the game SHALL continue without error.
+The save SHALL contain the save structure version, the run state `S`, the dispatch selection `sel`, the ticket id counter, and the morning report (`null` for day 1; otherwise the report lines, the random event, whether it is a Monday and the previous day's summary figures, see `action-log`). Dispatching, waiting, manual work, evaluation, investment, presets and the weekly 調整訂閱 confirm SHALL NOT write a save. When writing fails (storage unavailable or full), the game SHALL continue without error.
 
 #### Scenario: Opening confirm saves day 1
 
@@ -23,7 +23,7 @@ The save SHALL contain the save structure version, the run state `S`, the dispat
 #### Scenario: Day change saves the new morning
 
 - **WHEN** the player ends day 3 and the run moves to day 4
-- **THEN** the save holds day 4, the day-4 queue and the day-4 morning report
+- **THEN** the save holds day 4, the day-4 queue and the day-4 morning report including the day-3 summary figures
 
 #### Scenario: Mid-day actions do not save
 
@@ -37,15 +37,14 @@ The save SHALL contain the save structure version, the run state `S`, the dispat
 
 
 <!-- @trace
-source: gh-11-01-save-game
-updated: 2026-10-09
+source: gh-42-01-morning-summary-sub-default
+updated: 2026-10-11
 code:
-  - tools/check/save-game.test.js
-  - public/js/calc.js
-  - docs/DESIGN.md
-  - public/js/actions.js
+  - public/js/i18n/en.js
+  - public/js/i18n/zh-TW.js
   - public/js/modals.js
-  - public/js/view.js
+tests:
+  - tools/check/work-calendar.test.js
 -->
 
 ---
