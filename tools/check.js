@@ -448,10 +448,10 @@ function tests(){
   const snap=()=>JSON.stringify([S.hours,S.corp,S.inv]);
   newRun('laravel'); S.hours=8;
   ok(invest('tests')&&near(S.hours,4)&&S.corp===11600&&S.st.corp===400&&S.corpDay===400&&S.inv.tests,'單線買單元測試：剩 4h、公司預算 11,600、計入公司帳單');
-  render(); ok(/data-inv="tests"\s+disabled><b>單元測試<\/b><small>已完成/.test(els.app.innerHTML),'買過的投資顯示已完成');
+  render(); ok(/data-inv="tests"\s+disabled><b>單元測試 Lv2<\/b><small>需要去過綜合場/.test(els.app.innerHTML),'買過 Lv1 的單元測試顯示 Lv2 的鎖定原因');
   ok(!els.app.innerHTML.includes('補測試'),'畫面上沒有補測試');
   const invRows=[...els.app.innerHTML.matchAll(/data-inv="(\w+)"(?! data-st)/g)].map(m=>m[1]).join(',');
-  ok(invRows==='tests,ci,hook,scan,fastlane,monitor,skills,mcp,sdd','投資面板順序：單元測試、CI、hook、scan、fastlane、監控、skills、MCP、SDD',invRows);
+  ok(invRows==='tests,ci,hook,scan,fastlane,monitor,skills,mcp,sdd,ai','投資面板順序：單元測試、CI、hook、scan、fastlane、監控、skills、MCP、SDD、提升 agent 能力',invRows);
   let before=snap(); ok(!invest('tests')&&snap()===before,'已買過不能再買');
   newRun('laravel'); S.hours=8; ok(invest('monitor')&&near(S.hours,5)&&S.corp===11600&&S.inv.monitor,'單線買監控告警：剩 5h、公司預算 11,600');
   newRun('laravel'); S.hours=5; before=snap(); ok(!invest('sdd')&&snap()===before,'剩 5h 買不了導入 SDD');
@@ -550,7 +550,7 @@ function tests(){
     newRun('laravel'); S.inv.scan=S.inv.fastlane=S.inv.monitor=true;
     const sh=ticket('laravel',2,{sens:true}); S.issues=[sh]; sel.issue=sh.id; render();
     const h=els.app.innerHTML;
-    ok(h.includes('secret scanning：個人帳號稽核機率減半')&&!h.includes('fastlane：')&&!h.includes('監控告警：'),'機敏 laravel 工單只提示 secret scanning');
+    ok(h.includes('secret scanning：個人帳號稽核機率 ×0.5')&&!h.includes('fastlane：')&&!h.includes('監控告警：'),'機敏 laravel 工單只提示 secret scanning');
     const ap=ticket('app',3,{store:true,inc:true}); S.issues=[ap]; sel.issue=ap.id; render();
     ok(els.app.innerHTML.includes('fastlane：退件機率 10%')&&els.app.innerHTML.includes('監控告警：逾期扣信任 4'),'需上架的 app 事故單提示 fastlane 與監控告警');
     S.inv.hook=S.inv.ci=true; render(); ok(!els.app.innerHTML.includes('pre-commit hook：')&&!els.app.innerHTML.includes('CI 流水線：合併'),'單線模式不提示 hook 與 CI');
@@ -1829,6 +1829,109 @@ function tests(){
   start(); ok(shut(),'invest-panel-collapse：開新局維持收合');
   Vw.resetInvFold(); render(); ok(shut(),'invest-panel-collapse：重新整理後照存的值收合');
   resetStore(); Vw.resetInvFold();
+  }
+  /* 國內研討會（gh-22-01-domestic-conference） */
+  {
+  /* 舊存檔：投資是 true／false、沒有研討會欄位 */
+  newRun('laravel'); const raw=JSON.parse(JSON.stringify(S));
+  raw.inv={md:{laravel:true},tests:true,ci:false,hook:false,scan:false,fastlane:false,monitor:false,skills:false,mcp:false,sdd:false};
+  delete raw.conf; delete raw.st.confFee; raw.day=4;
+  resetStore({[St.SAVE_KEY]:JSON.stringify({ver:St.SAVE_VER,S:raw,sel:{...sel},uid:50,morning:{rep:[],ev:null,monday:false}})});
+  const rd=St.readSave(); ok(rd&&!rd.bad,'domestic-conference：舊存檔（布林投資）沒有被丟掉');
+  St.loadGame(rd);
+  ok(S.inv.tests===1&&S.inv.md.laravel===1&&S.inv.ci===0&&S.inv.ai===0&&S.st.confFee===0&&S.conf.req===null&&S.conf.went.length===0,'domestic-conference：舊存檔的投資轉成等級、補上研討會欄位',JSON.stringify([S.inv,S.conf]));
+  ok(near(catchRate(1,model('anthropic','sonnet')),.87),'domestic-conference：讀檔後單元測試 Lv1 的自審抓錯率 0.87');
+  resetStore();
+  /* 報名 */
+  const D=dataModule, gaEv=[], g0=globalThis.gtag; globalThis.gtag=(k,name,p)=>gaEv.push({name,p});
+  newRun('laravel'); S.day=3; S.wallet=8000; S.trust=70; const h0=S.hours; gaEv.length=0;
+  ok(A.registerConf('webconf')&&S.wallet===8000-D.CONF.webconf.fee&&S.hours===h0&&S.trust===70&&S.st.confFee===D.CONF.webconf.fee&&A.confBlock('webconf')==='已報名・週末出席','domestic-conference：週三報名 WebConf，扣錢包、不花工時、不動信任');
+  ok(gaEv.length===1&&gaEv[0].name==='invest'&&gaEv[0].p.investment==='conf_webconf'&&gaEv[0].p.stack==='none','domestic-conference：報名送 invest conf_webconf',JSON.stringify(gaEv));
+  ok(S.log[0].msg.endsWith(`★ 報名研討會：WebConf Taiwan｜自費 NT$${D.CONF.webconf.fee.toLocaleString('en-US')}｜週末出席`),'domestic-conference：報名紀錄格式',S.log[0].msg);
+  const refuse=(name,setup,key)=>{newRun('laravel'); S.wallet=8000; setup(); const snap=JSON.stringify([S.wallet,S.hours,S.conf,S.st.confFee]); gaEv.length=0;
+    ok(!A.registerConf(key)&&JSON.stringify([S.wallet,S.hours,S.conf,S.st.confFee])===snap&&gaEv.length===0,`domestic-conference：${name}時不能報名`);};
+  refuse('第 16 天',()=>{S.day=16;},'coscup');
+  refuse('已報名別場',()=>{S.day=2; A.registerConf('hitcon'); S.day=4;},'coscup');
+  refuse('已參加',()=>{S.day=8; S.conf.went=['coscup'];},'coscup');
+  refuse('錢包不夠',()=>{S.day=3; S.wallet=1000;},'kubesummit');
+  /* 出席 */
+  newRun('laravel'); S.day=5; S.trust=70; A.registerConf('hitcon'); const w5=[S.wallet,S.corp,S.kpi,S.trust]; gaEv.length=0; withRand(.99,endDay);
+  ok(S.day===6&&S.conf.went.join()==='hitcon'&&S.conf.req===null&&JSON.stringify([S.wallet,S.corp,S.kpi,S.trust])===JSON.stringify(w5),'domestic-conference：第 5 天報名 HITCON，第 6 天算去過，數值不變');
+  ok(els.mo.innerHTML.includes('週末參加了 HITCON')&&els.mo.innerHTML.includes('secret scanning／脫敏 Lv2 開放')&&els.mo.innerHTML.includes('提升 agent 能力 Lv1 開放')&&S.log.some(l=>l.msg.includes('★ 週末參加了 HITCON')),'domestic-conference：早上報告與紀錄寫出開放了什麼',els.mo.innerHTML.slice(0,400));
+  ok(!gaEv.some(e=>e.name==='invest'),'domestic-conference：出席不送 GA');
+  newRun('laravel'); S.day=15; A.registerConf('coscup'); withRand(.99,endDay);
+  ok(S.day===16&&S.conf.went.join()==='coscup'&&els.mo.innerHTML.includes('Rails、Rust 自己手寫 ×0.8（Rails、Rust 不再算不熟）'),'domestic-conference：第 15 天報名，第 16 天出席',els.mo.innerHTML.slice(0,300));
+  newRun('laravel'); S.day=3; A.registerConf('coscup'); withRand(.99,endDay);
+  ok(S.day===4&&S.conf.req==='coscup'&&S.conf.went.length===0,'domestic-conference：不是週一不處理報名');
+  /* 技術線場：手寫加快、不再算不熟 */
+  for(const [cos,went,st,cx,tries,hrs] of [['laravel',[],'laravel',2,0,4.4],['laravel',[],'rust',2,0,8.8],['laravel',['coscup'],'rust',2,0,3.52],['laravel',['webconf'],'laravel',2,0,3.52],['laravel',['hitcon'],'rust',2,0,8.8],['app',['coscup'],'rails',3,1,3*2.2*.8*.8],['laravel',['webconf'],'fe',2,0,3.52]]){
+    newRun(cos); S.conf.went=[...went]; const t=ticket(st,cx,{tries});
+    ok(near(manualHrs(t),hrs,1e-6),`domestic-conference：${cos} 去過 ${went.join()||'沒有'}，${st} 複雜度 ${cx} 手寫 ${hrs}h`,manualHrs(t));
+  }
+  newRun('laravel'); S.conf.went=['coscup']; {const rt=ticket('rust',2); S.issues=[rt]; sel.issue=rt.id; render();
+   ok(!unfamiliar(rt)&&!els.app.innerHTML.includes('chip unfam')&&els.app.innerHTML.includes('3.5h'),'domestic-conference：去過 COSCUP，rust 單不顯示不熟、手寫按鈕 3.5h');}
+  newRun('laravel'); S.conf.went=['webconf']; S.hours=8; {const lt=ticket('laravel',2); S.issues=[lt]; sel.issue=lt.id; manual();
+   ok(near(S.hours,8-3.52,1e-6)&&!S.issues.includes(lt),'domestic-conference：去過 WebConf 手寫 laravel 複雜度 2 用 3.52h 並完成',S.hours);}
+  /* Lv2 購買 */
+  newRun('laravel'); S.hours=8; S.corp=12000; gaEv.length=0;
+  ok(invest('tests')&&near(S.hours,4)&&S.corp===11600&&A.investBlock('tests')==='需要去過綜合場'&&gaEv.at(-1).p.investment==='tests','domestic-conference：買單元測試 Lv1，之後顯示 Lv2 的鎖定原因');
+  const ref=(name,setup,k,st,want,why)=>{newRun('laravel'); setup(); const snap=JSON.stringify([S.hours,S.corp,S.inv]);
+    ok(A.investBlock(k,st,want)===why&&!invest(k,st,want)&&JSON.stringify([S.hours,S.corp,S.inv])===snap,`domestic-conference：${name}時不能買（${why}）`,A.investBlock(k,st,want));};
+  ref('監控告警已買',()=>{S.inv.monitor=1;},'monitor',undefined,undefined,'已完成');
+  ref('單元測試 Lv2 沒去過綜合場',()=>{S.inv.tests=1;},'tests',undefined,undefined,'需要去過綜合場');
+  ref('secret scanning 沒買 Lv1 就買 Lv2',()=>{S.conf.went=['hitcon'];},'scan',undefined,2,'需要先買 Lv1');
+  ref('工時 5h 買 SDD',()=>{S.hours=5;},'sdd',undefined,undefined,'工時不夠');
+  ref('公司預算 NT$200 買 CLAUDE.md',()=>{S.corp=200;},'md','laravel',undefined,'公司預算不夠');
+  ref('CLAUDE.md Lv2 沒去過涵蓋的技術線場',()=>{S.inv.md.rust=1; S.conf.went=['webconf'];},'md','rust',undefined,'需要去過涵蓋 Rust 的技術線場');
+  newRun('laravel'); S.inv.tests=1; S.conf.went=['hwdc']; S.hours=8; S.corp=11600; gaEv.length=0;
+  ok(invest('tests')&&near(S.hours,7)&&S.corp===11400&&S.inv.tests===2&&A.investBlock('tests')==='已完成'&&gaEv.at(-1).p.investment==='tests2','domestic-conference：去過 HWDC 買單元測試 Lv2');
+  newRun('laravel'); S.conf.went=['coscup']; S.hours=8; gaEv.length=0; invest('md','rust'); invest('md','rust');
+  ok(S.inv.md.rust===2&&gaEv.map(e=>e.p.investment+'/'+e.p.stack).join()==='md/rust,md2/rust','domestic-conference：CLAUDE.md Lv1、Lv2 的 GA',JSON.stringify(gaEv.map(e=>e.p)));
+  /* Lv2 效果 */
+  {newRun('laravel'); const t4=ticket('laravel',4), e0=est(t4,'anthropic','sonnet',0); S.inv.md.laravel=2; const e2=est(t4,'anthropic','sonnet',0);
+   ok(near(e2.p,.95)&&near(e2.tk,e0.tk*.85),'domestic-conference：CLAUDE.md Lv2 成功率 0.95、token ×0.85',[e2.p,e2.tk/e0.tk].join());}
+  newRun('laravel'); S.inv.tests=2; ok(near(catchRate(1,model('anthropic','sonnet')),.95),'domestic-conference：單元測試 Lv2 自審抓錯率到上限 0.95');
+  ok(near(catchRate(1,model('google','flash')),.81),'domestic-conference：單元測試 Lv2 讓 Gemini Flash 自審抓錯率 0.81');
+  for(const [l,a,d] of [[1,.175,.30],[2,.0875,.15]]){newRun('laravel'); S.inv.scan=l; ok(near(auditOdds('anthropic'),a)&&near(auditOdds('deepseek'),d),`domestic-conference：secret scanning Lv${l} 稽核機率 ${a}／${d}`);}
+  newRun('laravel','parallel'); S.inv.skills=2; S.hours=8; S.slots=4; S.presets=presetsOf(DEFAULT_PRESETS);
+  {const b2=[1,3,4,2].map(cx=>ticket('fe',cx,{due:5})); S.issues=[...b2]; batch();
+   ok(S.jobs.length===3&&S.jobs.every(j=>j.issue.cx<=3)&&!b2[2].running&&S.issues.includes(b2[2]),'domestic-conference：skills Lv2 批次派工到複雜度 3，複雜度 4 留著',S.jobs.map(j=>j.issue.cx).join());}
+  /* 提升 agent 能力 */
+  newRun('laravel'); S.conf.went=['coscup','hitcon']; S.inv.ai=2;
+  ok(near(est(ticket('fe',4),'anthropic','sonnet',0).p,.96),'domestic-conference：agent 能力 Lv2，複雜度 4 前端單 Sonnet 成功率 0.96');
+  newRun('laravel'); S.conf.went=['coscup']; S.hours=8; gaEv.length=0;
+  ok(invest('ai')&&S.inv.ai===1&&gaEv.at(-1).p.investment==='ai1'&&A.investBlock('ai')==='需要去過 2 場研討會'&&!invest('ai')&&S.inv.ai===1,'domestic-conference：去過 1 場只能買到 Lv1');
+  {newRun('laravel'); const son=model('anthropic','sonnet'), t=ticket('rust',2), r0=revealRate(son), m0=manualHrs(t); S.inv.ai=3;
+   ok(near(revealRate(son),r0)&&near(manualHrs(t),m0),'domestic-conference：agent 能力不影響評估架構與手寫');}
+  /* GA：投資、Lv2 與 agent 能力、報名 */
+  newRun('laravel'); S.hours=8; gaEv.length=0; invest('md','rust'); invest('md','rust');
+  ok(gaEv.filter(e=>e.name==='invest').map(e=>e.p.investment+'/'+e.p.stack).join()==='md/rust','play-analytics：CLAUDE.md Rust 只送一次，沒去過研討會再買不送');
+  newRun('laravel'); S.hours=8; S.conf.went=['coscup']; S.inv.md.rust=1; gaEv.length=0; invest('md','rust'); invest('ai');
+  ok(gaEv.filter(e=>e.name==='invest').map(e=>e.p.investment+'/'+e.p.stack).join()==='md2/rust,ai1/none','play-analytics：Lv2 送 md2、agent 能力送 ai1',JSON.stringify(gaEv.map(e=>e.p)));
+  newRun('laravel'); S.day=5; gaEv.length=0; A.registerConf('hitcon'); A.registerConf('coscup'); withRand(.99,endDay);
+  ok(gaEv.filter(e=>e.name==='invest').map(e=>e.p.investment).join()==='conf_hitcon','play-analytics：報名送 conf_hitcon，同週再報與週一出席都不送',JSON.stringify(gaEv.filter(e=>e.name==='invest')));
+  /* 個人花費與結算 */
+  newRun('laravel'); Object.assign(S,{kpi:300,trust:50}); Object.assign(S.st,{subFee:2000,api:0,outPenalty:0,outIncome:0,audits:1,confFee:0});
+  ok(monthScore().score===3870,'month-end-scoring：KPI 300、信任 50、個人花費 2,000、稽核 1 → 3,870');
+  S.st.confFee=3000; {const m=monthScore(); ok(m.self===5000&&m.score===3495,'month-end-scoring：報名費 3,000 算進個人花費 → 5,000、總分 3,495',JSON.stringify(m));}
+  newRun('laravel'); S.day=20; S.conf.went=['coscup','hitcon']; S.st.confFee=5500; showEnd();
+  ok(els.mo.innerHTML.includes('<span>研討會</span><span>2 場</span>')&&els.mo.innerHTML.includes('<span>研討會報名費</span><span>NT$5,500</span>'),'month-end-scoring：結算顯示研討會 2 場與報名費');
+  newRun('laravel'); S.day=20; showEnd(); ok(!els.mo.innerHTML.includes('研討會'),'month-end-scoring：沒報名不顯示研討會兩行');
+  /* 投資面板 */
+  newRun('laravel'); S.inv.md.laravel=1; S.inv.tests=2; S.inv.ci=1; ok(invCount()===4,'engineering-investments：CLAUDE.md、單元測試 Lv1＋Lv2、CI 算 4 項');
+  newRun(['rails','app']); Vw.resetInvFold(); resetStore(); render();
+  {const order=[...els.app.innerHTML.matchAll(/data-inv="md" data-st="(\w+)"/g)].map(m=>m[1]).join();
+   ok(order==='rails,app,laravel,rust,sre,devops,fe','engineering-investments：CLAUDE.md 按鈕順序 rails、app、laravel、rust、sre、devops、fe',order);}
+  {const n=(els.app.innerHTML.match(/data-conf="/g)||[]).length; ok(n===10&&els.app.innerHTML.includes('國內研討會（週末自費）'),'domestic-conference：面板有十個研討會按鈕',n);}
+  newRun('laravel'); S.day=2; render(); gaEv.length=0; els.app.on.click({target:{closest:()=>({dataset:{conf:'taiwanai'}})}});
+  ok(S.conf.req==='taiwanai'&&els.app.innerHTML.includes('已報名・週末出席')&&els.app.innerHTML.includes('這週已報名其他場'),'domestic-conference：點研討會按鈕報名，其他場顯示已報名其他場');
+  newRun('laravel'); S.inv.md.laravel=2; S.inv.ai=1; {const t=ticket('laravel',3); S.issues=[t]; sel.issue=t.id; render();
+   ok(els.app.innerHTML.includes('成功率 +15%')&&els.app.innerHTML.includes('提升 agent 能力 Lv1：成功率 +8%'),'domestic-conference：派工台提示 Lv2 數值與 agent 能力');}
+  /* 規則 modal */
+  {const h=Ru.rulesTab('invest'), D2=dataModule;
+   ok(D2.CONF_KEYS.every(k=>h.includes(D2.CONF[k].name)&&h.includes(`NT$${D2.CONF[k].fee.toLocaleString('en-US')}`))&&h.includes('×0.8')&&h.includes('+8%')&&h.includes('單元測試 Lv2')&&h.includes('×0.25')&&h.includes('≤3')&&h.includes('+15%')&&h.includes('+20%'),'rules-reference：投資與電腦列出十場研討會、手寫 0.8、Lv2 與 agent 能力 8%');
+   ok(Ru.rulesTab('score').includes('研討會報名費'),'rules-reference：個人花費包含研討會報名費');}
+  globalThis.gtag=g0;
   }
   console.log(`\n${pass} passed, ${fail} failed`);
   if(fail) process.exitCode=1;

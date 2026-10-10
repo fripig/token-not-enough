@@ -1,4 +1,4 @@
-import {APIV,BIG,BILL_LABEL,CATCH,CI_CONFLICT,CLIENTS,CONFLICT,EFFORT,EVAL_HRS,FASTLANE_REJECT,HARD_KPI,HOOK_PR,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INC_KPI,INVEST,INV_KEYS,KPI,BASE,LATE_KPI,MANUAL_HRS,MCP_EVAL_HRS,MCP_REVEAL,MONITOR_KPI,MONITOR_LATE,PN,PR_HRS,PR_REVIEWED,RESCOPE,RETRY,REVEAL,SCAN_AUDIT,SDD_TRAP_STOP,SEAT,STACK_HRS,STORE_RATE,UNFAMILIAR_HRS,VENDORS,kt,nt} from './data.js';
+import {AI_MAX,AI_P,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL,MD_P,SKILLS_CX,TEST_CATCH,STACKS,APIV,BIG,BILL_LABEL,CATCH,CI_CONFLICT,CLIENTS,CONFLICT,EFFORT,EVAL_HRS,FASTLANE_REJECT,HARD_KPI,HOOK_PR,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INC_KPI,INVEST,INV_KEYS,KPI,BASE,LATE_KPI,MANUAL_HRS,MCP_EVAL_HRS,MCP_REVEAL,MONITOR_KPI,MONITOR_LATE,PN,PR_HRS,PR_REVIEWED,RESCOPE,RETRY,REVEAL,SCAN_AUDIT,SDD_TRAP_STOP,SEAT,STACK_HRS,STORE_RATE,UNFAMILIAR_HRS,VENDORS,kt,nt} from './data.js';
 import {GIG_LATE,GIG_PAY,START,TRAP_RATE} from './state.js';
 import {P_STEP,REVIEW,STORE_REJECT} from './calc.js';
 import {AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_TRUST,DOUBT_TRUST,EVAL_TK,EVENT_RATE,INC_LATE_TRUST,INC_RAMP,INC_RATE,LATE_TRUST,OVERDRAFT_TRUST,OVERNIGHT_HRS,PACE_KPI,PRAISE_TRUST,RESCOPE_TRUST,REVIEW_LOAD,SLOT_CHOICES,TRAP_STOP} from './actions.js';
@@ -43,7 +43,7 @@ export function rulesTab(id){
       `${rtag('接外包')}外包單只能用個人訂閱、個人 API 或本地 GPU。`]))
     +rsec('資安稽核',rlist([
       `機敏工單走個人訂閱或個人 API（派工或評估架構都算）：${pct(AUDIT_ODDS.base)} 機率被稽核，中國廠商 ${pct(AUDIT_ODDS.cn)}。被抓到信任 −${AUDIT_TRUST}，結算每次 −${SCORE.audit} 分。`,
-      `有 secret scanning 時稽核機率 ×${SCAN_AUDIT}。`]))
+      `有 secret scanning 時稽核機率 ×${SCAN_AUDIT[1]}。`]))
     +rsec('團隊席位',rlist([
       `最多 ${SEAT.vendors.length} 個，${SEAT.vendors.map(v=>VENDORS[v].name).join('、')} 每家一個。月初或週一申請，${SEAT.review} 天後審核，同時只能有一個申請。`,
       `第 ${SEAT.trust.map((_,i)=>i+1).join('／')} 個席位的信任門檻 ${SEAT.trust.join('／')}，看審核當天的信任。被退件不扣分，之後的週一可以再申請。`]))
@@ -60,15 +60,22 @@ export function rulesTab(id){
     +rsec(`接外包 ${rtag('接外包')}`,rlist([
       `每天多 0–2 張外包單，報酬 = KPI × ${GIG_PAY}，做完進個人錢包，不加 KPI、不動信任。`,
       `逾期賠報酬的 ${pct(GIG_LATE)}，不扣 KPI 與信任。`]));
-  case 'invest': return rsec('工程投資',`${rtable(['投資','工時','公司預算','效果'],['md',...INV_KEYS].map(k=>{const I=INVEST[k];return [`${I.name}${k==='md'?'（每條技術線各一次）':''}`,`${I.hrs}h`,nt(I.cost),I.desc];}))}
-    ${rlist(['花自己的工時加公司 API 預算，效果維持到月底。'])}`)
+  case 'invest': return rsec('工程投資',`${rtable(['投資','工時','公司預算','效果'],['md',...INV_KEYS].flatMap(k=>{const I=INVEST[k];return [[`${I.name}${k==='md'?'（每條技術線各一次）':''}${k==='ai'?`（最多 ${AI_MAX} 級，每級）`:''}`,`${I.hrs}h`,nt(I.cost),I.desc],
+      ...(I.lv2?[[`${I.name} Lv2`,`${I.lv2.hrs}h`,nt(I.lv2.cost),I.lv2.desc]]:[])];}))}
+    ${rlist(['花自己的工時加公司 API 預算，效果維持到月底。',
+      `Lv2 要先買 Lv1，並去過對應的研討會：CLAUDE.md 要去過涵蓋該技術線的技術線場，${INVEST.scan.name}要資安場、${INVEST.skills.name}要 AI 場、${INVEST.tests.name}要綜合場。Lv2 數值：CLAUDE.md 成功率 +${pct(MD_P[2])}、抓錯率 +${pct(TEST_CATCH[2])}、稽核機率 ×${SCAN_AUDIT[2]}、批次派工到複雜度 ≤${SKILLS_CX[2]}。`,
+      `${INVEST.ai.name}：去過 N 場研討會才能買第 N 級，每級所有派工成功率 +${pct(AI_P)}；不影響評估架構與手寫。`])}`)
+    +rsec('國內研討會',`${rtable(['研討會','類別','涵蓋技術線','報名費'],CONF_KEYS.map(k=>{const C=CONF[k];return [C.name,CONF_CATS[C.cat],C.stacks.map(st=>STACKS[st].name).join('、')||'—',nt(C.fee)];}))}
+    ${rlist([`第 1–${CONF_LAST_DAY} 天的平日報名，自費（從錢包扣、算進個人花費），不花工時、不看信任；一週只能報一場，每場只能去一次。`,
+      '週末出席，下週一早上生效，早上報告會寫開放了什麼。一個月最多 3 場。',
+      `技術線場：涵蓋的技術線自己手寫 ×${CONF_MANUAL}，沒選的技術線也不再算不熟。其他類別沒有立即效果，只開放升級。`])}`)
     +rsec('採購電腦',`${rtable(['電腦','價格','信任門檻','到貨','效果'],HW_KEYS.map(k=>{const H=HW[k];return [H.name,H.price,H.trust,`${H.days} 天`,H.desc];}))}
     ${rlist([`走公司採購申請，不扣公司 API 預算。申請花 ${HW_REQ_HRS}h，同時只能一張；到貨當天看信任，夠就裝好（當天少 ${HW_SETUP_HRS}h 架設），不夠就退件、不扣分。`,
       '買了任何一台，本地跑 agent 時還能手寫；本地 GPU 仍然一次只跑一個 agent。',
       `閒置：每台當天沒用到的電腦，下班時信任 −${HW_IDLE}。`])}`);
   case 'score': return rsec('總分',rlist([
       `總分 = KPI × ${SCORE.kpi} + 信任 × ${SCORE.trust} + (${SCORE.spendBase} − 個人花費) ÷ ${SCORE.spendDiv}（最低 ${SCORE.spendFloor} ÷ ${SCORE.spendDiv}）− 稽核次數 × ${SCORE.audit}。`,
-      '個人花費 = 訂閱費 + 個人 API + 外包違約金 − 外包收入。']))
+      '個人花費 = 訂閱費 + 個人 API + 外包違約金 + 研討會報名費 − 外包收入。']))
     +rsec('評等',`${rtable(['評等','單線模式','平行模式'],GRADES.map((t,i)=>['SABC'[i],t,Math.round(t*PAR_GRADE)]).concat([['D','以下','以下']]))}
     ${rlist(['最高分依「模式 × 工作內容」分開記錄。'])}`)
     +rsec('存檔',rlist(['每天開工時自動存一格，重新整理會回到當天早上。','開新局或月底結算會刪掉存檔。']));

@@ -140,21 +140,42 @@ export const presetsOf=ps=>(Array.isArray(ps)&&ps.length===3&&ps.every(validPres
 
 /* 工程投資：花工時和公司預算，效果維持到月底 */
 export const INVEST={
-  md:{name:'寫 CLAUDE.md',hrs:3,cost:300,desc:'這條技術線的工單 token ×0.85、成功率 +6%'},
-  tests:{name:'單元測試',hrs:4,cost:400,desc:'自我審核抓錯率 +10%'},
+  md:{name:'寫 CLAUDE.md',hrs:3,cost:300,desc:'這條技術線的工單 token ×0.85、成功率 +6%',lv2:{hrs:1,cost:200,desc:'成功率 +15%（去過涵蓋這條技術線的技術線場）'}},
+  tests:{name:'單元測試',hrs:4,cost:400,desc:'自我審核抓錯率 +10%',lv2:{hrs:1,cost:200,desc:'抓錯率 +20%（去過綜合場）'}},
   ci:{name:'CI 流水線',hrs:3,cost:300,desc:'平行模式合併衝突機率減半'},
   hook:{name:'pre-commit／lint hook',hrs:2,cost:200,desc:'平行模式審 PR 時間減半（單線模式沒有審 PR 時間）'},
-  scan:{name:'secret scanning／脫敏',hrs:3,cost:300,desc:'機敏工單用個人帳號時，被資安稽核的機率減半'},
+  scan:{name:'secret scanning／脫敏',hrs:3,cost:300,desc:'機敏工單用個人帳號時，被資安稽核的機率減半',lv2:{hrs:1,cost:200,desc:'稽核機率 ×0.25（去過資安場）'}},
   fastlane:{name:'上架自動化（fastlane）',hrs:3,cost:400,desc:'App Store 退件機率 20% → 10%'},
   monitor:{name:'監控告警',hrs:3,cost:400,desc:'之後的事故單提早告警：期限延到隔天，但 KPI 加成 ×1.6 → ×1.2；事故單逾期扣信任 8 → 4'},
-  skills:{name:'做 skills',hrs:3,cost:400,desc:'解鎖批次派工：一次派出所有複雜度 ≤2 的工單'},
+  skills:{name:'做 skills',hrs:3,cost:400,desc:'解鎖批次派工：一次派出所有複雜度 ≤2 的工單',lv2:{hrs:1,cost:200,desc:'批次派工到複雜度 ≤3（去過 AI 場）'}},
   mcp:{name:'接 MCP 文件',hrs:3,cost:400,desc:'評估架構識破率 +20%、評估時間減半'},
   sdd:{name:'導入 SDD',hrs:6,cost:500,desc:'先寫規格再派工：每次派工 token ×1.1；複雜度 3 以上成功率 +8%；陷阱在寫規格時就會發現，只燒 15%'},
+  ai:{name:'提升 agent 能力',hrs:1,cost:200,desc:'每級所有派工成功率 +8%，最多 3 級；去過 N 場研討會才能買第 N 級'},
 };
 /* CLAUDE.md 以外的投資，面板照這個順序 */
-export const INV_KEYS=['tests','ci','hook','scan','fastlane','monitor','skills','mcp','sdd'];
-export const MD_TK=.85, MD_P=.06, TEST_CATCH=.1, MCP_REVEAL=.2, MCP_EVAL_HRS=.5, SDD_TK=1.1, SDD_P=.08, SDD_TRAP_STOP=.15;
-export const HOOK_PR=.5, SCAN_AUDIT=.5, FASTLANE_REJECT=.1, MONITOR_LATE=4, MONITOR_KPI=1.2;
+export const INV_KEYS=['tests','ci','hook','scan','fastlane','monitor','skills','mcp','sdd','ai'];
+/* 有 Lv2 的投資：數值依等級查表（0 沒買、1、2） */
+export const MD_TK=.85, MD_P=[0,.06,.15], TEST_CATCH=[0,.1,.2], MCP_REVEAL=.2, MCP_EVAL_HRS=.5, SDD_TK=1.1, SDD_P=.08, SDD_TRAP_STOP=.15;
+export const HOOK_PR=.5, SCAN_AUDIT=[1,.5,.25], SKILLS_CX=[0,2,3], FASTLANE_REJECT=.1, MONITOR_LATE=4, MONITOR_KPI=1.2;
+/* 國內研討會：週末自費參加。票價是 2026-10-10 查到的一般票，查不到的用往年或估計（見 DESIGN.md） */
+export const CONF_CATS={stack:'技術線場',sec:'資安場',ai:'AI 場',gen:'綜合場'};
+export const CONF={
+  iplayground:{name:'iPlayground',cat:'stack',stacks:['app'],fee:4000},
+  mopcon:{name:'MOPCON×JSDC',cat:'stack',stacks:['app','fe'],fee:699},
+  devopsdays:{name:'DevOpsDays Taipei',cat:'stack',stacks:['sre','devops'],fee:3500},
+  kubesummit:{name:'KubeSummit',cat:'stack',stacks:['sre','devops'],fee:3000},
+  coscup:{name:'COSCUP',cat:'stack',stacks:['rails','rust'],fee:0},
+  webconf:{name:'WebConf Taiwan',cat:'stack',stacks:['laravel','fe'],fee:4200},
+  hitcon:{name:'HITCON',cat:'sec',stacks:[],fee:6000},
+  cybersec:{name:'CYBERSEC 臺灣資安大會',cat:'sec',stacks:[],fee:0},
+  taiwanai:{name:'台灣人工智慧年會',cat:'ai',stacks:[],fee:2500},
+  hwdc:{name:'Hello World Dev Conference',cat:'gen',stacks:[],fee:3600},
+};
+export const CONF_KEYS=Object.keys(CONF);
+export const CONF_LV2={sec:'scan',ai:'skills',gen:'tests'};             // 技術線場開放 CLAUDE.md Lv2，其他類別開放這幾項
+export const CONF_LAST_DAY=15, CONF_MANUAL=.8, AI_P=.08, AI_MAX=3;  // 第 15 天後不能報名、技術線場手寫倍率、agent 能力每級成功率與最高級
+/* 投資等級：舊存檔與舊寫法的 true 算 1 級 */
+export const lv=x=>x===true?1:(x|0);
 /* 規則係數（規則 modal 也讀這些） */
 export const CATCH={base:.45,per:.08,strict:.2,max:.95};          // 自我審核抓錯率 = base + per × 能力（嚴格 +strict）
 export const REVEAL={base:.35,per:.15,max:.95};                     // 評估架構識破率

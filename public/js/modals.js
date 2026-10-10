@@ -46,7 +46,7 @@ export function showSetup(adjust){
       <li><b>自我審核</b>讓 agent 寫完再自己檢查一輪：token 和時間會加成，但改壞時有機會當場修好，不用整單重做。能力越強的模型越會抓錯。</li>
       <li><b>中國模型</b>（DeepSeek、GLM、Kimi）便宜又夠用，但每張工單有案主：金融客戶禁止資料送往中國雲端，政府標案連本地跑的中國開源權重（Qwen）都不能用。</li>
       <li><b>技術線</b>：可以選 1–2 條主技術線，大部分工單平分給它們，也會有前端工單和少量其他技術線的工單。沒選的技術線算不熟，自己手寫要花兩倍時間。</li>
-      <li><b>派工方案與工程投資</b>：存三組常用組合，工單卡片上一鍵派工；花工時和公司預算寫 CLAUDE.md、單元測試、CI、hook、資安掃描、上架自動化、監控告警、做 skills、接 MCP 文件、導入 SDD，越早做越划算。</li>
+      <li><b>派工方案與工程投資</b>：存三組常用組合，工單卡片上一鍵派工；花工時和公司預算寫 CLAUDE.md、單元測試、CI、hook、資安掃描、上架自動化、監控告警、做 skills、接 MCP 文件、導入 SDD，越早做越划算；週末可以自費去國內研討會，開放幾項投資的 Lv2 與提升 agent 能力。</li>
       <li>工單逾期扣 KPI 和信任。月底結算看 KPI、信任，還有你自己花了多少錢。</li>
     </ul>${rulesBtn}
     <div class="sec"><label>工作內容（可選 1–2 項）</label><div class="modes">
@@ -140,7 +140,7 @@ export const SCORE={kpi:10,trust:4,spendBase:8000,spendDiv:8,spendFloor:-12000,a
 export const SPEND_FLOOR=SCORE.spendBase-SCORE.spendFloor;
 /* 月底總分與評等（tools/sim.js 的 SIM_FLOOR 傳別的 floor 重算） */
 export function monthScore(floor=SPEND_FLOOR){
-  const self=S.st.subFee+S.st.api+S.st.outPenalty-S.st.outIncome;
+  const self=S.st.subFee+S.st.api+S.st.outPenalty+S.st.confFee-S.st.outIncome;
   const score=Math.round(S.kpi*SCORE.kpi+S.trust*SCORE.trust+Math.max(SCORE.spendBase-floor,SCORE.spendBase-self)/SCORE.spendDiv-S.st.audits*SCORE.audit);
   const gm=PAR()?PAR_GRADE:1; const gi=GRADES.findIndex(t=>score>=t*gm);
   return {self,score,grade:gi<0?'D':'SABC'[gi]};
@@ -162,11 +162,13 @@ export function showEnd(){
   try{best=+localStorage.getItem(bk)||(S.companies.join()==='laravel'?+localStorage.getItem('tokgame-best-'+S.mode)||0:0); if(score>best)localStorage.setItem(bk,score);}catch(e){}
   track('game_end',{score,grade:g}); clearSave();
   const vendorLines=Object.keys(S.st.tk).filter(v=>S.st.tk[v]>0).map(v=>`<div><span>${VENDORS[v].name}</span><span>${kt(S.st.tk[v])} tokens・${Math.round(S.st.tk[v]/tot*100)}%</span></div>`).join('')||'<div><span>沒有用到任何 agent</span><span>—</span></div>';
+  const conf=S.conf.went.length||S.conf.req;
   mo.innerHTML=`<h2>月底結算・${companyName()}・${PAR()?`平行模式（${S.slots} 個 agent）`:'單線模式'}</h2>
   <div class="grade"><span class="g">${g}</span><div class="gt"><b>${title}</b><span>${desc}</span></div></div>
   <div class="rc">
     <div><span>個人訂閱月費</span><span>${nt(S.st.subFee)}</span></div>
     <div><span>個人 API 帳單</span><span>${nt(S.st.api)}</span></div>
+    ${conf?`<div><span>研討會報名費</span><span>${nt(S.st.confFee)}</span></div>`:''}
     ${S.outsource?`<div><span>外包收入</span><span>${nt(S.st.outIncome)}</span></div><div><span>外包違約金</span><span>${nt(S.st.outPenalty)}</span></div>`:''}
     <div class="tot"><span>你自己掏的錢</span><span>${nt(self)}</span></div>
     <div><span>公司 API 帳單</span><span>${nt(S.st.corp)}</span></div>
@@ -179,6 +181,7 @@ export function showEnd(){
     <div><span>踩到陷阱</span><span>${S.st.trapHit} 次</span></div>
     <div><span>事先識破</span><span>${S.st.trapFound} 次</span></div>
     <div><span>工程投資</span><span>${invCount()} 項</span></div>
+    ${conf?`<div><span>研討會</span><span>${S.conf.went.length} 場</span></div>`:''}
     ${PAR()?`<div><span>合併衝突</span><span>${S.st.conflicts} 次</span></div>`:''}
     <div><span>資安稽核</span><span>${S.st.audits} 次</span></div>
     <div><span>主管信任</span><span>${Math.round(S.trust)}</span></div>
