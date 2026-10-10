@@ -1,6 +1,6 @@
-import {RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd} from './data.js';
-import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardStack,makeIssue,saveGame,sel,track,unfamiliar} from './state.js';
-import {REVIEW,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetFor,quotaLeft,storeReject,useQuota} from './calc.js';
+import {RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
+import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardStack,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks} from './state.js';
+import {REVIEW,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
 import {render} from './view.js';
 import {showDay,showEnd} from './modals.js';
 
@@ -101,7 +101,7 @@ export function charge(b,v,M,tk){
 export const auditRisk=(is,b)=>is.sens&&(b==='sub'||b==='api');
 /* 資安稽核、公司帳單、逾期的信任扣分 */
 export const AUDIT_ODDS={base:.35,cn:.6}, AUDIT_TRUST=12, OVERDRAFT_TRUST=8, CORP_DAY_LIMIT=1500, CORP_DAY_TRUST=6, LATE_TRUST=4, INC_LATE_TRUST=8;
-export const auditOdds=v=>(VENDORS[v].cn?AUDIT_ODDS.cn:AUDIT_ODDS.base)*(S.inv.scan?SCAN_AUDIT:1);
+export const auditOdds=v=>(VENDORS[v].cn?AUDIT_ODDS.cn:AUDIT_ODDS.base)*SCAN_AUDIT[lv(S.inv.scan)];
 export function auditRoll(is,b,v){
   if(auditRisk(is,b)&&Math.random()<auditOdds(v)){
     S.trust=Math.max(0,S.trust-AUDIT_TRUST); S.st.audits++;
@@ -259,23 +259,67 @@ export function research(via){
 }
 
 /* 工程投資：花自己的工時和公司預算，平行模式下背景 agent 照樣跑 */
-export const invCount=()=>Object.keys(S.inv.md).length+INV_KEYS.filter(k=>S.inv[k]).length;
-export function investBlock(k,st){
-  const I=INVEST[k];
-  if(k==='md'?S.inv.md[st]:S.inv[k]) return '已完成';
+export const invCount=()=>Object.values(S.inv.md).reduce((n,x)=>n+lv(x),0)+INV_KEYS.reduce((n,k)=>n+lv(S.inv[k]),0);
+/* 投資等級：目前幾級、最高幾級、下一級的工時與預算、下一級要先去過哪種研討會 */
+export const invLevel=(k,st)=>lv(k==='md'?S.inv.md[st]:S.inv[k]);
+export const invMax=k=>k==='ai'?AI_MAX:INVEST[k].lv2?2:1;
+export const invCost=(k,st)=>invLevel(k,st)>=1&&INVEST[k].lv2?INVEST[k].lv2:INVEST[k];
+export function invLock(k,st,L){
+  if(k==='ai') return confCount()>=L?'':`需要去過 ${L} 場研討會`;
+  if(L<2) return '';
+  if(k==='md') return confStacks().has(st)?'':`需要去過涵蓋 ${STACKS[st].name} 的技術線場`;
+  const cat=Object.keys(CONF_LV2).find(c=>CONF_LV2[c]===k);
+  return confCat(cat)?'':`需要去過${CONF_CATS[cat]}`;
+}
+/* want 是想買的等級，沒給就買下一級 */
+export function investBlock(k,st,want){
+  const cur=invLevel(k,st), L=want??cur+1, I=invCost(k,st);
+  if(cur>=invMax(k)||L<=cur) return '已完成';
+  if(L>cur+1) return `需要先買 Lv${cur+1}`;
+  const lock=invLock(k,st,L); if(lock) return lock;
   if(S.hours<I.hrs-1e-9) return '工時不夠';
   if(S.corp<I.cost) return '公司預算不夠';
   return '';
 }
-export function invest(k,st){
-  if(!INVEST[k]||(k==='md'&&!STACKS[st])||investBlock(k,st)) return false;
-  const I=INVEST[k];
+export function invest(k,st,want){
+  if(!INVEST[k]||(k==='md'&&!STACKS[st])||investBlock(k,st,want)) return false;
+  const I=invCost(k,st), L=invLevel(k,st)+1, name=INVEST[k].name+(invMax(k)>1?` Lv${L}`:'');
   S.corp-=I.cost; S.corpDay+=I.cost; S.st.corp+=I.cost;
-  if(k==='md') S.inv.md[st]=true; else S.inv[k]=true;
-  track('invest',{investment:k,stack:k==='md'?st:'none'});
+  if(k==='md') S.inv.md[st]=L; else S.inv[k]=L;
+  track('invest',{investment:k==='ai'?`ai${L}`:L>=2?`${k}2`:k,stack:k==='md'?st:'none'});
   if(PAR()) advance(I.hrs); else S.hours-=I.hrs;
-  log('ok',`★ 工程投資：${I.name}${k==='md'?`（${STACKS[st].name}）`:''}｜${h1(I.hrs)}h｜公司 ${nt(I.cost)}`);
+  log('ok',`★ 工程投資：${name}${k==='md'?`（${STACKS[st].name}）`:''}｜${h1(I.hrs)}h｜公司 ${nt(I.cost)}`);
   return true;
+}
+/* 國內研討會：平日報名、自費、不花工時、不看信任；週末出席，下週一生效 */
+export function confBlock(k){
+  if(S.conf.went.includes(k)) return '已參加';
+  if(S.conf.req===k) return '已報名・週末出席';
+  if(S.day>CONF_LAST_DAY) return `第 ${CONF_LAST_DAY} 天後不能報名`;
+  if(S.conf.req) return '這週已報名其他場';
+  if(S.wallet<CONF[k].fee) return '錢包不夠';
+  return '';
+}
+export function registerConf(k){
+  if(!CONF[k]||confBlock(k)) return false;
+  const C=CONF[k];
+  S.wallet-=C.fee; S.st.confFee+=C.fee; S.conf.req=k;
+  track('invest',{investment:'conf_'+k,stack:'none'});
+  log('ok',`★ 報名研討會：${C.name}｜自費 ${nt(C.fee)}｜週末出席`);
+  return true;
+}
+/* 出席：記成去過，回傳寫進早上報告的這場開放了什麼 */
+export function attendConf(){
+  const k=S.conf.req, C=CONF[k], cov=confStacks(), first=C.cat!=='stack'&&!confCat(C.cat);
+  const fresh=C.stacks.filter(st=>!cov.has(st)), names=fresh.map(st=>STACKS[st].name).join('、');
+  S.conf.req=null; S.conf.went.push(k);
+  const got=[];
+  const unf=fresh.filter(st=>st!=='fe'&&!S.companies.includes(st)).map(st=>STACKS[st].name).join('、');
+  if(fresh.length) got.push(`${names} 自己手寫 ×${CONF_MANUAL}${unf?`（${unf} 不再算不熟）`:''}`);
+  if(fresh.length) got.push(`CLAUDE.md Lv2（${names}）開放`);
+  if(first) got.push(`${INVEST[CONF_LV2[C.cat]].name} Lv2 開放`);
+  if(confCount()<=AI_MAX) got.push(`提升 agent 能力 Lv${confCount()} 開放`);
+  return `週末參加了 ${C.name}：${got.length?got.join('、'):'沒有新的升級'}。`;
 }
 /* 採購電腦：一次只能一張申請，不扣公司 API 預算；到貨日不能超過第 20 天 */
 export function hwReqBlock(k){
@@ -302,7 +346,7 @@ export function useHw(v,m){
 export function batch(){
   if(!S.inv.skills) return;
   let n=0,skip=0;
-  for(const is of S.issues.filter(i=>!i.running&&i.cx<=2).sort(queueOrder)){
+  for(const is of S.issues.filter(i=>!i.running&&i.cx<=SKILLS_CX[lv(S.inv.skills)]).sort(queueOrder)){
     if(!canQuick()) break;
     const {i}=presetFor(is);
     if(i<0){skip++;continue;}
@@ -314,14 +358,15 @@ export function batch(){
 export const INV_STACKS=()=>[...S.companies,...COMPANIES.filter(k=>!S.companies.includes(k)),'fe'];
 export function invHint(is){
   const out=[];
-  if(S.inv.md[is.stack]) out.push(`${STACKS[is.stack].name} 有 CLAUDE.md：token ×${MD_TK}、成功率 +${Math.round(MD_P*100)}%`);
+  if(S.inv.md[is.stack]) out.push(`${STACKS[is.stack].name} 有 CLAUDE.md：token ×${MD_TK}、成功率 +${Math.round(MD_P[lv(S.inv.md[is.stack])]*100)}%`);
   if(S.inv.sdd) out.push(`SDD：token ×${SDD_TK}${is.cx>=3?`、成功率 +${Math.round(SDD_P*100)}%`:''}`);
-  if(S.inv.tests) out.push(`單元測試：抓錯率 +${Math.round(TEST_CATCH*100)}%`);
+  if(S.inv.tests) out.push(`單元測試：抓錯率 +${Math.round(TEST_CATCH[lv(S.inv.tests)]*100)}%`);
   if(S.inv.ci&&PAR()) out.push('CI 流水線：合併衝突減半');
   if(S.inv.hook&&PAR()) out.push('pre-commit hook：審 PR 時間減半');
-  if(S.inv.scan&&is.sens) out.push('secret scanning：個人帳號稽核機率減半');
+  if(S.inv.scan&&is.sens) out.push(`secret scanning：個人帳號稽核機率 ×${SCAN_AUDIT[lv(S.inv.scan)]}`);
   if(S.inv.fastlane&&is.store) out.push(`fastlane：退件機率 ${Math.round(FASTLANE_REJECT*100)}%`);
   if(S.inv.monitor&&is.inc) out.push(`監控告警：逾期扣信任 ${MONITOR_LATE}`);
+  if(S.inv.ai) out.push(`提升 agent 能力 Lv${lv(S.inv.ai)}：成功率 +${Math.round(AI_P*lv(S.inv.ai)*100)}%`);
   if(S.inv.mcp) out.push(`MCP 文件：識破率 +${Math.round(MCP_REVEAL*100)}%、評估時間減半`);
   if(S.hw.pc&&sel.v==='local') out.push(`顯卡 PC：本地執行時間 ×${PC_SPEED}`);
   return out.length?`工程投資：${out.join('；')}。`:'';
@@ -399,6 +444,8 @@ export function endDay(){
     if(S.trust>=H.trust){S.hw[k]=true;S.hours-=HW_SETUP_HRS;rep.push(`採購到貨：${H.name} 架好了（架設花了 ${HW_SETUP_HRS} 小時）。`);log('ok',`★ ${H.name} 到貨，架設 ${h1(HW_SETUP_HRS)}h`);}
     else{rep.push(`採購被退件：主管信任不夠（需要 ${H.trust} 以上）。`);log('bad',`✗ ${H.name} 採購申請被退件`);}
   }
+  /* 週末參加研討會：下週一早上生效 */
+  if(monday&&S.conf.req){const msg=attendConf();rep.push(msg);log('ok',`★ ${msg}`);}
   let ev=null; if(Math.random()<EVENT_RATE) ev=pick(EVENTS)();
   if(ev) log('dim',`◆ ${ev[0]}｜${ev[1]}`);
   if(S.outage){const n=cancelJobs(j=>j.v===S.outage,'廠商當機，session 斷了');if(n)rep.push(`${n} 個跑在 ${VENDORS[S.outage].name} 的 agent 因為當機斷線。`);}

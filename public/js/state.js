@@ -1,4 +1,4 @@
-import {HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,normCompanies,objOf,pick,pickClient,presetsOf,rnd} from './data.js';
+import {CONF,HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,lv,normCompanies,objOf,pick,pickClient,presetsOf,rnd} from './data.js';
 import {SLOT_CHOICES} from './actions.js';
 
 /* ===== 狀態 ===== */
@@ -11,14 +11,15 @@ export const START={wallet:8000,corp:12000,trust:70,hours:8};
 export function fresh(){
   uid=0;
   S={day:1,hours:START.hours,wallet:START.wallet,corp:START.corp,trust:START.trust,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,outsource:S?.outsource===true,advanced:S?.advanced===true,presets:presetsOf(S?.presets),jobs:[],
-    inv:{md:{},...objOf(INV_KEYS,()=>false)},
+    inv:{md:{},...objOf(INV_KEYS,()=>0),ai:0},
     subs:objOf(APIV,()=>'none'),
     used:{sub:objOf(APIV,()=>({d:0,w:0})),seat:objOf(SEAT.vendors,()=>({d:0,w:0}))},
     capMod:objOf(APIV,()=>1),priceMod:objOf(Object.keys(VENDORS),()=>1),cnBan:false,
     seats:[],seatReq:null,
     hw:objOf(HW_KEYS,()=>false),hwReq:null,hwUsed:objOf(HW_KEYS,()=>false),
+    conf:{req:null,went:[]},
     outage:null,corpDay:0,issues:[],log:[],
-    st:{subFee:0,api:0,corp:0,done:0,late:0,audits:0,manual:0,conflicts:0,caught:0,tk:objOf(Object.keys(VENDORS),()=>0),byBill:{sub:0,seat:0,api:0,corp:0,local:0},kpiLost:0,trapHit:0,trapFound:0,outIncome:0,outPenalty:0,outDone:0,outLate:0}};
+    st:{subFee:0,api:0,corp:0,done:0,late:0,audits:0,manual:0,conflicts:0,caught:0,tk:objOf(Object.keys(VENDORS),()=>0),byBill:{sub:0,seat:0,api:0,corp:0,local:0},kpiLost:0,trapHit:0,trapFound:0,outIncome:0,outPenalty:0,outDone:0,outLate:0,confFee:0}};
   sel={issue:null,v:'anthropic',m:'sonnet',b:'api',rv:sel?.rv??1,ef:sel?.ef??1};
   S.dayStart=daySnap();
 }
@@ -58,7 +59,16 @@ export function loadGame(d){
   S=d.S; sel=d.sel; uid=d.uid;
   S.hw??=objOf(HW_KEYS,()=>false); S.hwReq??=null; S.hwUsed??=objOf(HW_KEYS,()=>false);
   S.dayStart??=daySnap();
+  /* 舊存檔的投資是 true／false，轉成等級；沒有研討會欄位就補空的 */
+  for(const k of INV_KEYS) S.inv[k]=lv(S.inv[k]);
+  for(const st in S.inv.md) S.inv.md[st]=lv(S.inv.md[st]);
+  S.conf??={req:null,went:[]}; S.st.confFee??=0;
 }
+
+/* 研討會：去過的技術線場涵蓋哪些技術線、去過哪類、去過幾場 */
+export const confStacks=()=>new Set(S.conf.went.flatMap(k=>CONF[k].stacks));
+export const confCat=c=>S.conf.went.some(k=>CONF[k].cat===c);
+export const confCount=()=>S.conf.went.length;
 
 /* 一般工單：75% 平分給選到的主技術線、15% 前端、10% 平分給沒選的技術線 */
 export function pickStack(){
@@ -77,7 +87,7 @@ export let RESEARCH_RATE=.3;
 export const setResearchRate=r=>{RESEARCH_RATE=r;};
 /* Rust、App、DevOps 比較慢：期限多一天、KPI ×1.3 作為補償 */
 export const hardStack=st=>st==='rust'||st==='app'||st==='devops';
-export const unfamiliar=is=>!S.companies.includes(is.stack)&&is.stack!=='fe';
+export const unfamiliar=is=>!S.companies.includes(is.stack)&&is.stack!=='fe'&&!confStacks().has(is.stack);  // 去過涵蓋它的技術線場就算熟
 export function makeIssue(inc,st){
   let cx;
   if(inc) cx=4; else { const r=Math.random()+S.day/20*.38; cx=r<.28?1:r<.6?2:r<.9?3:r<1.12?4:5; }

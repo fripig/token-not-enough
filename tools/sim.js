@@ -5,6 +5,8 @@
 // SIM_TRAP=<比例> 可覆寫陷阱題比例（例如 SIM_TRAP=0 關掉陷阱）；SIM_SLOTS=2..6 指定平行模式工作槽數。
 // SIM_INVEST=1 讓自動玩家做工程投資：每天開工時依序買 CLAUDE.md（每條主技術線）、單元測試、CI 流水線與 pre-commit hook（只在平行模式）、導入 SDD 裡下一項付得起的。
 // SIM_INVEST=2 再加買上架自動化（有選 App 才買）、監控告警、secret scanning，量新投資的效果；SIM_INV_EXTRA=monitor,scan 之類可只加買指定的幾項（fastlane、monitor、scan），拿來逐項量。
+// SIM_CONF=1 讓自動玩家去國內研討會（要搭配 SIM_INVEST）：第 1、6、11 天報名第一個付得起的場次（涵蓋第一條主技術線的技術線場、台灣人工智慧年會、HWDC、HITCON、其他），
+// 每天先買開放了的 Lv2（已買 Lv1 的 CLAUDE.md、單元測試、secret scanning、做 skills）和下一級提升 agent 能力，再買 SIM_INVEST 的投資。
 // SIM_OUTSOURCE=1 開啟接外包：外包單一律走個人 API（能用 DeepSeek 就用，否則 Sonnet）。
 // SIM_EFFORT=1 開啟進階模式：每張單看選到模型的原始能力減顯示複雜度，≤ −1 用高強度、≥ 2 用低強度、其他用中。
 // SIM_SEATS=1..3 量團隊席位的上限：在第 6、11、16 天依序直接給 Anthropic、OpenAI、Google 席位（不經申請與信任審核，當作信任一直夠），給到指定個數；
@@ -27,10 +29,10 @@ import {els} from './fake-dom.js';
 import './seed.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {firstIssues,start} from '../public/js/main.js';
-import {COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model} from '../public/js/data.js';
+import {COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model,CONF,CONF_KEYS,CONF_LAST_DAY} from '../public/js/data.js';
 import {START,S,sel,setResearchRate,setTrapRate} from '../public/js/state.js';
 import {est,hwBlock,localBusy,quotaLeft} from '../public/js/calc.js';
-import {PAR,dispatch,endDay,invest,requestHw,research,researchBlock,wait} from '../public/js/actions.js';
+import {PAR,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
 import {dispatchPanel} from '../public/js/view.js';
 // 自動玩家不記最高分（和改成模組前一樣）
 globalThis.localStorage={getItem(){return null},setItem(){}};
@@ -45,6 +47,8 @@ const N=+process.env.SIM_N||100;
 const INV=['1','2'].includes(process.env.SIM_INVEST)?+process.env.SIM_INVEST:0;
 const EXTRA=(process.env.SIM_INV_EXTRA||'fastlane,monitor,scan').split(',');
 if(!EXTRA.every(k=>['fastlane','monitor','scan'].includes(k))){ console.error(`SIM_INV_EXTRA 只能是 fastlane、monitor、scan，收到「${process.env.SIM_INV_EXTRA}」`); process.exit(1); }
+const CONFSIM=process.env.SIM_CONF==='1';
+if(CONFSIM&&!INV){ console.error('SIM_CONF 要搭配 SIM_INVEST=1 或 2'); process.exit(1); }
 const COMBOS=process.env.SIM_COMBOS==='1';
 const OUT=process.env.SIM_OUTSOURCE==='1';
 const EFF=process.env.SIM_EFFORT==='1';
@@ -99,6 +103,14 @@ function sim(){
           }
           const sk=SEAT_DAYS.indexOf(S.day); if(sk>=0&&sk<SEATS&&!S.seats.includes(SEAT.vendors[sk])) S.seats.push(SEAT.vendors[sk]);
           if(HWSIM&&!S.hwReq){const k=HW_ORDER.find(k=>!S.hw[k]); if(k&&S.trust>=HW[k].trust) requestHw(k);}
+          if(CONFSIM){
+            if((S.day-1)%5===0&&S.day<=CONF_LAST_DAY&&!S.conf.req){
+              const pri=[...CONF_KEYS.filter(k=>CONF[k].cat==='stack'&&CONF[k].stacks.includes(S.companies[0])),'taiwanai','hwdc','hitcon',...CONF_KEYS];
+              const k=pri.find(k=>!confBlock(k)); if(k) registerConf(k);
+            }
+            const up=[...S.companies.map(st=>['md',st]),['tests'],['scan'],['skills']].filter(([k,st])=>invLevel(k,st)===1).concat([['ai']]).find(([k,st])=>!investBlock(k,st));
+            if(up) invest(...up);
+          }
           if(INV){
             const list=[...S.companies.map(k=>['md',k]),['tests'],...(PAR()?[['ci'],['hook']]:[]),['sdd'],
               ...(INV===2?EXTRA.filter(k=>k!=='fastlane'||S.companies.includes('app')).map(k=>[k]):[])];
