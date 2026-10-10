@@ -19,6 +19,7 @@ import * as M from '../public/js/modals.js';
 // 另一份沒玩過的 state.js：用來測第一次 fresh() 的預設值（主模組的 S 已經被 start() 設過）
 import * as St from '../public/js/state.js';
 import * as Ru from '../public/js/rules.js';
+import * as Vw from '../public/js/view.js';
 const pristine=await import('../public/js/state.js?pristine');
 
 let pass=0,fail=0;
@@ -1797,6 +1798,37 @@ function tests(){
   start(); const p0=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}}); p0({pv:'anthropic',pp:'pro'}); p0({act:'confirm'});
   ok(S.wallet<8000&&S.dayStart.wallet===S.wallet,'action-log：第 1 天基準在開局確認、扣完訂閱費之後',[S.wallet,S.dayStart.wallet].join());
   S.day=6; S.dayStart.wallet=1; showSetup(true); p0({act:'confirm'}); ok(S.dayStart.wallet===1,'action-log：週一調整訂閱不重設基準');
+  }
+  /* 工程投資面板收合（gh-22-02-invest-panel-collapse） */
+  {
+  const FK='tokgame-invfold', clickApp=ds=>els.app.on.click({target:{closest:()=>({dataset:ds})}});
+  const panel=()=>{const h=els.app.innerHTML, i=h.indexOf('data-act="invfold"'); return i<0?'':h.slice(i,h.indexOf('</section>',i));};
+  const open=()=>panel().includes('aria-expanded="true"')&&panel().includes('▾ 工程投資')&&panel().includes('data-inv=')&&panel().includes('data-hw=');
+  const shut=()=>panel().includes('aria-expanded="false"')&&panel().includes('▸ 工程投資')&&!panel().includes('data-inv=')&&!panel().includes('data-hw=');
+  newRun('laravel'); resetStore(); Vw.resetInvFold(); invest('tests'); invest('ci'); render();
+  ok(open(),'invest-panel-collapse：沒有偏好時展開，列出投資與採購電腦');
+  clickApp({act:'invfold'});
+  ok(shut()&&panel().includes('已做 2 項')&&!panel().includes('效果維持到月底')&&store[FK]==='1','invest-panel-collapse：點標題收合，只留已做 N 項、存 1',panel());
+  clickApp({act:'invfold'});
+  ok(open()&&store[FK]==='0','invest-panel-collapse：再點一次展開、存 0');
+  {const g0=globalThis.gtag, ev=[]; globalThis.gtag=(...a)=>ev.push(a); clickApp({act:'invfold'}); clickApp({act:'invfold'}); globalThis.gtag=g0;
+   ok(ev.length===0,'invest-panel-collapse：切換不送 GA 事件',JSON.stringify(ev));}
+  ok(/<h2><button class="fold" data-act="invfold"/.test(els.app.innerHTML),'invest-panel-collapse：標題仍是 h2，切換按鈕在裡面');
+  for(const [v,want] of [[null,'true'],['1','false'],['0','true']]){
+    resetStore(v===null?{}:{[FK]:v}); Vw.resetInvFold(); render();
+    ok(panel().includes(`aria-expanded="${want}"`),`invest-panel-collapse：存的值 ${v??'沒有'} → aria-expanded ${want}`);
+  }
+  {const ls=global.localStorage; let threw=false, a=false, b=false;
+   global.localStorage={getItem(){throw new Error('blocked');},setItem(){throw new Error('blocked');},removeItem(){throw new Error('blocked');}};
+   try{Vw.resetInvFold(); render(); a=open(); clickApp({act:'invfold'}); b=shut();}catch(e){threw=true;}
+   global.localStorage=ls;
+   ok(!threw&&a&&b,'invest-panel-collapse：localStorage 失效時先展開、點了仍能收合',[threw,a,b].join());}
+  resetStore(); Vw.resetInvFold(); newRun('laravel'); render(); St.saveGame(); const s1=store[St.SAVE_KEY], log1=S.log.length;
+  clickApp({act:'invfold'}); St.saveGame();
+  ok(s1&&store[St.SAVE_KEY]===s1&&S.log.length===log1,'invest-panel-collapse：收合不改存檔內容、不寫紀錄');
+  start(); ok(shut(),'invest-panel-collapse：開新局維持收合');
+  Vw.resetInvFold(); render(); ok(shut(),'invest-panel-collapse：重新整理後照存的值收合');
+  resetStore(); Vw.resetInvFold();
   }
   console.log(`\n${pass} passed, ${fail} failed`);
   if(fail) process.exitCode=1;

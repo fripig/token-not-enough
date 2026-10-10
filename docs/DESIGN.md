@@ -73,6 +73,8 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
    → 彈窗裡的訊息補進現有的執行紀錄（不另做每日報告畫面），紀錄整個月都保留（拿掉 80 筆上限）；派工記完整決策（含單線模式、派工台看到的成功率、一鍵／批次用了哪個方案），結果與評估寫付費方式，記等待、隨機事件、逾期扣多少信任、新的一週，每天下班一行總結（都是使用者從選項裡選的）。播放功能選了「紀錄逐筆播放」（不做完整重播整局），另開 change `gh-27-01-log-replay`（#27）。設計紀錄在 Spectra change `gh-25-01-log-history`（#25）。
 26. 「我沒額外買電腦就因為沒用ＡＩ被扣信任度」（#24，新局、沒申請採購、第 1 天下班就被扣）
    → 重現（目前版本各 1,000 局）沒有觸發電腦閒置扣分，最可能是第 2 天早上的事件「主管問進度怎麼這麼慢／「不是有買 AI 嗎？」信任 -4」：「買 AI」被讀成採購電腦，也沒寫出扣分是因為 KPI 沒超過天數 × 7。事件文字改成寫出目前 KPI 與門檻、拿掉「買 AI」，第 1 週（第 6 天前）沒達標只提醒不扣分，後面不補（都是使用者從選項裡選的）。change 原名 `gh-24-01-hw-idle-without-purchase`，根因確認後改名。設計紀錄在 Spectra change `gh-24-01-slow-progress-event`（#24）。
+27. 「投資順便加上收合功能 有點佔位子了」（#22，討論國內研討會時提出）
+   → 點「工程投資」標題收合或展開整個面板，收合時只留「已做 N 項」；沒存過偏好時展開，之後記住上次的選擇（`localStorage` 的 `tokgame-invfold`，重新整理、開新局都沿用，不進存檔、不送 GA、不寫紀錄）。使用者選了整個面板收合（不做「已買的自動收起」）、另開 change（都是使用者從選項裡選的）。設計紀錄在 Spectra change `gh-22-02-invest-panel-collapse`（#22）。
 
 介面文字一律繁體中文（台灣用語）。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
@@ -271,7 +273,7 @@ SRE、DevOps 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；�
 - 機敏工單不會因為個人付費而跳過方案，卡片改顯示稽核機率。
 
 ### 工程投資（`INVEST`、`invest`、`investBlock`、`batch`、`invHint`）
-花自己的工時加公司 API 預算（計入當日公司花費與月底公司帳單），效果維持到月底，每局歸零。平行模式下投資會推進時鐘，背景 agent 照跑（期間有 agent 完成時，審 PR 的時間另外加上去）；本地 GPU 忙也能投資。
+花自己的工時加公司 API 預算（計入當日公司花費與月底公司帳單），效果維持到月底，每局歸零。面板可以點標題整個收合（`invFolded`、`toggleInvFold`，偏好存在 `localStorage` 的 `tokgame-invfold`，讀寫失敗時只記在這一頁），收合時只留「已做 N 項」。平行模式下投資會推進時鐘，背景 agent 照跑（期間有 agent 完成時，審 PR 的時間另外加上去）；本地 GPU 忙也能投資。
 
 | 投資 | 工時 | 公司預算 | 效果 |
 |---|---|---|---|
@@ -478,7 +480,7 @@ Pro 500 每一格都比 Pro 200 差（平行 12k 時 −5.2%～−8.3%、20k 時
 | `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件、存檔：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`SAVE_KEY`、`SAVE_VER`、`saveGame`、`clearSave`、`readSave`、`loadGame`、`daySnap`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`hardStack`、`unfamiliar`、`makeIssue`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs`、`START`（起始錢包、公司預算、信任、每日工時） |
 | `calc.js` | 計算（`est(is, v, mid, rv, ef)` 會套推理強度）：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`hasHw`、`manualBlocked`、`hwBlock`、`localSpeed`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log`、`P_STEP`（成功率階梯） |
 | `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`RV_ID`、`jobChoice`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`hwReqBlock`、`requestHw`、`useHw`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`intakeIssue`、`daySummary`、`endDay`、`AUDIT_ODDS`、`AUDIT_TRUST`、`OVERDRAFT_TRUST`、`CORP_DAY_LIMIT`、`CORP_DAY_TRUST`、`LATE_TRUST`、`INC_LATE_TRUST`、`EVENT_RATE`、`OVERNIGHT_HRS`、`PACE_KPI`、`PRAISE_TRUST`、`DOUBT_TRUST` |
-| `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`quickBtn`、`invPanel`、`hwRow`、`qbox`、`dispatchPanel` |
+| `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`quickBtn`、`invPanel`、`INV_FOLD_KEY`、`invFold`、`invFolded`、`toggleInvFold`、`resetInvFold`（check.js 用）、`hwRow`、`qbox`、`dispatchPanel` |
 | `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showResume`、`showBadSave`、`SPEND_FLOOR`、`monthScore`、`showEnd`、`SCORE`、`GRADES`、`PAR_GRADE` |
 | `rules.js` | 規則 modal（`showRules(back)`，`back` 是關閉後回到原彈窗的函式）與六個分頁的內容（`rulesTab(id)`），數字全部從其他模組的常數插值：`RULE_TABS`、`ruleTab`（只在這個模組改）、`pct`、`rtag`、`rtable`、`rlist`、`rsec`、`rulesTab`、`showRules` |
 
