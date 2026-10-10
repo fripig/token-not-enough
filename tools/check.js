@@ -4,6 +4,7 @@
 import {readFileSync,readdirSync} from 'node:fs';
 import {els,store,resetStore} from './fake-dom.js';
 import './check-seed.js';
+import {seedRandom} from './seed.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {boot,firstIssues,start} from '../public/js/main.js';
 import {BASE,CLIENTS,COMPANIES,DEFAULT_PRESETS,EFFORT,KPI,SEAT,STACKS,VENDORS,bestKey,cnBlock,effModel,h1,kt,model,presetsOf,rnd} from '../public/js/data.js';
@@ -26,7 +27,7 @@ const pristine=await import('../public/js/state.js?pristine');
 
 let pass=0,fail=0;
 /* 已經把字串搬進字典的模組（gh-34-01-i18n 逐批加，4.1 改成全部模組） */
-const I18N_DONE=['view.js','modals.js','actions.js','calc.js','main.js','state.js'];
+const I18N_DONE=['view.js','modals.js','actions.js','calc.js','main.js','state.js','data.js'];
 function ok(cond,name,detail=''){if(cond){pass++;}else{fail++;console.log('✗',name,detail);}}
 function near(a,b,eps=1e-9){return Math.abs(a-b)<=eps;}
 /* 去掉 JS 註解（保留字串、模板字串與 ${} 裡的程式），換行照留；i18n 檢查用 */
@@ -2389,6 +2390,42 @@ function tests(){
    ok(!zhLeft.length,'i18n：英文模式的資料欄位沒有中文',zhLeft.join(' / '));
    I.setLang('zh-TW');
    ok(dataModule.companyName(['laravel','rust'])==='Laravel 後端＋Rust 基礎設施','i18n：繁中工作內容名稱不變');
+   /* 題庫照位置抽：同一組亂數，中英兩局每張工單的題庫位置與數字都一樣 */
+   {const rnd0=Math.random;
+    const flat=k=>dataModule.POOL_KEYS.flatMap(n=>STACKS[k].pool[n].map(x=>typeof x==='string'?x:x.t));
+    const gen=lang=>{I.setLang(lang); seedRandom(7); newRun(['laravel','rust']); S.day=12; const out=[...Array(200)].map(()=>makeIssue(false)); return out.map(i=>({...i,pos:flat(i.stack).indexOf(i.title)}));};
+    const zhI=gen('zh-TW'), enI=gen('en'); Math.random=rnd0;
+    const num=i=>JSON.stringify([i.stack,i.cx,i.due,i.kpi,i.base,i.trap,i.trueCx,i.research,i.sens,i.big,i.store,i.client.ban,i.pos]);
+    ok(zhI.every(i=>i.pos>=0)&&enI.every(i=>i.pos>=0),'i18n：每張工單的標題都在自己語言的題庫裡');
+    ok(zhI.every((i,n)=>num(i)===num(enI[n])),'i18n：同一組亂數，中英兩局的題庫位置與數字都相同');
+    ok(enI.every(i=>!CJK.test(i.title)&&(!i.parts||i.parts.every(p=>!CJK.test(p)))),'i18n：英文工單標題（含研究單拆單）沒有中文');
+    I.setLang('zh-TW');}
+   /* 英文整局：單線、平行各玩完 20 天，畫面、彈窗、紀錄都沒有中文 */
+   for(const mode of ['serial','parallel']){
+    const rnd0=Math.random; seedRandom(11); I.setLang('en'); newRun(['laravel','app'],mode); S.outsource=true;
+    const bad=[], chk=(where,html)=>{if(CJK.test(html))bad.push(`${where}: ${html.replace(/<[^>]+>/g,' ').match(/.{0,30}[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uff00-\uffef].{0,30}/)[0]}`);};
+    showSetup(false); chk('setup',els.mo.innerHTML); showSetup(true); chk('setup-adj',els.mo.innerHTML);
+    let guard=0;
+    while(guard++<40){
+      invest('tests'); invest('md','laravel');
+      for(const is of S.issues.filter(i=>!i.running).slice(0,4)){
+        sel.issue=is.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:is.out?'api':'corp',rv:1});
+        if(is.research&&guard%2) A.research('self'); else if(guard%3===0&&C.manualHrs(is)<=S.hours&&!C.manualBlocked()) manual(); else if(guard%4===1&&A.canEvaluate(is)) evaluate(); else dispatch();
+      }
+      if(mode==='parallel') A.wait(false);
+      render(); chk('render',els.app.innerHTML);
+      if(S.day>=20){ endDay(); chk('end',els.mo.innerHTML); break; }
+      endDay(); chk('day',els.mo.innerHTML);
+    }
+    ok(S.day===20&&els.mo.innerHTML.includes('Month-end report'),`i18n：英文整局（${mode}）玩到月底結算`,S.day);
+    M.showResume({S:{day:5,companies:['laravel'],mode,slots:3}}); chk('resume',els.mo.innerHTML);
+    M.showBadSave(); chk('badsave',els.mo.innerHTML);
+    for(const l of S.log) chk('log',l.msg);
+    Math.random=rnd0;
+    ok(!bad.length,`i18n：英文整局（${mode}）畫面、彈窗、紀錄沒有中文`,bad.slice(0,6).join(' ／ '));
+    ok(S.log.length>50,`i18n：英文整局（${mode}）有寫紀錄`,S.log.length);
+    I.setLang('zh-TW');
+   }
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);
