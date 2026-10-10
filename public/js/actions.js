@@ -81,10 +81,19 @@ export function advance(dt){
   }
   S.hours=Math.max(0,S.hours);
 }
+/* 中止的 agent 照已跑比例扣 token，至少 5% */
+export const CANCEL_MIN=.05;
+export const cancelFrac=j=>Math.max(CANCEL_MIN,1-j.left/j.hrs);
 export function cancelJobs(pred,note){
   const out=S.jobs.filter(pred); S.jobs=S.jobs.filter(j=>!pred(j));
-  out.forEach(j=>{j.issue.running=false;settle(j,{frac:Math.max(.05,1-j.left/j.hrs),fail:true,note});});
+  out.forEach(j=>{j.issue.running=false;settle(j,{frac:cancelFrac(j),fail:true,note});});
   return out.length;
+}
+/* 玩家中止背景 agent：只付已跑的部分，工單原樣回佇列（不算失敗、沒有重做折扣、陷阱不曝光），不花時間 */
+export function cancelJob(id){
+  const j=PAR()&&S.jobs.find(x=>x.issue.id===id); if(!j) return;
+  S.jobs=S.jobs.filter(x=>x!==j); j.issue.running=false;
+  settle(j,{frac:cancelFrac(j),fail:true,cancel:true});
 }
 /* 扣款：派工與評估共用。訂閱／席位額度或個人錢包不夠時只扣剩下的，回傳 short 與實際完成比例 frac；個人 API 不會把錢包扣成負數 */
 export function charge(b,v,M,tk){
@@ -116,7 +125,7 @@ export function reward(is){
 }
 export function settle(j,o={}){
   const is=j.issue,v=j.v,b=j.b,M=j.M,frac=o.frac??1;
-  if(j.hidden&&hiddenTrap(is)){ reveal(is); S.st.trapHit++; }
+  if(!o.cancel&&j.hidden&&hiddenTrap(is)){ reveal(is); S.st.trapHit++; }
   let tk=j.tk*frac, hrs=j.hrs*frac, ok=j.ok&&!o.fail, note=o.note||'', spend='', conflict=false, fixed=false, rejected=false;
   if(!j.ok&&j.caught&&!o.fail){tk*=1.25;ok=true;fixed=true;}
   if(!j.ok&&!j.caught&&j.rv&&!o.fail) note='審核沒抓到，上線後測試才爆';
@@ -128,7 +137,7 @@ export function settle(j,o={}){
   /* App 上架審核在 agent 做完之後才發生，自我審核救不回來 */
   if(ok&&is.store&&Math.random()<storeReject()){ok=false;rejected=true;note='卡在 App Store 審核被退件';}
   S.st.tk[v]+=tk; S.st.byBill[b]+=tk;
-  const outcome=o.fail?'aborted':ch.short?'quota':conflict?'conflict':rejected?'rejected':ok?(fixed?'caught':'success'):j.stop?'trap_stop':'fail';
+  const outcome=o.cancel?'cancelled':o.fail?'aborted':ch.short?'quota':conflict?'conflict':rejected?'rejected':ok?(fixed?'caught':'success'):j.stop?'trap_stop':'fail';
   track('job_result',{...jobChoice(j),cx:is.cx,stack:is.stack,gig:!!is.out,research:!!j.research,outcome,tokens:Math.round(tk),cost:Math.round(ch.cost||0),hours:Math.round(hrs*10)/10});
   const who=`${VENDORS[v].agent} / ${M.name}・${BILL_LABEL[b]}`;
   if(ok){
@@ -145,6 +154,8 @@ export function settle(j,o={}){
     const title=is.title, cx=Math.max(1,is.cx-1);
     Object.assign(is,{merge:true,title:`解決衝突：${title}`,cx,base:BASE[cx]*R(.85,1.15),trap:false,revealed:false,evaluated:false,research:false,big:is.big&&cx>=3,tries:0});
     log('warn',`⚡ ${title}｜${who}｜和其他 agent 的改動合併衝突，留下「解決衝突」工單（複雜度 ${cx}）｜燒掉 ${kt(tk)}｜${spend}｜${h1(hrs)}h`);
+  } else if(o.cancel){
+    log('warn',`⏹ 中止 ${is.title}｜${who}｜燒掉 ${kt(tk)}｜${spend}｜${h1(hrs)}h`);
   } else {
     is.tries++; is.base*=j.stop?1:RETRY.tk;
     log('bad',`✗ ${is.title}｜${who}｜${note||'測試沒過，改壞了'}｜燒掉 ${kt(tk)}｜${spend}｜${h1(hrs)}h`);

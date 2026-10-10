@@ -4,6 +4,10 @@ import {REVIEW,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manu
 import {INV_STACKS,PAR,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
 
 /* ===== 畫面 ===== */
+/* 背景 agent 的兩段式中止：第一次點只是待確認，記住是哪張單（不進存檔） */
+export let cancelArm=null;
+export const armCancel=id=>{cancelArm=id;};
+export const cancelBtn=id=>cancelArm===id?`<button class="btn ghost jx armed" data-cancel="${id}">確定中止？</button>`:`<button class="btn ghost jx" data-cancel="${id}">中止</button>`;
 export const app=document.getElementById('app'), ov=document.getElementById('ov'), mo=document.getElementById('mo');
 
 export function render(){
@@ -35,7 +39,7 @@ export function render(){
 
   const jobsHtml=!PAR()?'':`<div class="ph" style="margin-top:6px"><h2>背景 agent</h2><span>${S.jobs.length} / ${S.slots} 個工作槽</span></div>
     <div class="jobs">${S.jobs.map(j=>{const pr=Math.max(0,1-j.left/j.hrs);const lbl=BILL_LABEL[j.b];
-      return `<div class="job" style="--vc:${vc(j.v)}"><div class="jt"><b>${j.issue.title}</b><span class="num">${clock(8-S.hours+j.left)} 完成</span></div>
+      return `<div class="job" style="--vc:${vc(j.v)}"><div class="jt"><b>${j.issue.title}</b><span class="num">${clock(8-S.hours+j.left)} 完成</span>${cancelBtn(j.issue.id)}</div>
       <div class="jm">${VENDORS[j.v].agent} / ${j.M.name}・${lbl}${j.issue.due<=S.day?'・<span style="color:var(--bad)">今天到期</span>':''}</div>
       <div class="bar"><i style="width:${pr*100}%;background:var(--vc)"></i></div></div>`;}).join('')
       ||'<div class="empty" style="padding:14px">沒有 agent 在跑。派出去的工作會在這裡同時進行。</div>'}</div>`;

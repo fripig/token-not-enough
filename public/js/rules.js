@@ -1,7 +1,7 @@
 import {RESEARCH_DIRECT_TK,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,APIV,BIG,BILL_LABEL,CATCH,CI_CONFLICT,CLIENTS,CONFLICT,EFFORT,EVAL_HRS,FASTLANE_REJECT,HARD_KPI,HOOK_PR,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INC_KPI,INVEST,INV_KEYS,KPI,BASE,LATE_KPI,MANUAL_HRS,MCP_EVAL_HRS,MCP_REVEAL,MONITOR_KPI,MONITOR_LATE,PN,PR_HRS,PR_REVIEWED,RESCOPE,RETRY,REVEAL,SCAN_AUDIT,SDD_TRAP_STOP,SEAT,STACK_HRS,STORE_RATE,UNFAMILIAR_HRS,VENDORS,kt,nt,AI_MAX,AI_P,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL,MD_P,SKILLS_CX,TEST_CATCH,STACKS} from './data.js';
 import {GIG_LATE,GIG_PAY,RESEARCH_RATE,START,TRAP_RATE} from './state.js';
 import {P_STEP,REVIEW,STORE_REJECT} from './calc.js';
-import {AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_TRUST,DOUBT_TRUST,EVAL_TK,EVENT_RATE,INC_LATE_TRUST,INC_RAMP,INC_RATE,LATE_TRUST,OVERDRAFT_TRUST,OVERNIGHT_HRS,PACE_KPI,PRAISE_TRUST,RESCOPE_TRUST,REVIEW_LOAD,SLOT_CHOICES,TRAP_STOP} from './actions.js';
+import {CANCEL_MIN,AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_TRUST,DOUBT_TRUST,EVAL_TK,EVENT_RATE,INC_LATE_TRUST,INC_RAMP,INC_RATE,LATE_TRUST,OVERDRAFT_TRUST,OVERNIGHT_HRS,PACE_KPI,PRAISE_TRUST,RESCOPE_TRUST,REVIEW_LOAD,SLOT_CHOICES,TRAP_STOP} from './actions.js';
 import {GRADES,PAR_GRADE,SCORE} from './modals.js';
 import {mo,ov} from './view.js';
 
@@ -96,7 +96,8 @@ export function rulesTab(id){
       `${rtag('平行模式')}同時跑 ${SLOT_CHOICES[0]}–${SLOT_CHOICES[SLOT_CHOICES.length-1]} 個 agent（開局選），你的時間花在派工和審 PR。`,
       `${rtag('平行模式')}成功後審 PR：複雜度 × ${PR_HRS} 小時，有自我審核 ×${PR_REVIEWED}、有 pre-commit hook 再 ×${HOOK_PR}；每多一個還在跑的 agent，審 PR 時間 +${pct(REVIEW_LOAD)}。`,
       `${rtag('平行模式')}完成時每個還在跑的 agent 增加 ${pct(CONFLICT)} 合併衝突機率（有 CI 流水線 ×${CI_CONFLICT}）；衝突的單變成「解決衝突」工單，複雜度少一級。`,
-      `${rtag('平行模式')}下班沒跑完的 agent 會過夜（推進 ${OVERNIGHT_HRS} 小時），到期沒跑完或廠商當機會被中止。`]))
+      `${rtag('平行模式')}下班沒跑完的 agent 會過夜（推進 ${OVERNIGHT_HRS} 小時），到期沒跑完或廠商當機會被中止。`,
+      `${rtag('平行模式')}背景 agent 可以自己中止（按兩次確認）：只付已跑的部分（至少 ${pct(CANCEL_MIN)}），不花時間，工單原樣回到佇列，不算失敗。`]))
     +rsec(`推理強度 ${rtag('進階模式')}`,rtable(['強度','能力','token','時間'],EFFORT.map(e=>[e.name,e.cap>0?`+${e.cap}`:e.cap<0?`${e.cap}`:'不變',`×${e.tk}`,`×${e.hrs}`])));
   }
 }

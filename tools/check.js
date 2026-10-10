@@ -1491,6 +1491,11 @@ function tests(){
   const res=(j,o)=>{ev.length=0; settle(j,o); return of('job_result')[0]?.p||{};};
   newRun('laravel','serial');
   ok(res(job(),{fail:true}).outcome==='aborted','choice-analytics：單線跑不完 → aborted');
+  ok(res(job(),{fail:true,cancel:true}).outcome==='cancelled','abort-agent：玩家中止 → cancelled');
+  S.subs.anthropic='pro'; S.used.sub.anthropic.d=450; ok(res(job({b:'sub'}),{fail:true,cancel:true}).outcome==='cancelled','abort-agent：玩家中止時額度不夠仍是 cancelled');
+  newRun('laravel','parallel'); {const j=job({left:1}); j.issue.running=true; S.jobs=[j]; ev.length=0; A.cancelJobs(()=>true,'到期還沒跑完，只好中止');
+   ok(of('job_result')[0]?.p.outcome==='aborted','abort-agent：到期中止仍是 aborted');}
+  newRun('laravel','serial');
   S.subs.anthropic='pro'; S.used.sub.anthropic.d=450; ok(res(job({b:'sub'})).outcome==='quota','choice-analytics：額度不夠 → quota');
   ok(res(job({ok:false,caught:true})).outcome==='caught','choice-analytics：審核抓到 → caught');
   const rs=res(job());
@@ -2107,6 +2112,58 @@ function tests(){
    ok(Ru.rulesTab('score').includes('研討會報名費'),'rules-reference：個人花費包含研討會報名費');}
   globalThis.gtag=g0;
   }
+  /* ===== 玩家中止背景 agent（gh-32-01-abort-agent） ===== */
+  {
+  const run=(is,x={})=>{S.issues.push(is); is.running=true; const j={issue:is,v:'anthropic',m:'opus',ef:1,b:'api',M:model('anthropic','opus'),rv:0,tk:200,hrs:4,left:3,ok:true,caught:false,hidden:false,stop:false,sdd:false,...x}; S.jobs.push(j); return j;};
+  /* 11:00 中止 Opus 個人 API、200k／4h、還剩 3h */
+  newRun('laravel','parallel'); S.hours=6; S.wallet=8000;
+  const c1=ticket('laravel',2); run(c1); const tk0=S.st.tk.anthropic;
+  A.cancelJob(c1.id);
+  ok(near(S.st.tk.anthropic-tk0,50)&&near(S.wallet,7955)&&S.hours===6,'abort-agent：已跑 1/4 扣 50k、錢包 -NT$45、時鐘不動',`${S.st.tk.anthropic-tk0} ${S.wallet} ${S.hours}`);
+  ok(!S.jobs.length&&S.issues.includes(c1)&&!c1.running,'abort-agent：agent 移出工作槽、工單回到佇列');
+  ok(S.log[0].cls==='warn'&&S.log[0].msg.endsWith('⏹ 中止 t｜Claude Code / Opus・個人 API｜燒掉 50k｜NT$45｜1.0h'),'abort-agent：紀錄寫中止那行',S.log[0].msg);
+  /* 剛派出去就中止：至少 5% */
+  newRun('laravel','parallel'); const c2=ticket('laravel',2); run(c2,{left:4}); const tk1=S.st.tk.anthropic;
+  A.cancelJob(c2.id); ok(near(S.st.tk.anthropic-tk1,10),'abort-agent：剛派就中止扣 10k（5%）',S.st.tk.anthropic-tk1);
+  /* 工單原樣：tries、base 不變 */
+  newRun('laravel','parallel'); const c3=ticket('laravel',3,{base:120}); run(c3);
+  A.cancelJob(c3.id); ok(c3.tries===0&&c3.base===120&&c3.cx===3,'abort-agent：tries 0、base 120k 不變',`${c3.tries} ${c3.base}`);
+  /* 隱藏陷阱不曝光 */
+  newRun('laravel','parallel'); const c4=ticket('laravel',1,{trap:true,trueCx:4,trueBase:BASE[4]}); run(c4,{hidden:true,stop:true}); const th=S.st.trapHit;
+  A.cancelJob(c4.id); ok(c4.cx===1&&!c4.revealed&&S.st.trapHit===th,'abort-agent：隱藏陷阱不曝光、不算踩到');
+  /* 本地 GPU 立刻釋放 */
+  newRun('laravel','parallel'); const c5=ticket('laravel',2); run(c5,{v:'local',m:'qwen',b:'local',M:model('local','qwen')});
+  const busy=C.localBusy(); A.cancelJob(c5.id); ok(busy&&!C.localBusy(),'abort-agent：中止 Qwen 後本地 GPU 釋放');
+  /* 機敏單走個人 API 照擲稽核 */
+  newRun('laravel','parallel'); S.trust=70; const c6=ticket('laravel',2,{sens:true}); run(c6);
+  {const rr=Math.random; Math.random=()=>0; A.cancelJob(c6.id); Math.random=rr;}
+  ok(S.trust===58,'abort-agent：機敏單中止照擲稽核（信任 -12）',S.trust);
+  /* 不動作：單線、找不到的編號 */
+  newRun('laravel','serial'); const c7=ticket('laravel',2); run(c7); const n7=S.log.length;
+  A.cancelJob(c7.id); ok(S.jobs.length===1&&S.log.length===n7,'abort-agent：單線模式不能中止');
+  newRun('laravel','parallel'); const c8=ticket('laravel',2); run(c8); const n8=S.log.length, w8=S.wallet;
+  A.cancelJob(-1); ok(S.jobs.length===1&&S.log.length===n8&&S.wallet===w8,'abort-agent：找不到的編號不動作');
+  {const tab=Ru.RULE_TABS.map(t=>Ru.rulesTab(t.id)).find(h=>h.includes('背景 agent 可以自己中止'))||'';
+   ok(tab.includes('中止')&&tab.includes('5%')&&tab.includes('不算失敗'),'abort-agent：規則 modal 說明玩家中止與至少 5%');}
+  /* 到期中止照舊算失敗 */
+  A.cancelJobs(()=>true,'到期還沒跑完，只好中止'); ok(c8.tries===1,'abort-agent：到期中止仍然 tries +1',c8.tries);
+  /* 兩段式按鈕（點擊走 main.js 的事件委派） */
+  {const click=b=>els.app.on.click({target:{closest:()=>b}}), btn=id=>({dataset:{cancel:String(id)},disabled:false});
+   newRun('laravel','parallel'); S.hours=6; const u1=ticket('laravel',2); run(u1); Vw.armCancel(null); render();
+   ok(els.app.innerHTML.includes(`data-cancel="${u1.id}">中止</button>`),'abort-agent：背景 agent 列有中止按鈕');
+   click(btn(u1.id));
+   ok(S.jobs.length===1&&els.app.innerHTML.includes(`data-cancel="${u1.id}">確定中止？</button>`),'abort-agent：第一次點只變成確定中止？、agent 照跑');
+   click(btn(u1.id));
+   ok(!S.jobs.length&&S.issues.includes(u1)&&!u1.running&&!els.app.innerHTML.includes('data-cancel'),'abort-agent：再點一次就中止，工單回到佇列');
+   const u2=ticket('laravel',2); run(u2,{left:3.5,hrs:4}); render(); click(btn(u2.id));
+   click({dataset:{act:'wait1'},disabled:false});
+   ok(S.jobs.length===1&&els.app.innerHTML.includes(`data-cancel="${u2.id}">中止</button>`),'abort-agent：待確認時點等 1 小時就恢復中止、agent 照跑');
+   click(btn(u2.id)); click(null);
+   ok(Vw.cancelArm===null&&S.jobs.length===1&&els.app.innerHTML.includes(`data-cancel="${u2.id}">中止</button>`),'abort-agent：點非按鈕的地方也恢復');
+   newRun('laravel','serial'); const u3=ticket('laravel',2); S.issues=[u3]; render();
+   ok(!els.app.innerHTML.includes('data-cancel'),'abort-agent：單線模式沒有中止按鈕');}
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   if(fail) process.exitCode=1;
 }
