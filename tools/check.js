@@ -2471,7 +2471,19 @@ function tests(){
     ok(d&&!d.bad&&d.S.day===5,'i18n：中文存檔在英文模式下讀得到',JSON.stringify(d&&{bad:d.bad,day:d.S?.day}));
     M.showResume(d); els.mo.onclick({target:{closest:()=>({dataset:{act:'resume'}})}});
     ok(els.app.innerHTML.includes('Ticket queue')&&els.mo.innerHTML.includes('Start working')&&rep.every(x=>els.mo.innerHTML.includes(x)),'i18n：讀檔後畫面英文，早上報告照存的內容');
+    /* 開局視窗也能換語言，已選的項目保留 */
+    I.setLang('zh-TW'); resetStore(); start(); const g0=ge.length;
+    const clickMo=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+    clickMo({company:'rust'}); clickMo({company:'laravel'}); clickMo({mode:'parallel'}); clickMo({slots:'4'});
+    ok(/class="on" data-lang="zh-TW"/.test(els.mo.innerHTML),'i18n：開局視窗有語言按鈕');
+    clickMo({lang:'en'});
+    const mh=els.mo.innerHTML;
+    ok(mh.includes('Start of the month')&&/sel" data-company="rust"/.test(mh)&&/sel" data-mode="parallel"/.test(mh)&&/sel" data-slots="4"/.test(mh)&&!/sel" data-company="laravel"/.test(mh),'i18n：開局視窗切到英文，Rust、平行、4 個 agent 保留');
+    ok(store[I.LANG_KEY]==='en'&&ge.length===g0&&els.app.innerHTML.includes('Ticket queue'),'i18n：開局視窗切換存偏好、不送 GA、背後畫面也換');
+    showSetup(true); clickMo({lang:'zh-TW'}); ok(els.mo.innerHTML.includes('週一：調整訂閱'),'i18n：週一調整訂閱也能切回繁中');
     delete globalThis.gtag; I.setLang('zh-TW'); resetStore();}
+   /* 開局說明：錢不算分 */
+   ok(I.LANGS[0].dict['ui.setup.r.late'].includes('錢不算分')&&!I.LANGS[0].dict['ui.setup.r.late'].includes('花了多少錢')&&I.LANGS[1].dict['ui.setup.r.late'].includes('money does not score'),'開局說明：月底結算看 KPI、信任與稽核，錢不算分');
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);

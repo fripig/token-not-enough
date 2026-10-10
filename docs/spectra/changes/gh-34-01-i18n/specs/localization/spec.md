@@ -51,12 +51,17 @@ On page load the game SHALL pick the current language in this order: a valid sto
 
 ### Requirement: Language switch
 
-The game header SHALL show one button per registered language, labelled with its display name, with the current language highlighted. Clicking a language that is not current SHALL set it as the current language, write its id to `localStorage` key `tokgame-lang` (write wrapped in try/catch; a failed write SHALL keep the choice for this page only), set `<html lang>` to the language id, set `document.title` from the dictionary, show only that language's footer and redraw the game screen. The switch SHALL NOT change the game state, SHALL NOT write the save, SHALL NOT send a GA event and SHALL NOT write a log entry. It SHALL be usable at any point of a run, including mid-day with agents running.
+The game header SHALL show one button per registered language, labelled with its display name, with the current language highlighted. The setup modal, both at run start and for the Monday 調整訂閱, SHALL show the same buttons; a click there SHALL apply the same effects, redraw the setup modal in the new language and keep every choice already made in it (work content, mode, slots, freelance, advanced, plans, seat request). Clicking a language that is not current SHALL set it as the current language, write its id to `localStorage` key `tokgame-lang` (write wrapped in try/catch; a failed write SHALL keep the choice for this page only), set `<html lang>` to the language id, set `document.title` from the dictionary, show only that language's footer and redraw the game screen. The switch SHALL NOT change the game state, SHALL NOT write the save, SHALL NOT send a GA event and SHALL NOT write a log entry. It SHALL be usable at any point of a run, including mid-day with agents running.
 
 #### Scenario: Switching mid-run
 
 - **WHEN** the player is on day 7 in zh-TW with two agents running and clicks English
 - **THEN** the header, ticket cards, dispatch panel and buttons redraw in English, `tokgame-lang` is `en`, `<html lang>` is `en`, the save in `tokgame-save` is unchanged, the two agents keep running with unchanged times, and no GA event is sent
+
+#### Scenario: Switching in the setup modal
+
+- **WHEN** the run-start setup modal is open in zh-TW, the player has picked Rust and parallel mode with 4 slots, and clicks English in the modal
+- **THEN** the modal redraws in English with Rust, parallel mode and 4 slots still selected, `tokgame-lang` is `en`, and no GA event is sent
 
 #### Scenario: Preference survives a reload
 

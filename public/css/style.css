@@ -236,6 +236,7 @@ button:disabled{cursor:not-allowed;opacity:.42}
 .lang button+button{border-left:1px solid var(--line)}
 .lang button:hover{color:var(--ink)}
 .lang button.on{background:var(--accent);color:var(--accent-ink)}
+.mlang{display:flex;margin:-4px 0 10px}
 /* 窄螢幕：表格每一列排成一張卡片，欄名當標籤 */
 @media (max-width:480px){
   .rt thead{display:none}

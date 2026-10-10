@@ -12,7 +12,8 @@ Issue #34: 「如果要加入多語系 應該就要引入框架了吧」. The us
 - public/index.html: `<head>` (title, description, Open Graph, JSON-LD), `sitemap.xml` and the OG image stay Chinese. The footer introduction is written in the HTML once per language (Chinese and English), and the script shows only the current language's footer, so the Chinese footer stays in the page source whatever language a crawler renders with (Googlebot usually renders with `en-US`). `document.title` and `<html lang>` follow the current language.
 - Money stays `NT$` with the same amounts in every language; GA event names and parameters are not translated.
 - `tools/fake-dom.js` pins the language to zh-TW (Node 24 has its own `navigator.language` = `en-US`), so `tools/check.js` and `tools/sim.js` output stays Chinese and fixed-seed simulator output stays byte-identical. `tools/check.js` adds dictionary checks (same key set, same pool lengths, every literal `t()` key exists).
-- The language switch is added hidden and only shown after every batch of strings is extracted and translated.
+- The language switch is added hidden and only shown after every batch of strings is extracted and translated. It appears in the game header and in the setup modal (run start and Monday 調整訂閱), because the run-start setup modal covers the header; switching there redraws the modal and keeps the choices made so far (added 2026-10-10 after the first local check, chosen by the user).
+- Copy fix chosen by the user during this change: the last line of the setup introduction said the month-end score counts how much of your own money you spent, which is outdated since `gh-26-01-money-off-score` (#26); both dictionaries now say the score uses KPI, trust and security audits and money does not score.
 - `README.md` gets a short "add a language" section; `docs/DESIGN.md` records the decisions and replaces 「介面文字一律繁體中文」 with "zh-TW is the default language; every UI string goes through the dictionaries".
 
 ## Non-Goals (optional)

@@ -148,7 +148,7 @@ export const DICT={
   'ui.setup.r.cn':'<b>Chinese models</b> (DeepSeek, GLM, Kimi) are cheap and good enough, but every ticket has a client: finance clients forbid sending data to Chinese clouds, and government contracts forbid even Chinese open weights run locally (Qwen).',
   'ui.setup.r.stack':'<b>Stacks</b>: pick 1–2 main stacks; most tickets are split between them, plus frontend tickets and a few from other stacks. Stacks you did not pick are unfamiliar and take twice as long to hand-write.',
   'ui.setup.r.invest':'<b>Presets and engineering investments</b>: save three favourite setups and quick-dispatch from the ticket card; spend hours and company budget on CLAUDE.md, unit tests, CI, hooks, secret scanning, release automation, monitoring, skills, MCP docs and SDD; the earlier the better. On weekends you can pay for local conferences that open Lv2 investments and agent upgrades.',
-  'ui.setup.r.late':'Late tickets cost KPI and trust. The month-end score looks at KPI, trust, and how much of your own money you spent.',
+  'ui.setup.r.late':'Late tickets cost KPI and trust. The month-end score looks at KPI, trust and security audits; money does not score.',
   'ui.setup.work':'Your work (pick 1–2)',
   'ui.setup.level':'Difficulty',
   'ui.setup.gig':'Freelance (does not use a stack slot)',

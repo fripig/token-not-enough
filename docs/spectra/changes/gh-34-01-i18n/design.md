@@ -58,6 +58,14 @@ A value is a string; `{name}` is replaced by `params.name` (missing param leaves
 
 The header gets a small segmented control: one `<button data-lang="<id>">` per `LANGS` entry, current one highlighted, rendered by `render()` from `LANGS`. main.js's delegated click handler calls `setLang(id)` then `render()`. It uses existing button styles and CSS tokens, fits the 400px header, works in both themes. During migration it stays hidden behind a constant `LANG_SWITCH = false` in i18n.js, flipped in the last task.
 
+### Language switch also in the setup modal
+
+The run-start setup modal opens over the header, so a player whose browser language is Chinese but who reads English could only reach the switch after starting day 1. `showSetup` renders the same `langSwitch()` markup under its title; its own click handler (`mo.onclick`, which already handles `data-*` buttons for the draft) calls `setLang` and then redraws with the existing `draw()`, so `draft` is untouched, and also calls `render()` so the game screen behind the modal follows. Alternative: only the header — rejected by the user after the first local check.
+
+### Setup introduction states that money does not score
+
+The setup introduction's last line still said the month-end score counts your own spending, outdated since `gh-26-01-money-off-score`. The `ui.setup.r.late` value changes in both dictionaries; no logic changes. It is in this change because the text was already being moved and translated.
+
 ### Tools pin zh-TW
 
 `tools/fake-dom.js` defines `globalThis.navigator` with `language: 'zh-TW'`, `languages: ['zh-TW']` via `Object.defineProperty` (Node's own is a getter), plus stubs for `document.documentElement` and `document.title`. check.js tests detection through `pickLang()` and through `initLang()` after temporarily replacing the navigator stub, and restores zh-TW afterwards.
@@ -74,7 +82,7 @@ Expand: add `i18n.js`, empty-ish dictionaries and tool pins, nothing uses them y
 
 - `public/js/i18n.js`: `LANGS`, `lang`, `LANG_KEY = 'tokgame-lang'`, `LANG_SWITCH`, `t(key, params?) → string`, `tl(key) → array`, `pickLang(stored, list) → id`, `initLang()`, `setLang(id)`, `applyLang()`.
 - `public/js/i18n/zh-TW.js`, `public/js/i18n/en.js`: `export const DICT = { 'dotted.key': 'text {param}', 'pool.<stack>.<n>': [...] }`.
-- Header markup: `button[data-lang]` per language.
+- Header and setup-modal markup: `button[data-lang]` per language (same `langSwitch()` output).
 - Footer markup: `footer.about > [data-lang]` blocks.
 
 **Failure modes.** Missing key in current language → zh-TW text; missing in zh-TW → the key text itself (visible, caught by check.js). `localStorage` read or write throws → treated as no preference / kept for this page only. Missing `document.documentElement`, `document.title` support or footer (Node tools) → silently skipped. Unknown stored id → ignored.

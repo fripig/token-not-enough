@@ -2,10 +2,10 @@ import {COMPANIES,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} 
 import {S,addGigs,clearSave,daySnap,loadGame,saveGame,track} from './state.js';
 import {log} from './calc.js';
 import {PAR,REVIEW_LOAD,SLOT_CHOICES,invCount} from './actions.js';
-import {app,mo,ov,render} from './view.js';
+import {app,langSwitch,mo,ov,render} from './view.js';
 import {firstIssues,start} from './main.js';
 import {showRules} from './rules.js';
-import {t} from './i18n.js';
+import {setLang,t} from './i18n.js';
 
 /* ===== 彈窗 ===== */
 /* 開局說明的條列，內容在字典 */
@@ -42,6 +42,7 @@ export function showSetup(adjust){
   draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],slots:S.slots,outsource:S.outsource,advanced:S.advanced};
   const draw=()=>{
     mo.innerHTML=`<h2>${adjust?t('ui.setup.titleAdj'):t('ui.setup.title')}</h2>
+    <div class="mlang">${langSwitch()}</div>
     ${adjust?`<p class="lead">${t('ui.setup.leadAdj')}</p>${rulesBtn}`:`<p class="lead">${t('ui.setup.lead',{company:companyName(draft.companies),wallet:nt(S.wallet),corp:nt(S.corp)})}</p>
     <ul class="rules">
       ${SETUP_RULES.map(k=>`<li>${t(k)}</li>`).join('')}
@@ -78,6 +79,8 @@ export function showSetup(adjust){
     else if(bt.dataset.adv){draft.advanced=bt.dataset.adv==='1';draw();}
     else if(bt.dataset.act==='close'){ov.hidden=true;}
     else if(bt.dataset.act==='rules'){showRules(back);}
+    /* 開局視窗蓋住標頭，所以這裡也能換語言；草稿不重設 */
+    else if(bt.dataset.lang){setLang(bt.dataset.lang);render();draw();}
     else if(bt.dataset.act==='confirm'){
       if(planShort(adjust)) return; const c=planCost(adjust); S.wallet-=c; S.st.subFee+=c;
       if(!adjust){
