@@ -62,7 +62,7 @@ export function rulesTab(id){
       `直接派工：token ×${RESEARCH_DIRECT_TK}，成功率與時間不變。`,
       `讓 agent 研究：花 ${RESEARCH_TK}k × token 倍率、${RESEARCH_HRS}h × 速度，扣款與資安稽核照評估架構；額度不夠時研究沒做完、不拆單。`,
       `自己研究：花 ${RESEARCH_SELF_HRS}h（不熟的技術線 ×${UNFAMILIAR_HRS}），不花 token；本地 GPU 卡住不能手寫時也不能自己研究。`,
-      `研究完一定拆成兩張：${Object.entries(RESEARCH_SPLIT).map(([c,[a,b]])=>`複雜度 ${c} → ${a}＋${b}`).join('、')}。KPI（外包報酬）照複雜度比例分、總和不變，期限、案主、機敏照舊；拆出來的單不是陷阱、也不能再拆。研究單不能評估架構。`]))
+      `研究完一定拆成兩張：${Object.entries(RESEARCH_SPLIT).map(([c,[a,b]])=>`複雜度 ${c} → ${a}＋${b}`).join('、')}。KPI（外包報酬）照複雜度比例分、總和不變，期限、案主、機敏照舊；拆出來的單不是陷阱、也不能再拆；兩張都逾期時，信任只照一張原單扣一次。研究單不能評估架構。`]))
     +rsec(`接外包 ${rtag('接外包')}`,rlist([
       `每天多 0–2 張外包單，報酬 = KPI × ${GIG_PAY}，做完進個人錢包，不加 KPI、不動信任。`,
       `逾期賠報酬的 ${pct(GIG_LATE)}，不扣 KPI 與信任。`]));

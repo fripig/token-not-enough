@@ -91,7 +91,7 @@ The dispatch panel SHALL offer self research on a research ticket that is not ru
 ---
 ### Requirement: Splitting a researched ticket
 
-Completed research SHALL remove the ticket and put two new tickets with new ids at its position in the queue, and the dispatch panel SHALL select the first part. Part complexities SHALL be 2 and 3 for complexity 4, and 3 and 3 for complexity 5. Each part's base tokens SHALL be BASE[part complexity] × a uniform factor in [0.85, 1.15]. The first part's KPI SHALL be round(original KPI × its complexity ÷ the sum of part complexities) and the second part's KPI the remainder; an outsourced ticket's pay SHALL be split the same way. Each part SHALL keep the original's stack, client, sensitivity, due date, outsourced flag and store review, SHALL keep large codebase only when its complexity is at least 3, and SHALL NOT be an incident, a trap, a research ticket, evaluated, revealed or a merge-conflict ticket, with no failed attempts. Part titles SHALL be the two part titles of the original's research title entry.
+Completed research SHALL remove the ticket and put two new tickets with new ids at its position in the queue, and the dispatch panel SHALL select the first part. Part complexities SHALL be 2 and 3 for complexity 4, and 3 and 3 for complexity 5. Each part's base tokens SHALL be BASE[part complexity] × a uniform factor in [0.85, 1.15]. The first part's KPI SHALL be round(original KPI × its complexity ÷ the sum of part complexities) and the second part's KPI the remainder; an outsourced ticket's pay SHALL be split the same way. Each part SHALL keep the original's stack, client, sensitivity, due date, outsourced flag and store review, SHALL keep large codebase only when its complexity is at least 3, and SHALL NOT be an incident, a trap, a research ticket, evaluated, revealed or a merge-conflict ticket, with no failed attempts. Part titles SHALL be the two part titles of the original's research title entry. Each part SHALL remember the original ticket's id. When both parts of the same original are overdue at the end of the same day, the trust drop SHALL apply only once for that original: the first part logs the normal trust drop and the second logs 信任 -0, while each part still loses its own KPI penalty and counts as one overdue ticket.
 
 #### Scenario: KPI split
 
@@ -108,6 +108,11 @@ Completed research SHALL remove the ticket and put two new tickets with new ids 
 
 - **WHEN** a sensitive, large-codebase financial-client research ticket of complexity 4 due on day 9 is researched
 - **THEN** both parts are sensitive, belong to the financial client and are due on day 9, only the complexity-3 part is large codebase, and neither part is a research ticket
+
+#### Scenario: Both parts overdue
+
+- **WHEN** a Laravel research ticket of complexity 4 with KPI 16 due on day 9 is split, neither part is done, and day 9 ends with KPI 50 and trust 70
+- **THEN** KPI is 42, trust is 66, the overdue count rises by 2, the log line of the second part ends with `信任 -0`, and the next morning report reads `2 張工單逾期，主管信任 -4。`
 
 #### Scenario: Merge conflict on a directly dispatched research ticket
 

@@ -231,7 +231,7 @@ export function splitResearch(is){
   const [c1,c2]=RESEARCH_SPLIT[is.cx], T=c1+c2, k1=Math.round(is.kpi*c1/T), p1=is.out?Math.round(is.pay*c1/T):0;
   const part=(c,title,kpi,pay)=>{const base=BASE[c]*R(.85,1.15);
     return {id:nextId(),title,cx:c,base,inc:false,stack:is.stack,trap:false,trueCx:c,trueBase:base,revealed:false,evaluated:false,rescoped:false,merge:false,research:false,
-      store:is.store,sens:is.sens,big:is.big&&c>=3,client:is.client,due:is.due,kpi,tries:0,...(is.out?{out:true,pay}:{})};};
+      store:is.store,sens:is.sens,big:is.big&&c>=3,client:is.client,due:is.due,kpi,tries:0,from:is.id,...(is.out?{out:true,pay}:{})};};
   const parts=[part(c1,is.parts[0],k1,p1),part(c2,is.parts[1],is.kpi-k1,is.out?is.pay-p1:0)];
   S.issues.splice(at,1,...parts); sel.issue=parts[0].id;
   return parts;
@@ -371,7 +371,9 @@ export function endDay(){
   if(gigLate.length) rep.push(`${gigLate.length} 張外包單逾期，賠了 ${nt(gigLate.reduce((a,i)=>a+Math.round(i.pay*GIG_LATE),0))} 違約金。`);
   const late=S.issues.filter(i=>!i.out&&i.due<=S.day);
   let lateTrust=0;
-  late.forEach(i=>{const pen=Math.ceil(i.kpi*LATE_KPI), t=i.inc?(S.inv.monitor?MONITOR_LATE:INC_LATE_TRUST):LATE_TRUST;S.kpi-=pen;S.st.kpiLost+=pen;S.trust=Math.max(0,S.trust-t);lateTrust+=t;S.st.late++;log('bad',`⌛ 逾期：${i.title}｜KPI -${pen}｜信任 -${t}`);});
+  /* 研究拆出來的兩張單算同一張原單：都逾期時信任只扣一次 */
+  const lateFrom=new Set();
+  late.forEach(i=>{const pen=Math.ceil(i.kpi*LATE_KPI), t=i.from&&lateFrom.has(i.from)?0:i.inc?(S.inv.monitor?MONITOR_LATE:INC_LATE_TRUST):LATE_TRUST; if(i.from)lateFrom.add(i.from);S.kpi-=pen;S.st.kpiLost+=pen;S.trust=Math.max(0,S.trust-t);lateTrust+=t;S.st.late++;log('bad',`⌛ 逾期：${i.title}｜KPI -${pen}｜信任 -${t}`);});
   S.issues=S.issues.filter(i=>i.due>S.day);
   if(late.length) rep.push(`${late.length} 張工單逾期，主管信任 -${lateTrust}。`);
   if(S.corpDay>CORP_DAY_LIMIT){S.trust=Math.max(0,S.trust-CORP_DAY_TRUST);rep.push(`今天公司 API 刷了 ${nt(S.corpDay)}，主管在 Slack 問你在幹嘛（信任 -${CORP_DAY_TRUST}）。`);log('warn',`! 公司單日花費 ${nt(S.corpDay)} 太高，信任 -${CORP_DAY_TRUST}`);}

@@ -28,7 +28,7 @@ Recorded in design.md.
 ### Modified Capabilities
 
 - `dispatch-outcome`: the token estimate includes the research-ticket multiplier (see `research-tickets`).
-- `ticket-lifecycle`: ticket generation names `research-tickets` as the source of the research field.
+- `ticket-lifecycle`: ticket generation names `research-tickets` as the source of the research field; the overdue trust drop is 0 for the second overdue part of the same researched ticket.
 - `trap-tickets`: architecture evaluation is not offered on research tickets.
 - `play-analytics`: new `research` event; `dispatch` and `job_result` carry `research`.
 - `rules-reference`: the 工單與陷阱 tab covers research tickets.

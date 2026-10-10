@@ -1874,6 +1874,13 @@ function tests(){
    newRun('laravel'); S.corp=5; tr=rt('laravel',4); pick3(tr,'anthropic','opus','corp'); A.research('agent');
    ok(S.corp===0&&S.trust===62&&S.issues.length===2&&S.log.some(l=>l.msg.includes('公司 API 預算透支')),'research：研究刷公司 API 透支時信任 -8、預算歸零',`${S.corp} ${S.trust}`);
    newRun('laravel','parallel'); tr=rt('laravel',4); pick3(tr,'anthropic','sonnet','api'); A.research('self'); ok(near(S.hours,6.5)&&S.issues.length===2&&!tr.running,'research：平行模式自己研究推進時鐘 1.5h');
+  /* research 拆單逾期：同一張原單信任只扣一次 */
+   {const lateRun=origs=>{newRun('laravel'); S.day=9; S.kpi=50; S.issues=[]; for(const o of origs){S.issues.push(o); A.splitResearch(o);} rand(.99,endDay);};
+    lateRun([rt('laravel',4,{kpi:16,due:9})]);
+    ok(S.trust===66&&S.kpi===42&&S.st.late===2&&els.mo.innerHTML.includes('2 張工單逾期，主管信任 -4。')&&S.log.some(l=>l.msg.includes('⌛ 逾期：拆單二｜KPI -5｜信任 -0')),'research：同一張研究單拆出的兩張都逾期時信任只扣 4、KPI 各扣一半',`${S.trust} ${S.kpi}`);
+    lateRun([rt('laravel',4,{kpi:16,due:9}),rt('laravel',5,{kpi:24,due:9})]);
+    ok(S.trust===62&&S.st.late===4,'research：兩張不同研究單的拆單都逾期時各扣一次（-8）',`${S.trust}`);
+    ok(A.splitResearch.length===1&&(()=>{newRun('laravel'); const o=rt('laravel',4); S.issues=[o]; return A.splitResearch(o).every(p=>p.from===o.id);})(),'research：拆單記住原單 id');}
   /* research 3.1 卡片與派工台 */
    newRun('laravel'); tr=rt('laravel',4); pick3(tr,'anthropic','sonnet','api'); render(); const h=els.app.innerHTML;
    ok(h.includes('<span class="chip rsch">需研究</span>')&&h.includes('直接派工 token ×4（先研究可拆成兩張小單）'),'research：研究單卡片顯示需研究與 ×4 提示');
