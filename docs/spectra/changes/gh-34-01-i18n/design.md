@@ -83,7 +83,7 @@ Expand: add `i18n.js`, empty-ish dictionaries and tool pins, nothing uses them y
 - `public/js/i18n.js`: `LANGS`, `lang`, `LANG_KEY = 'tokgame-lang'`, `LANG_SWITCH`, `t(key, params?) → string`, `tl(key) → array`, `pickLang(stored, list) → id`, `initLang()`, `setLang(id)`, `applyLang()`.
 - `public/js/i18n/zh-TW.js`, `public/js/i18n/en.js`: `export const DICT = { 'dotted.key': 'text {param}', 'pool.<stack>.<n>': [...] }`.
 - Header and setup-modal markup: `button[data-lang]` per language (same `langSwitch()` output).
-- Footer markup: `footer.about > [data-lang]` blocks.
+- Footer markup: `<footer class="about" id="about">` holding one `[data-lang]` block per language; `applyLang` finds it by the `about` id.
 
 **Failure modes.** Missing key in current language → zh-TW text; missing in zh-TW → the key text itself (visible, caught by check.js). `localStorage` read or write throws → treated as no preference / kept for this page only. Missing `document.documentElement`, `document.title` support or footer (Node tools) → silently skipped. Unknown stored id → ignored.
 

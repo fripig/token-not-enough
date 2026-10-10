@@ -2482,6 +2482,17 @@ function tests(){
     ok(store[I.LANG_KEY]==='en'&&ge.length===g0&&els.app.innerHTML.includes('Ticket queue'),'i18n：開局視窗切換存偏好、不送 GA、背後畫面也換');
     showSetup(true); clickMo({lang:'zh-TW'}); ok(els.mo.innerHTML.includes('週一：調整訂閱'),'i18n：週一調整訂閱也能切回繁中');
     delete globalThis.gtag; I.setLang('zh-TW'); resetStore();}
+   /* 頁尾：只顯示目前語言那份，其他的留著但隱藏 */
+   {const fb=lg=>els.about.blocks.find(b=>b.dataset.lang===lg);
+    I.setLang('en'); ok(fb('en').hidden===false&&fb('zh-TW').hidden===true&&els.about.blocks.length===2,'i18n：英文時只顯示英文頁尾，中文頁尾還在但隱藏');
+    I.setLang('zh-TW'); ok(fb('zh-TW').hidden===false&&fb('en').hidden===true,'i18n：繁中時只顯示中文頁尾');
+    resetStore();}
+   /* GA：同一張單用中文和英文派工，送出的事件一模一樣 */
+   {const rnd0=Math.random, runGa=lg=>{const ge=[]; globalThis.gtag=(k,n,p)=>ge.push({n,p}); I.setLang(lg); seedRandom(5); newRun('laravel'); S.issues=[makeIssue(false)];
+      sel.issue=S.issues[0].id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:1}); dispatch(); delete globalThis.gtag; return JSON.stringify(ge);};
+    const gz=runGa('zh-TW'), gn=runGa('en'); Math.random=rnd0;
+    ok(gz===gn&&gz.includes('"dispatch"')&&gz.includes('"job_result"'),'i18n：中英派工送出的 GA 事件與參數相同',`${gz.slice(0,160)} ／ ${gn.slice(0,160)}`);
+    I.setLang('zh-TW'); resetStore();}
    /* 開局說明：錢不算分 */
    ok(I.LANGS[0].dict['ui.setup.r.late'].includes('錢不算分')&&!I.LANGS[0].dict['ui.setup.r.late'].includes('花了多少錢')&&I.LANGS[1].dict['ui.setup.r.late'].includes('money does not score'),'開局說明：月底結算看 KPI、信任與稽核，錢不算分');
   }
