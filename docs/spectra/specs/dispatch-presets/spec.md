@@ -43,7 +43,7 @@ The game SHALL keep three dispatch presets named 方案 A, 方案 B and 方案 C
 ---
 ### Requirement: Saving and loading presets in the dispatch panel
 
-The dispatch panel SHALL offer a save button for each preset that copies the current vendor, model, billing, review, reasoning-effort and requested SDD level selection into that preset, and a load button for each preset that copies the preset into the current selection without dispatching. In 進階 mode the load button label SHALL show the preset's effort when it is not 中. While SDD level 1 or higher is owned, the load button label SHALL show the preset's applied SDD level as SDD 不用, SDD markdown or SDD 框架; while SDD is not owned it SHALL NOT mention SDD.
+The dispatch panel SHALL offer a save button for each preset that copies the current vendor, model, billing, review, reasoning-effort and requested SDD level selection into that preset, and a load button for each preset that copies the preset into the current selection without dispatching. The load buttons SHALL be at the top of the dispatch panel, right under the ticket title and before the estimate; the save buttons SHALL be at the bottom, after the fine-tuning sections. A load button SHALL be shown as selected when the current selection equals its preset on vendor, model, billing, review, applied SDD level and, in 進階 mode, reasoning effort. In 進階 mode the load button label SHALL show the preset's effort when it is not 中. While SDD level 1 or higher is owned, the load button label SHALL show the preset's applied SDD level as SDD 不用, SDD markdown or SDD 框架; while SDD is not owned it SHALL NOT mention SDD.
 
 #### Scenario: Save current selection
 
@@ -53,7 +53,7 @@ The dispatch panel SHALL offer a save button for each preset that copies the cur
 #### Scenario: Load a preset
 
 - **WHEN** the player presses 載入方案 C
-- **THEN** the dispatch panel shows 方案 C's vendor, model, billing, review, effort and SDD level as selected and the estimate is recomputed
+- **THEN** the dispatch panel shows 方案 C's vendor, model, billing, review, effort and SDD level as selected, the estimate at the top is recomputed and the 載入方案 C button is shown as selected
 
 #### Scenario: Effort in the load label
 
@@ -111,29 +111,29 @@ code:
 ---
 ### Requirement: One-click dispatch from the ticket card
 
-Each ticket card in the queue SHALL show a one-click dispatch button that uses the first usable preset in A, B, C order. The button SHALL name the chosen preset with its agent, model and billing, and when an earlier preset was skipped it SHALL show the first skipped preset's reason. When no preset is usable the button SHALL be disabled and read 沒有可用方案. The button SHALL be disabled when no work slot is free (parallel mode) or fewer than 0.2 hours remain. Pressing it SHALL dispatch the ticket exactly as the dispatch panel would with that preset selected, and SHALL log the skipped preset and reason when skipping occurred. A sensitive ticket SHALL NOT skip a preset with personal billing; the card SHALL show the audit-risk warning instead.
+Each ticket card in the queue SHALL show three one-click dispatch buttons, one for each of 方案 A, 方案 B and 方案 C in that order. Each button SHALL name its preset letter, the preset's model and its billing. A button whose preset is unusable for that ticket (requirement "Preset usability per ticket") SHALL be disabled and show the reason. All three buttons SHALL be disabled when no work slot is free (parallel mode) or fewer than 0.2 hours remain. Pressing an enabled button SHALL dispatch the ticket exactly as the dispatch panel would with that preset selected, with the dispatch trigger 一鍵派工方案 <letter>; it SHALL NOT fall back to another preset and SHALL NOT log skipped presets. A sensitive ticket SHALL NOT disable a preset with personal billing; that button SHALL show the audit odds instead. Batch dispatch keeps choosing the first usable preset in A, B, C order and logging skipped presets (requirement "Batch dispatch unlocked by skills" in `engineering-investments`).
 
-#### Scenario: Fallback with reason
+#### Scenario: Choose a preset on a finance ticket
 
-- **WHEN** a finance-client ticket is dispatched with the one-click button and 方案 A is DeepSeek Chat
-- **THEN** the ticket is dispatched with 方案 B and the log names that 方案 A was skipped with the ban reason
+- **WHEN** a finance-client ticket is in the queue with the default presets and the player presses its 方案 B button
+- **THEN** the 方案 A button is disabled showing the ban reason, the ticket is dispatched with Claude Code / Sonnet・公司 API and the log names 一鍵派工方案 B without a skipped preset
+
+#### Scenario: Disabled preset does nothing
+
+- **WHEN** one-click dispatch is invoked for a preset that is unusable for the ticket
+- **THEN** nothing is dispatched and no game value changes
 
 #### Scenario: No usable preset
 
 - **WHEN** all three presets are unusable for a ticket
-- **THEN** the ticket's one-click button is disabled and reads 沒有可用方案
+- **THEN** all three of the ticket's one-click buttons are disabled, each showing its reason
 
 #### Scenario: Sensitive ticket keeps personal billing
 
-- **WHEN** a sensitive ticket's first usable preset uses 個人 API
-- **THEN** that preset is used and the card shows the audit-risk warning
+- **WHEN** a sensitive ticket's 方案 A uses 個人 API with DeepSeek
+- **THEN** the 方案 A button is enabled and shows the audit odds 60%
 
-<!-- @trace
-source: dispatch-presets-and-investments
-updated: 2026-10-09
-code:
-  - public/css/style.css
-  - public/js/game.js
-  - tools/check/dispatch-presets.test.js
-  - tools/sim.js
--->
+#### Scenario: No free slot
+
+- **WHEN** every work slot is busy in parallel mode
+- **THEN** all three one-click buttons on every card are disabled
