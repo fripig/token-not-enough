@@ -2,12 +2,27 @@
 // 每個 tools/check/<spec>.test.js 第一行 import 這個檔：先裝假 DOM、設種子，再載入遊戲入口，順序和瀏覽器一樣。
 // node:test 讓每個檔各自開一個 process，所以每個檔都從剛載入的遊戲、同一個 CHECK_SEED 開始。
 import {test} from 'node:test';
-import '../fake-dom.js';
+import {els} from '../fake-dom.js';
 import '../check-seed.js';
 // main.js 載入時會呼叫 boot()／start()
-import '../../public/js/main.js';
+import {start} from '../../public/js/main.js';
+import {BASE,CLIENTS,KPI,model} from '../../public/js/data.js';
+import {S,nextId,sel} from '../../public/js/state.js';
 // 另一份沒玩過的 state.js：用來測第一次 fresh() 的預設值（主模組的 S 已經被 start() 設過）
 export const pristine=await import('../../public/js/state.js?pristine');
+// 設好種子的 Math.random；暫時換掉亂數的測試用它還原
+const R0=Math.random;
+
+// 開一局但不經過彈窗：直接設定公司與模式
+export const newRun=(company,mode='serial')=>{start();S.companies=[].concat(company);S.mode=mode;S.issues=[];S.jobs=[];sel.rv=0;};
+export const ticket=(stack,cx,extra={})=>({id:nextId(),title:'t',cx,base:BASE[cx],inc:false,sens:false,big:false,client:CLIENTS[0],due:20,kpi:KPI[cx],tries:0,stack,store:false,...extra});
+/* 依序回傳 seq 裡的值，用完後一直回傳最後一個 */
+export const withRand=(seq,f)=>{const a=[].concat(seq);let i=0;Math.random=()=>a[Math.min(i++,a.length-1)];try{return f();}finally{Math.random=R0;}};
+/* 模擬點彈窗、主畫面上帶 data-* 的按鈕（走 main.js 的事件委派） */
+export const clickMo=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+export const clickApp=ds=>els.app.on.click({target:{closest:()=>({dataset:ds,disabled:false})}});
+/* 不經過 makeJob 直接組一個 job，給 settle 用 */
+export const job=(is,v,m,b,extra={})=>({issue:is,v,b,M:model(v,m),mul:1,rv:0,tk:100,hrs:1,ok:true,caught:false,left:0,hidden:false,stop:false,sdd:false,...extra});
 
 let fails=null, count=0;
 /* 一條斷言：不符時印出 ✗ 並記下來，區段照樣跑完 */
