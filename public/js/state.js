@@ -92,7 +92,7 @@ export function makeIssue(inc,st){
 
 
 /* 外包單：每種工作內容加前端平均抽，只能自己付 token，做完拿現金（KPI × GIG_PAY）不拿 KPI */
-export const GIG_PAY=80, GIG_LATE=.3, GIG_STACKS=[...COMPANIES,'fe'];
+export const GIG_PAY=250, GIG_LATE=.3, GIG_STACKS=[...COMPANIES,'fe'];
 export const GIG_CLIENT={name:'外包案主',ban:null};
 export function makeGig(){
   const is=makeIssue(false,pick(GIG_STACKS));

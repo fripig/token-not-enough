@@ -63,7 +63,7 @@ export function bills(v,is){
   const V=VENDORS[v], pl=planOf(v), out=[];
   out.push({id:'sub',label:'個人訂閱',note:pl.id==='none'?'沒有訂閱':`${pl.name}・剩 ${kt(quotaLeft('sub',v))}`,ok:pl.id!=='none'});
   if(S.seats.includes(v)) out.push({id:'seat',label:'公司席位',note:`剩 ${kt(quotaLeft('seat',v))}`,ok:true});
-  out.push({id:'api',label:'個人 API',note:'自己的信用卡',ok:true});
+  out.push(S.wallet>0?{id:'api',label:'個人 API',note:'自己的信用卡',ok:true}:{id:'api',label:'個人 API',note:'錢包見底',ok:false});
   out.push({id:'corp',label:'公司 API',note:!V.corp?'公司沒簽約':S.corp<=0?'預算用完':'走部門預算',ok:V.corp&&S.corp>0});
   return out.map(b=>gigBlocked(is,b.id)?{...b,note:GIG_NOTE,ok:false}:b);
 }

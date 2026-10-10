@@ -37,7 +37,7 @@ export function rulesTab(id){
   case 'billing': return rsec('付費方式',rlist([
       `<b>${BILL_LABEL.sub}</b>：月費固定，有每日與每週額度，越強的模型吃額度越快；額度不夠時 agent 停在一半，算失敗。`,
       `<b>${BILL_LABEL.seat}</b>：公司付，每個席位每日 ${kt(SEAT.day)}、每週 ${kt(SEAT.week)} 額度。`,
-      `<b>${BILL_LABEL.api}</b>：用多少付多少，從個人錢包扣。`,
+      `<b>${BILL_LABEL.api}</b>：用多少付多少，從個人錢包扣。錢包不能被花成負數：跑到一半錢用光，agent 停在一半、算失敗；錢包 NT$0 以下時不能選。`,
       `<b>${BILL_LABEL.corp}</b>：扣公司預算，只有 ${APIV.filter(v=>VENDORS[v].corp).map(v=>VENDORS[v].name).join('、')} 可以走。單日超過 ${nt(CORP_DAY_LIMIT)} 信任 −${CORP_DAY_TRUST}；透支信任 −${OVERDRAFT_TRUST}。`,
       `<b>${BILL_LABEL.local}</b>：免費但很慢。${rtag('平行模式')}一次只能跑一個 agent。`,
       `${rtag('接外包')}外包單只能用個人訂閱、個人 API 或本地 GPU。`]))
@@ -59,7 +59,7 @@ export function rulesTab(id){
       `找主管重新評估（曝光後每張一次）：信任 ≥ ${RESCOPE_TRUST} 時信任 −${RESCOPE.ok}、KPI 照真實複雜度、期限 +${RESCOPE.days} 天；否則信任 −${RESCOPE.no}。`]))
     +rsec(`接外包 ${rtag('接外包')}`,rlist([
       `每天多 0–2 張外包單，報酬 = KPI × ${GIG_PAY}，做完進個人錢包，不加 KPI、不動信任。`,
-      `逾期賠報酬的 ${pct(GIG_LATE)}，不扣 KPI 與信任。`]));
+      `逾期賠報酬的 ${pct(GIG_LATE)}，不扣 KPI 與信任；錢包不夠時照扣，可能變成負數。`]));
   case 'invest': return rsec('工程投資',`${rtable(['投資','工時','公司預算','效果'],['md',...INV_KEYS].map(k=>{const I=INVEST[k];return [`${I.name}${k==='md'?'（每條技術線各一次）':''}`,`${I.hrs}h`,nt(I.cost),I.desc];}))}
     ${rlist(['花自己的工時加公司 API 預算，效果維持到月底。'])}`)
     +rsec('採購電腦',`${rtable(['電腦','價格','信任門檻','到貨','效果'],HW_KEYS.map(k=>{const H=HW[k];return [H.name,H.price,H.trust,`${H.days} 天`,H.desc];}))}
@@ -67,15 +67,15 @@ export function rulesTab(id){
       '買了任何一台，本地跑 agent 時還能手寫；本地 GPU 仍然一次只跑一個 agent。',
       `閒置：每台當天沒用到的電腦，下班時信任 −${HW_IDLE}。`])}`);
   case 'score': return rsec('總分',rlist([
-      `總分 = KPI × ${SCORE.kpi} + 信任 × ${SCORE.trust} + (${SCORE.spendBase} − 個人花費) ÷ ${SCORE.spendDiv}（最低 ${SCORE.spendFloor} ÷ ${SCORE.spendDiv}）− 稽核次數 × ${SCORE.audit}。`,
-      '個人花費 = 訂閱費 + 個人 API + 外包違約金 − 外包收入。']))
+      `總分 = KPI × ${SCORE.kpi} + 信任 × ${SCORE.trust} − 稽核次數 × ${SCORE.audit}。`,
+      '錢不算分：結算會列出個人花費（訂閱費 + 個人 API + 外包違約金 − 外包收入）與月底錢包餘額，只影響稱號。']))
     +rsec('評等',`${rtable(['評等','單線模式','平行模式'],GRADES.map((t,i)=>['SABC'[i],t,Math.round(t*PAR_GRADE)]).concat([['D','以下','以下']]))}
     ${rlist(['最高分依「模式 × 工作內容」分開記錄。'])}`)
     +rsec('存檔',rlist(['每天開工時自動存一格，重新整理會回到當天早上。','開新局或月底結算會刪掉存檔。']));
   default: return rsec('時間與資源',rlist([
       `一個月 20 個工作天，每週 5 天，每天 ${START.hours} 小時。`,
       `開局：個人錢包 ${nt(START.wallet)}、公司 API 預算 ${nt(START.corp)}、主管信任 ${START.trust}、KPI 0。`,
-      '週一重置每週額度，可以調整訂閱：升級只補剩下週數的差價，降級不退費。',
+      '週一重置每週額度，可以調整訂閱：升級只補剩下週數的差價，降級不退費。錢包不夠付這次的訂閱就不能確認；已經訂的方案不受錢包影響。',
       `每天有 ${pct(EVENT_RATE)} 機率發生一件隨機事件：API 降價、廠商當機、預算凍結、額度縮水、流量暴增、主管稱讚或質疑、外包尾款、全公司禁中國雲端。`,
       `主管稱讚或質疑看 KPI 有沒有超過天數 × ${PACE_KPI}：超過信任 +${PRAISE_TRUST}，沒超過信任 −${DOUBT_TRUST}；第 6 天前沒超過只提醒、不扣分。`]))
     +rsec('遊戲模式',rlist([

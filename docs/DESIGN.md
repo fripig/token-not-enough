@@ -11,7 +11,7 @@
 - `public/index.html`：頁面骨架。`<head>` 有含關鍵字的 `<title>`、canonical、`theme-color`、Open Graph／Twitter Card、JSON-LD（`VideoGame`）、favicon 與 manifest；`#app` 裡只有載入中的佔位，`start()` 第一次 `render()` 會換掉。遊戲介紹與怎麼玩放在 `#app` 外面的 `<footer class="about">`，一直留在頁面上，Googlebot 執行 JS 後也索引得到。分享圖是 `public/img/og.png`（1200×630），圖示是 `public/favicon.ico`、`public/apple-touch-icon.png`、`public/img/icon-192.png`／`icon-512.png`；另有 `robots.txt`、`sitemap.xml`、`manifest.webmanifest`。改遊戲名稱或介紹時一起更新這些地方（`sitemap.xml` 的 `lastmod` 在介紹內容改動時更新）。
 - `public/css/style.css`：樣式。開頭補了 `body{margin:0}`、`[hidden]{display:none!important}`，原本由 Artifact 外殼提供；少了後者 `.ov` 的 `display:flex` 會蓋過 `hidden`，彈窗關不掉。
 - `public/js/*.js`：遊戲本體，拆成八個原生 ES modules（見「程式碼地圖」），由 `public/index.html` 以 `<script type="module" src="js/main.js">` 載入；無建置步驟、遊戲邏輯沒有外部 JS 相依。瀏覽器不允許從 `file://` 載入模組，一定要用本機伺服器開。頁面另外從 Google Fonts 載字型，並在 `public/index.html` 載入 Google Analytics（gtag.js）做流量統計。遊戲事件由 `state.js` 的 `track()` 送出（沒有 `gtag` 時不動作，node 工具不受影響）：`game_start`（開局確認，週一調整不送）、`day_reached`（開局送第 1 天，之後每天開工送一次）、`game_end`（月底結算，多帶 `score`、`grade`）。每個事件都帶 `game_version`（`data.js` 的 `GAME_VERSION`，部署時 `pages.yml` 把 `'dev'` 換成短 commit hash，sed 沒換到就讓部署失敗）、`game_mode`、`companies`（如 `laravel+rust`）、`slots`（單線為 1）、`advanced`、`outsource`、`day`。看玩家玩到第幾天：GA4 依 `day` 統計 `day_reached` 的使用者數；`day`、`game_mode` 等參數要先在 GA 管理後台註冊成事件範圍的自訂維度才看得到。事件規則以 `docs/spectra/specs/play-analytics/` 為準（Spectra change `gh-10-01-play-analytics`），`tools/check.js` 有對應斷言。訂閱與解決工單的選擇另外送（Spectra change `gh-14-01-choice-analytics`，#14）：`subscription`（開局每家有訂閱的送一筆 `vendor`、`plan`，都沒有送一筆 `none`；週一只送有改的那幾家，開局順序是 `game_start`→`subscription`→`day_reached`）、`dispatch`（agent 開跑時：`vendor`、`model`、`bill`、`review`、`effort`、`via`＝panel／quick／batch、`preset`、工單的 `cx`、`stack`、`incident`、`sensitive`、`gig`、`merge`）、`job_result`（`settle` 時：同樣的選擇參數加 `cx`、`stack`、`gig`、`outcome`＝aborted／quota／conflict／rejected／caught／success／trap_stop／fail、`tokens`（k）、`cost`（NT$）、`hours`）、`manual_fix`（`outcome`＝success／fail／trap、`unfamiliar`、`hours`）、`evaluate`（`cx` 送評估前看到的原估，Spectra change `gh-15-01-evaluate-shown-cx`；`outcome`＝found／clear／quota）、`rescope`（approved／refused）、`invest`（`investment`、`stack`；申請採購電腦也送，`investment` 是 `pc`／`spark`／`mac`）。被擋下的動作不送。GA 後台要把 `vendor`、`plan`、`model`、`bill`、`review`、`effort`、`via`、`preset`、`cx`、`stack`、`incident`、`sensitive`、`gig`、`merge`、`outcome`、`unfamiliar`、`investment` 註冊成事件範圍自訂維度，`tokens`、`cost`、`hours` 註冊成自訂指標。本機用 `python3 -m http.server -d public 8000` 開。
-- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 六種工作內容 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資（`SIM_INVEST=2` 再加買三項新投資，`SIM_INV_EXTRA=monitor,scan` 之類可只加買指定幾項），`SIM_COMBOS=1` 改跑十五種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_EFFORT=1` 開啟進階模式並讓自動玩家挑推理強度，`SIM_SEATS=1..3` 在第 6、11、16 天直接給團隊席位（量上限用，不經信任審核）並讓自動玩家優先刷席位，`SIM_HW=1` 讓自動玩家照真實信任審核採購電腦（信任達門檻才申請，DeepSeek 被禁時改派解鎖的本地模型），`SIM_SUB=pro200|pro500` 讓自動玩家改訂 OpenAI Pro 200／Pro 500（不訂 Max 5×），OpenAI 沒當機、今日額度還超過 300k 時每張單都派 Codex Sol 走個人訂閱，否則照舊派工，`SIM_FLOOR=<NT$>` 用 `monthScore(SIM_FLOOR)` 以另一個個人花費下限重算每局總分與評等（遊戲是 `SPEND_FLOOR` 20000，不受影響），`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好，`SIM_LOG=1` 另外印出每種模式月底執行紀錄的筆數與存檔 JSON 字元數），印出抽樣與每個「模式 × 工作內容」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
+- `tools/sim.js`：平衡模擬器。`node tools/sim.js` 會 import 遊戲模組，用假 DOM（`tools/fake-dom.js`）跑自動玩家（兩種模式 × 六種工作內容 × 三種審核等級，每組預設 100 局，`SIM_N=60` 可調；`SIM_TRAP=0` 可關掉陷阱題做對照，`SIM_SLOTS=2..6` 指定平行模式工作槽數，`SIM_INVEST=1` 讓自動玩家做工程投資（`SIM_INVEST=2` 再加買三項新投資，`SIM_INV_EXTRA=monitor,scan` 之類可只加買指定幾項），`SIM_COMBOS=1` 改跑十五種雙選組合，`SIM_OUTSOURCE=1` 開啟接外包（外包單一律走個人 API），`SIM_EFFORT=1` 開啟進階模式並讓自動玩家挑推理強度，`SIM_SEATS=1..3` 在第 6、11、16 天直接給團隊席位（量上限用，不經信任審核）並讓自動玩家優先刷席位，`SIM_HW=1` 讓自動玩家照真實信任審核採購電腦（信任達門檻才申請，DeepSeek 被禁時改派解鎖的本地模型），`SIM_SUB=pro200|pro500` 讓自動玩家改訂 OpenAI Pro 200／Pro 500（不訂 Max 5×），OpenAI 沒當機、今日額度還超過 300k 時每張單都派 Codex Sol 走個人訂閱，否則照舊派工（方案月費超過起始錢包時直接報錯，所以 `pro500` 不能用），`SIM_UPGRADE=1` 讓自動玩家第 6、11、16 天照錢包（留 NT$1,500 給個人 API）把 OpenAI 升到 Pro 500 或 Pro 200、之後照 `SIM_SUB` 的派法用 Codex Sol，`SIM_UPGRADE=2` 再加上升到 Pro 500 後不接外包單（和 `SIM_OUTSOURCE=1` 一起量外包），`SIM_SEED=<整數>` 用固定種子取代 `Math.random`、輸出可逐字重現，由 `tools/seed.js` 在遊戲模組載入前裝好，`SIM_LOG=1` 另外印出每種模式月底執行紀錄的筆數與存檔 JSON 字元數），印出抽樣與每個「模式 × 工作內容」的平均分、對照同模式 Laravel 的差距和評等分布。改數值後跑一次確認不會壞、沒有明顯失衡。
 - `tools/check.js`：規則檢查。`node tools/check.js` 把 spec 裡的範例數字逐條斷言（技術線分布、成功率、時間倍率、手寫時數、上架審核、KPI 補償、最高分 key、難度標示、接外包、GA 遊戲事件、存檔，以及十份核心規則 spec 的情境），任何一條不符就以非 0 結束。改規則時同步更新。
 
 部署：push 到 `main` 後 `.github/workflows/pages.yml` 把 `public/` 發佈到 https://token-not-enough.youareright.app/ 。只有 `public/` 會公開。自訂網域設在 repo 的 Pages 設定（用 Actions 部署時 `CNAME` 檔不會生效），DNS 是 Cloudflare 上 `youareright.app` 的 CNAME `token-not-enough` → `fripig.github.io`（DNS only），舊網址 `fripig.github.io/token-not-enough/` 會轉址過來。
@@ -73,6 +73,8 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
    → 彈窗裡的訊息補進現有的執行紀錄（不另做每日報告畫面），紀錄整個月都保留（拿掉 80 筆上限）；派工記完整決策（含單線模式、派工台看到的成功率、一鍵／批次用了哪個方案），結果與評估寫付費方式，記等待、隨機事件、逾期扣多少信任、新的一週，每天下班一行總結（都是使用者從選項裡選的）。播放功能選了「紀錄逐筆播放」（不做完整重播整局），另開 change `gh-27-01-log-replay`（#27）。設計紀錄在 Spectra change `gh-25-01-log-history`（#25）。
 26. 「我沒額外買電腦就因為沒用ＡＩ被扣信任度」（#24，新局、沒申請採購、第 1 天下班就被扣）
    → 重現（目前版本各 1,000 局）沒有觸發電腦閒置扣分，最可能是第 2 天早上的事件「主管問進度怎麼這麼慢／「不是有買 AI 嗎？」信任 -4」：「買 AI」被讀成採購電腦，也沒寫出扣分是因為 KPI 沒超過天數 × 7。事件文字改成寫出目前 KPI 與門檻、拿掉「買 AI」，第 1 週（第 6 天前）沒達標只提醒不扣分，後面不補（都是使用者從選項裡選的）。change 原名 `gh-24-01-hw-idle-without-purchase`，根因確認後改名。設計紀錄在 Spectra change `gh-24-01-slow-progress-event`（#24）。
+27. 「外包案子的錢應該要多一點 目前看起來很寒酸」、「錢跟kpi拆開好了 不然感覺只會導致讓玩家不敢花錢」、「因為有新增研討會自費選項 但是一個月內是鐵定回不了本的 但是又對能力有實際差異 所以想把錢跟kpi脫鉤」、「錢不夠應該不影響已有的訂閱」
+   → 月底總分拿掉個人花費（錢只是資源）、錢包用光就停（個人 API 停在一半、錢包 NT$0 以下不能選、付不起的訂閱不能確認，已有的訂閱不受影響）、月底餘額只顯示、外包報酬 KPI × 80 → × 250、評等門檻各減 500（都是使用者從選項裡選的）。起始錢包原本選了調高到 NT$20,000 讓開局訂得起 Pro 500，量測後訂最貴方案變成最佳解、外包變虛，使用者改回 NT$8,000。change 原名 `gh-26-01-gig-pay-raise`，discuss 後範圍變大改名。設計紀錄在 Spectra change `gh-26-01-money-off-score`（#26）。
 
 介面文字一律繁體中文（台灣用語）。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
@@ -231,7 +233,8 @@ SRE、DevOps 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；�
 
 ### 付費方式（`bills`、`settle`）
 - 個人訂閱／公司席位：扣額度，額度不夠時 agent 停在一半（失敗）。
-- 個人 API：扣個人錢包。
+- 個人 API：扣個人錢包，不會扣成負數：錢不夠時付完剩下的錢、agent 停在一半（失敗，紀錄「錢包見底，agent 停在一半」，GA `job_result` 的 `outcome` 跟額度不夠一樣是 `quota`）；評估架構錢不夠時中斷、不算已評估。錢包 NT$0 以下時個人 API 停用（註記「錢包見底」）。只有外包違約金能把錢包扣成負數。
+- 訂閱：開局與週一這次要付的錢大於 0 又超過錢包時不能確認（`planShort`，顯示「錢包不夠付這次的訂閱」）；沒改、降級（付 NT$0）照樣能按，已有的訂閱不受錢包影響。
 - 公司 API：扣公司預算；單日超過 NT$1,500 信任 −6；透支信任 −8。
 - 本地：免費但很慢。平行模式下本地 GPU 一次只能跑一個 agent（`localBusy`），跑的期間（含過夜）不能再派本地、不能用本地評估架構，也不能自己手寫（電腦被吃滿；買了任何一台電腦就能手寫，見「採購電腦」）。單線模式不受影響。
 - 機敏工單走個人訂閱或個人 API：35% 被稽核（信任 −12），中國廠商 60%；有 secret scanning 時減半（17.5%／30%）。
@@ -314,9 +317,9 @@ SRE、DevOps 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；�
 - 開局彈窗有「不接外包／接外包」（`data-out`），不佔主技術線名額，預設不接，跨 `fresh()` 保留，不是布林值就退回不接；週一調整不顯示。開局只切這個開關時不重抽公司工單，只加上或拿掉第 1 天的外包單。
 - 開了之後第 1 天和之後每天額外 0–2 張外包單（`addGigs`）。外包單（`out:true`）的技術線從 laravel、rails、rust、app、fe 平均抽，沒選的非前端技術線一樣算不熟；不會是事故、不機敏，可能是陷阱；案主是「外包案主」（沒有禁令），全公司禁中國雲端也不管它，卡片不顯示「禁中國雲端」。複雜度、期限、Rust／App 補償、上架審核照一般規則。
 - 只能自己付：公司 API 和公司席位（任何一家）停用並顯示「外包不能用公司資源」（`GIG_NOTE`），一鍵派工、批次派工會略過刷公司錢的方案；`dispatch()`、`evaluate()` 遇到這種付費方式直接不動作。
-- 報酬 = KPI × `GIG_PAY`（80）。完成（agent 或自己手寫，都走 `reward`）時錢進個人錢包、記入 `S.st.outIncome`，不加 KPI、不動信任。逾期賠報酬的 `GIG_LATE`（30%，四捨五入），不扣 KPI 與信任，不算進一般逾期張數。
+- 報酬 = KPI × `GIG_PAY`（250；複雜度 1–5 依序 NT$750／1,500／2,500／4,000／6,000，Rust、App、DevOps 再 ×1.3）。完成（agent 或自己手寫，都走 `reward`）時錢進個人錢包、記入 `S.st.outIncome`，不加 KPI、不動信任。逾期賠報酬的 `GIG_LATE`（30%，四捨五入），不扣 KPI 與信任，不算進一般逾期張數；錢包不夠時照扣、可以變成負數。
 - 合併衝突留下的「解決衝突」單仍是外包單，報酬不變。工程投資照常生效。不能找主管重新評估。
-- 卡片顯示「外包」標籤，KPI 位置改顯示報酬。結算的個人花費 = 訂閱費 + 個人 API + 外包違約金 − 外包收入；開外包時多四行：外包收入、外包違約金、外包完成、外包逾期。
+- 卡片顯示「外包」標籤，KPI 位置改顯示報酬。結算的個人花費（你自己掏的錢）= 訂閱費 + 個人 API + 外包違約金 − 外包收入，只顯示、不算分；開外包時多四行：外包收入、外包違約金、外包完成、外包逾期。
 
 平衡實測（2026-10-09，`SIM_N=100`，每格 300 局，跑兩次；開外包平均分 ÷ 不開，減 1）：
 
@@ -331,7 +334,21 @@ SRE、DevOps 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；�
 | 單線 Rust | −37.2% / −41.9% | −44.6% / −51.7% |
 | 單線 App | −37.0% / −35.9% | −40.9% / −44.5% |
 
-目標是平行模式 −5%～+15%。報酬 100 時平行有兩格超過 +15%，使用者選了 80，每日張數沒調。總分公式對「8000 − 個人花費」只設下限、沒有上限，外包收入會直接加分，所以靠 `GIG_PAY` 控制。單線模式的自動玩家照佇列順序硬接外包單，排擠公司工單，所以全部變差；單線不設目標，照實記錄。
+目標是平行模式 −5%～+15%。報酬 100 時平行有兩格超過 +15%，使用者選了 80，每日張數沒調。當時總分公式對「8000 − 個人花費」只設下限、沒有上限，外包收入會直接加分，所以靠 `GIG_PAY` 控制。上表是錢還算分時（`gh-26-01-money-off-score` 之前）量的。單線模式的自動玩家照佇列順序硬接外包單，排擠公司工單，所以全部變差；單線不設目標，照實記錄。
+
+錢不算分之後重測（2026-10-10，`SIM_N=100`，每格 300 局，`SIM_SEED=101`、`202` 各跑一次；`GIG_PAY=250`）。外包收入只能拿來花，所以照舊的自動玩家（不會花外包賺的錢、每張外包單都接）量到的只有外包的時間成本。模擬器加了 `SIM_UPGRADE`：週一照錢包升級 OpenAI，`=2` 再加上升到 Pro 500 就不接外包。每格是開外包平均分 ÷ 不開，同一種升級策略比，減 1：
+
+| 模式 × 工作內容 | 舊自動玩家 | `SIM_UPGRADE=1` | `SIM_UPGRADE=2`（採用的目標） |
+|---|---|---|---|
+| 平行 Laravel | −12.6% / −12.5% | −8.7% / −8.0% | +2.1% / +3.8% |
+| 平行 Rails | −14.3% / −13.1% | −9.3% / −10.0% | +3.3% / +3.7% |
+| 平行 Rust | −15.8% / −16.4% | −8.2% / −8.7% | +7.1% / +7.9% |
+| 平行 App | −15.0% / −16.6% | −12.9% / −13.1% | +1.8% / +0.3% |
+| 平行 SRE | −16.9% / −18.0% | −12.4% / −11.1% | +3.8% / +3.1% |
+| 平行 DevOps | −17.0% / −15.0% | −13.2% / −12.7% | +1.8% / +1.7% |
+| 單線 | −69%～−100% | −64%～−87% | −20%～−41% |
+
+外包一個月約賺 NT$4～6 萬，最多只花得掉 Pro 500，所以錢夠了還一直接，只會排擠公司工單；錢不算分後放著外包單逾期只賠錢、不扣分。`SIM_UPGRADE=2` 在目標內，數值沒調。只升級不接外包（`SIM_UPGRADE=1`）相對預設自動玩家：平行 +8.7%～+15.3%、單線 +0.6%～+19.0%；`SIM_UPGRADE=2`＋外包相對預設：平行 +9.1%～+24.0%（Rust 最多）、單線 −15%～−39%。
 
 ### 推理強度（進階模式，`S.advanced`、`sel.ef`、`EFFORT`、`effModel`、`efOf`）
 - 開局彈窗有「一般／進階」（`data-adv`），預設一般，跨 `fresh()` 保留，不是布林值就退回一般；週一調整不顯示；只切這個開關不重抽第 1 天工單。最高分 key 不分一般／進階。
@@ -413,8 +430,14 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 
 實測（2026-10-10，`SIM_N=100`，每格 300 局，`SIM_SEED=101`、`202` 各跑一次）：改動前後輸出逐行相同。種子 101 的 3,600 局裡第 2–5 天抽到主管事件 993 次，957 次已經達標，只有 36 次落到「只提醒」；那幾局的信任後來也歸零，少扣的 4 分被下限吃掉。自動玩家第 1 週進度遠超過門檻，量不到這次改動，受影響的是第 1 週進度慢的真人玩家。沒有調數值。
 
-### 結算（`showEnd`、`monthScore`、`SPEND_FLOOR`）
-總分（`monthScore(floor = SPEND_FLOOR)`，`showEnd` 與模擬器的 `SIM_FLOOR` 共用）= KPI × 10 + 信任 × 4 + (8000 − 個人花費) ÷ 8（下限 −12000 ÷ 8，也就是個人花費超過 NT$20,000 才不再多扣）− 稽核次數 × 80。個人花費 = 訂閱費 + 個人 API + 外包違約金 − 外包收入。下限原本是 NT$12,000，比 Pro 500 的月費 NT$16,250 低，訂了它有 NT$4,250 不扣分，`gh-19-01-openai-pro-500` 提到 NT$20,000。
+### 結算（`showEnd`、`monthScore`）
+總分（`monthScore()`）= KPI × 10 + 信任 × 4 − 稽核次數 × 80。錢不算分（`gh-26-01-money-off-score`，#26）：個人花費（你自己掏的錢）= 訂閱費 + 個人 API + 外包違約金 − 外包收入，和月底錢包餘額一起列在結算單上，只用來判定稱號。原本總分多一項 (8000 − 個人花費) ÷ 8（下限 −12000 ÷ 8，`SPEND_FLOOR` NT$20,000），讓玩家不敢花錢：自費的研討會一個月內賺不回 KPI，外包收入又直接加分、只能靠低報酬控制強度。
+
+評等門檻 S/A/B/C/D 4100/3300/2500/1700（平行模式 ×1.6：6560/5280/4000/2720），由舊門檻 4600/3800/3000/2200 各減 500：改動前預設自動玩家的個人花費約 NT$3,400–4,200，花費項約 +475～+575 分。實測（2026-10-10，`SIM_N=100`，每格 300 局，`SIM_SEED=101`、`202`；目標是預設自動玩家每個模式各評等的比例跟改動前差 5 個百分點以內）：平行 S 75.8% → 79.8%、A 12.9% → 11.7%、B 7.4% → 5.6%、C 2.7% → 1.9%、D 1.3% → 1.0%（種子 202 差不多：S +4.0、A −1.3、B −1.7）；單線各評等差都在 ±1.1 內。草稿就達標，沒有再調。
+
+錢不算分後，`SIM_SUB=pro200` 相對預設自動玩家：平行 +15.7%～+30.1%（改動前 +11.5%～+25.2%，多約 4～5 個百分點，Rust 最多）、單線 +2.6%～+57.5%。起始錢包一度調到 NT$20,000（開局訂得起 Pro 500），`SIM_SUB=pro500` 平行從 −4%～+12% 變成 +15%～+32%，訂錢包付得起的最貴方案變成沒有代價的最佳解，使用者改回 NT$8,000；Pro 500 開局付不起，只能週一升級。
+
+以下是錢還算分時的下限實測，留作紀錄：
 
 下限實測（2026-10-10，`SIM_N=100`，每格 300 局，`SIM_SEED=101`、`202` 各跑一次；`SIM_FLOOR` 只重算分數，同一個種子在不同下限下是同一批局）。改動前在 scratchpad 量的預設自動玩家個人花費中位數約 NT$3.7k–4.4k，沒有一局超過 NT$12,000；開 `SIM_LUNA=1` 時平行模式約 4% 超過 NT$12,000、沒有超過 NT$15,000。實測結果：預設自動玩家（訂 Max 5×）與 `SIM_SUB=pro200` 三個下限的平均分逐格相同（個人花費都沒超過 NT$12,000）。`SIM_SUB=pro500` 相對預設自動玩家：
 
@@ -436,7 +459,7 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 Pro 500 每一格都比 Pro 200 差（平行 12k 時 −5.2%～−8.3%、20k 時 −10.3%～−14.1%；單線 −24%～−70%），沒有任何平行格兩次都比 Pro 200 高超過 +5%。這個自動玩家只派 Codex Sol（`w` 1），一個月約用 54M、每天不到 3M，連 Pro 200 的每日 8M 都用不完，所以量到的只是多付的月費；每天會超過 8M 的重度 Astra 玩家沒有量。
 
 `SIM_SUB=pro200` 相對預設自動玩家（三個下限相同）：平行 Laravel +11.5% / +12.1%、Rails +12.2% / +12.8%、Rust +25.1% / +25.2%、App +13.9% / +12.7%、SRE +15.1% / +14.7%、DevOps +13.2% / +13.7%；單線 Laravel −2.1% / −3.7%、Rails +0.6% / −2.1%、Rust +12.6% / +19.7%、App −6.8% / −14.7%、SRE +7.6% / −1.7%、DevOps −8.5% / −5.8%。這是改動前就有的狀況（Pro 200 數值沒動），沒有調。
-評等 S/A/B/C/D 門檻 4600/3800/3000/2200（平行模式 ×1.6）。最高分依「模式 × 選到的技術線」存在 `localStorage` 的 `tokgame-best-<mode>-<a>+<b>`（`bestKey()`；單選就是原本的 `tokgame-best-<mode>-<company>`）；只選 Laravel 且沒有新 key 時沿用改版前的 `tokgame-best-<mode>`。稱號依花費結構判定（資安常客、自費勇者、公司帳單頭號人物、對岸模型省錢達人、地端信仰者、手工藝工程師、Token 精算師）。
+最高分依「模式 × 選到的技術線」存在 `localStorage` 的 `tokgame-best-<mode>-<a>+<b>`（`bestKey()`；單選就是原本的 `tokgame-best-<mode>-<company>`）；只選 Laravel 且沒有新 key 時沿用改版前的 `tokgame-best-<mode>`。稱號依花費結構判定（資安常客、自費勇者、公司帳單頭號人物、對岸模型省錢達人、地端信仰者、手工藝工程師、Token 精算師）。
 
 ### 執行紀錄（`log`、`daySummary`、`daySnap`、`S.dayStart`）
 規則以 `docs/spectra/specs/action-log/` 為準。目的是月底能只看紀錄復盤整個月：每個決定當下看到什麼、信任和錢是怎麼動的。
@@ -479,7 +502,7 @@ Pro 500 每一格都比 Pro 200 差（平行 12k 時 −5.2%～−8.3%、20k 時
 | `calc.js` | 計算（`est(is, v, mid, rv, ef)` 會套推理強度）：`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`hasHw`、`manualBlocked`、`hwBlock`、`localSpeed`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`log`、`P_STEP`（成功率階梯） |
 | `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`RV_ID`、`jobChoice`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`invCount`、`investBlock`、`invest`、`hwReqBlock`、`requestHw`、`useHw`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`intakeIssue`、`daySummary`、`endDay`、`AUDIT_ODDS`、`AUDIT_TRUST`、`OVERDRAFT_TRUST`、`CORP_DAY_LIMIT`、`CORP_DAY_TRUST`、`LATE_TRUST`、`INC_LATE_TRUST`、`EVENT_RATE`、`OVERNIGHT_HRS`、`PACE_KPI`、`PRAISE_TRUST`、`DOUBT_TRUST` |
 | `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`quickBtn`、`invPanel`、`hwRow`、`qbox`、`dispatchPanel` |
-| `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showResume`、`showBadSave`、`SPEND_FLOOR`、`monthScore`、`showEnd`、`SCORE`、`GRADES`、`PAR_GRADE` |
+| `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showResume`、`showBadSave`、`planShort`、`monthScore`、`showEnd`、`SCORE`、`GRADES`、`PAR_GRADE` |
 | `rules.js` | 規則 modal（`showRules(back)`，`back` 是關閉後回到原彈窗的函式）與六個分頁的內容（`rulesTab(id)`），數字全部從其他模組的常數插值：`RULE_TABS`、`ruleTab`（只在這個模組改）、`pct`、`rtag`、`rtable`、`rlist`、`rsec`、`rulesTab`、`showRules` |
 
 模組規則：
@@ -502,7 +525,8 @@ Pro 500 每一格都比 Pro 200 差（平行 12k 時 −5.2%～−8.3%、20k 時
 - 全部工程投資都買時（`SIM_INVEST=2`），平行模式 Rust、App 約 +21%～+27%，超過 +3%～+15%，使用者接受。拿 S 的比例約 98%，如果之後覺得平行模式評等失去意義，可以考慮評等門檻隨投資數調整。
 - 多團隊席位只量了上限（見「時間與資源」的席位實測）：平行模式 −4.3%～+6.0%，在目標內；單線模式 +14.6%～+50.0%。第 2、3 個席位對這個自動玩家幾乎沒有額外效果，重度使用 Opus 的玩家還沒量。照真實規則（要顧信任）的增幅也沒量，因為自動玩家不顧信任。
 - 單線模式下 Rust、App 公司明顯較難（見上方平衡實測），目前用難度星等交代；如果要拉近，可以考慮單線模式下這兩家每天少一張工單。
-- 訂 OpenAI Pro 200 全派 Codex Sol 的自動玩家，平行模式比預設（Max 5×、DeepSeek 優先）高 +11%～+25%（見「結算」的下限實測），Rust 最多。沒有拆開量原因；推測和團隊席位實測一樣，是把能用就派的 DeepSeek Chat（能力 3）換成能力 4 的模型、失敗變少，而 Pro 200 每日 8M 的額度夠這個自動玩家整天用。如果要拉近，可以考慮降低 Pro 200 的額度（真實世界已從約 20 倍砍到 10 倍 Plus）。
+- 訂 OpenAI Pro 200 全派 Codex Sol 的自動玩家，平行模式比預設（Max 5×、DeepSeek 優先）高 +11%～+25%（見「結算」的下限實測），錢不算分後 +16%～+30%，Rust 最多。沒有拆開量原因；推測和團隊席位實測一樣，是把能用就派的 DeepSeek Chat（能力 3）換成能力 4 的模型、失敗變少，而 Pro 200 每日 8M 的額度夠這個自動玩家整天用。如果要拉近，可以考慮降低 Pro 200 的額度（真實世界已從約 20 倍砍到 10 倍 Plus）。
+- 錢不算分後，外包只在玩家需要錢（升級訂閱、研討會）時划算；錢夠了還一直接會排擠公司工單（見「接外包」的重測）。gh-22-01（國內研討會，已 park）寫的「報名費算進個人花費」要用 `/spectra-ingest` 改成只顯示、不算分。
 - 可能的擴充：Cursor／Copilot 這類多模型訂閱、prompt caching 折扣、用 Sonnet 寫再用 Opus 審的交叉審核、多人比分、更多技術線（例如 Go、Python 資料管線）。
 
 ## 框架重構評估
