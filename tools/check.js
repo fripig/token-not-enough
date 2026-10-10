@@ -11,7 +11,7 @@ import {GIG_CLIENT,GIG_PAY,S,addGigs,hardStack,fresh,makeGig,makeIssue,nextId,pi
 import {catchRate,costLine,storeReject,est,manualHrs,presetBlock,presetFor,quotaLeft,stackHint} from '../public/js/calc.js';
 import {EVENTS,advance,intakeIssue,auditOdds,auditRoll,conflictRate,prHrs,batch,canEvaluate,charge,dispatch,endDay,evalCost,evaluate,invCount,invest,loadPreset,makeJob,manual,quick,rescope,reveal,revealRate,savePreset,settle,trueView} from '../public/js/actions.js';
 import {dispatchPanel,render} from '../public/js/view.js';
-import {SPEND_FLOOR,monthScore,showEnd,showSetup} from '../public/js/modals.js';
+import {monthScore,showEnd,showSetup} from '../public/js/modals.js';
 // 核心規則（gh-09-01-core-rules-specs）用命名空間取用，避免和上面的具名 import 重複
 import * as A from '../public/js/actions.js';
 import * as C from '../public/js/calc.js';
@@ -752,7 +752,7 @@ function tests(){
   newRun('laravel'); const G=5000, gc={laravel:0,rails:0,rust:0,app:0,sre:0,devops:0,fe:0}; const gigs=[...Array(G)].map(makeGig);
   gigs.forEach(g=>gc[g.stack]++);
   ok(Object.values(gc).every(c=>Math.abs(c/G-1/7)<=.02),'外包單七條技術線各約 0.143',JSON.stringify(gc));
-  ok(gigs.every(g=>g.out&&!g.inc&&!g.sens&&g.client===GIG_CLIENT&&g.pay===g.kpi*80),'外包單不是事故、不機敏、案主是外包案主、報酬 = KPI × 80');
+  ok(gigs.every(g=>g.out&&!g.inc&&!g.sens&&g.client===GIG_CLIENT&&g.pay===g.kpi*250),'外包單不是事故、不機敏、案主是外包案主、報酬 = KPI × 250');
   ok(['rust','sre','devops'].every(k=>gigs.some(g=>g.stack===k)&&gigs.filter(g=>g.stack===k).every(unfamiliar))&&gigs.filter(g=>g.stack==='fe').every(g=>!unfamiliar(g)),'只選 Laravel 時 rust、sre、devops 外包單算不熟、fe 不算');
   S.issues=[gigs.find(g=>g.stack==='rust')]; sel.issue=null; render();
   ok(els.app.innerHTML.includes('<span class="chip unfam">不熟</span>'),'rust 外包單卡片顯示不熟標籤');
@@ -777,7 +777,7 @@ function tests(){
   newRun('laravel'); S.cnBan=true; const lg=gig('laravel',2), co=ticket('laravel',2);
   ok(cnBlock(lg,'deepseek',model('deepseek','chat'))===''&&cnBlock(co,'deepseek',model('deepseek','chat'))==='公司政策禁用','全公司禁中國雲端後外包單仍可用 DeepSeek，公司工單不行');
   S.issues=[lg]; sel.issue=null; render();
-  ok(!els.app.innerHTML.includes('禁中國雲端')&&els.app.innerHTML.includes('<span class="chip out">外包</span>')&&els.app.innerHTML.includes('<span class="k">NT$480</span>'),'外包卡片顯示外包標籤與 NT$480，沒有禁中國雲端');
+  ok(!els.app.innerHTML.includes('禁中國雲端')&&els.app.innerHTML.includes('<span class="chip out">外包</span>')&&els.app.innerHTML.includes('<span class="k">NT$1,500</span>'),'外包卡片顯示外包標籤與 NT$1,500，沒有禁中國雲端');
   S.issues=[co]; render(); ok(els.app.innerHTML.includes('禁中國雲端'),'公司工單仍顯示禁中國雲端');
   newRun('laravel'); S.inv.md.rust=true; const rg=gig('rust',3), rc=ticket('rust',3), eg=est(rg,'anthropic','sonnet',0), ec=est(rc,'anthropic','sonnet',0);
   ok(near(eg.tk,ec.tk)&&near(eg.p,ec.p)&&near(eg.hrs,ec.hrs),'工程投資對外包單照常生效（Rust CLAUDE.md）');
@@ -821,31 +821,34 @@ function tests(){
   const realRand=Math.random;
   const gig=(stack,cx,extra={})=>{const kpi=Math.round(KPI[cx]*(stack==='rust'||stack==='app'?1.3:1));return ticket(stack,cx,{out:true,client:GIG_CLIENT,kpi,pay:kpi*GIG_PAY,...extra});};
   const lj=issue=>({v:'local',b:'local',M:model('local','gemma'),issue,left:.1,hrs:1,tk:50,ok:true,caught:false,rv:0,hidden:false,stop:false});
-  for(const [st,cx,pay] of [['laravel',2,480],['rust',2,640],['fe',4,1280]]){
+  for(const [st,cx,pay] of [['laravel',1,750],['laravel',2,1500],['rust',2,2000],['fe',4,4000],['laravel',5,6000]]){
     newRun('laravel'); const g=gig(st,cx); S.issues=[g]; const w0=S.wallet,k0=S.kpi,t0=S.trust;
     const r=settle(lj(g));
     ok(r.ok&&g.pay===pay&&S.wallet-w0===pay&&S.kpi===k0&&S.trust===t0&&S.st.outIncome===pay&&S.st.outDone===1&&S.st.done===0&&!S.issues.includes(g),`外包 ${st} 複雜度 ${cx} 完成：錢包 +NT$${pay}，KPI 與信任不變`,`${g.pay} ${S.wallet-w0}`);
   }
-  ok(S.log.some(l=>l.msg.includes('外包收入 NT$1,280')),'完成紀錄寫外包收入');
+  ok(S.log.some(l=>l.msg.includes('外包收入 NT$6,000')),'完成紀錄寫外包收入');
   newRun('laravel'); S.hours=8; const mg=gig('laravel',2); S.issues=[mg]; sel.issue=mg.id; const mw=S.wallet, mk=S.kpi; manual();
-  ok(!S.issues.includes(mg)&&S.wallet-mw===480&&S.kpi===mk,'自己手寫完成外包單：錢包 +NT$480，KPI 不變');
+  ok(!S.issues.includes(mg)&&S.wallet-mw===1500&&S.kpi===mk,'自己手寫完成外包單：錢包 +NT$1,500，KPI 不變');
   newRun('laravel','parallel'); S.hours=8; const cg=gig('laravel',2); S.issues=[cg];
   Math.random=()=>0; settle(lj(cg),{conflict:1}); Math.random=realRand;
-  ok(cg.merge&&cg.out&&cg.pay===480&&S.issues.includes(cg)&&S.st.outIncome===0,'外包單合併衝突：解決衝突工單仍是外包、報酬 NT$480');
+  ok(cg.merge&&cg.out&&cg.pay===1500&&S.issues.includes(cg)&&S.st.outIncome===0,'外包單合併衝突：解決衝突工單仍是外包、報酬 NT$1,500');
   sel.issue=cg.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp'}); render();
-  ok(els.app.innerHTML.includes('<span class="chip out">外包</span>')&&els.app.innerHTML.includes('<span class="k">NT$480</span>')&&/data-b="corp" disabled>公司 API<small>外包不能用公司資源/.test(els.app.innerHTML),'解決衝突的外包單：卡片顯示外包與 NT$480，公司 API 停用');
+  ok(els.app.innerHTML.includes('<span class="chip out">外包</span>')&&els.app.innerHTML.includes('<span class="k">NT$1,500</span>')&&/data-b="corp" disabled>公司 API<small>外包不能用公司資源/.test(els.app.innerHTML),'解決衝突的外包單：卡片顯示外包與 NT$1,500，公司 API 停用');
   const cw=S.wallet, ck=S.kpi; settle(lj(cg),{conflict:1});
-  ok(!S.issues.includes(cg)&&S.wallet-cw===480&&S.kpi===ck,'解決衝突的外包單完成：錢包 +NT$480，KPI 不變');
+  ok(!S.issues.includes(cg)&&S.wallet-cw===1500&&S.kpi===ck,'解決衝突的外包單完成：錢包 +NT$1,500，KPI 不變');
   newRun('laravel'); S.outsource=false; S.hours=0; const lg=gig('laravel',2,{due:S.day}); S.issues=[lg]; S.trust=70;
   const lw=S.wallet, lk=S.kpi; Math.random=()=>.99; endDay(); Math.random=realRand;
-  ok(lw-S.wallet===144&&S.kpi===lk&&S.trust===70&&S.st.outPenalty===144&&S.st.outLate===1&&S.st.late===0&&!S.issues.includes(lg),'外包逾期：錢包 −NT$144，KPI 與信任不變，工單移除',`${lw-S.wallet} ${S.trust}`);
+  ok(lw-S.wallet===450&&S.kpi===lk&&S.trust===70&&S.st.outPenalty===450&&S.st.outLate===1&&S.st.late===0&&!S.issues.includes(lg),'外包逾期：錢包 −NT$450，KPI 與信任不變，工單移除',`${lw-S.wallet} ${S.trust}`);
+  newRun('laravel'); S.outsource=false; S.hours=0; S.wallet=100; const ng=gig('laravel',2,{due:S.day}); S.issues=[ng];
+  Math.random=()=>.99; endDay(); Math.random=realRand;
+  ok(S.wallet===-350&&!C.bills('anthropic',ticket('fe',1)).find(b=>b.id==='api').ok,'外包逾期違約金可以把錢包扣成負數（NT$100 → −NT$350），之後個人 API 停用',S.wallet);
   newRun('laravel'); const tg=gig('laravel',1,{trap:true,revealed:true,shownCx:1,cx:4,trueCx:4}); S.issues=[tg]; sel.issue=tg.id; S.trust=70;
   ok(!dispatchPanel().includes('找主管重新評估'),'曝光的外包陷阱沒有找主管重新評估按鈕');
   rescope(); ok(S.trust===70&&!tg.rescoped,'外包單呼叫 rescope 不會有效果');
   newRun('laravel'); S.outsource=true; S.day=20;
-  Object.assign(S.st,{subFee:3300,api:1000,outIncome:2400,outPenalty:144,outDone:4,outLate:1}); showEnd(); let rc=els.mo.innerHTML;
-  ok(rc.includes('<span>你自己掏的錢</span><span>NT$2,044</span>'),'結算：你自己掏的錢 NT$2,044');
-  ok(rc.includes('<span>外包收入</span><span>NT$2,400</span>')&&rc.includes('<span>外包違約金</span><span>NT$144</span>')&&rc.includes('<span>外包完成</span><span>4 張</span>')&&rc.includes('<span>外包逾期</span><span>1 張</span>'),'結算列出四行外包資訊');
+  S.kpi=300; S.trust=50; Object.assign(S.st,{subFee:3300,api:1000,outIncome:7500,outPenalty:450,outDone:4,outLate:1}); showEnd(); let rc=els.mo.innerHTML;
+  ok(rc.includes('<span>你自己掏的錢</span><span>-NT$2,750</span>')&&rc.includes('<span>總分</span><span>3,200</span>'),'結算：你自己掏的錢 -NT$2,750，總分照 KPI 與信任算 3,200');
+  ok(rc.includes('<span>外包收入</span><span>NT$7,500</span>')&&rc.includes('<span>外包違約金</span><span>NT$450</span>')&&rc.includes('<span>外包完成</span><span>4 張</span>')&&rc.includes('<span>外包逾期</span><span>1 張</span>'),'結算列出四行外包資訊');
   newRun('laravel'); S.outsource=false; S.day=20; showEnd(); ok(!els.mo.innerHTML.includes('外包收入'),'沒開外包時結算不顯示外包資訊');
   }
 
@@ -962,6 +965,22 @@ function tests(){
   newRun('laravel'); S.day=6; S.subs.anthropic='pro'; showSetup(true); clickMo({pv:'anthropic',pp:'max20'}); clickMo({act:'close'});
   ok(els.ov.hidden&&S.subs.anthropic==='pro','work-calendar：不改了就關掉、方案不變');
   showSetup(true); ok(els.mo.innerHTML.includes('這次要從個人錢包付'),'work-calendar：調整彈窗顯示要付多少');
+  /* 錢包不夠付訂閱（gh-26-01-money-off-score） */
+  const goOff=()=>/data-act="confirm" disabled/.test(els.mo.innerHTML);
+  start(); clickMo({pv:'openai',pp:'pro500'});
+  ok(goOff()&&els.mo.innerHTML.includes('錢包不夠付這次的訂閱'),'work-calendar：開局只訂 Pro 500（NT$16,250）超過錢包 NT$8,000 → 開始第 1 天停用');
+  clickMo({act:'confirm'}); ok(S.wallet===8000&&S.st.subFee===0&&S.subs.openai==='none'&&!els.ov.hidden,'work-calendar：錢不夠時按確認不扣錢、不開局');
+  clickMo({pv:'openai',pp:'pro'}); ok(!goOff()&&!els.mo.innerHTML.includes('錢包不夠付這次的訂閱'),'work-calendar：改回付得起的方案就能確認');
+  newRun('laravel'); S.day=6; S.subs.anthropic='pro'; S.wallet=1000; showSetup(true); clickMo({pv:'anthropic',pp:'max5'});
+  ok(goOff()&&els.mo.innerHTML.includes('錢包不夠付這次的訂閱'),'work-calendar：第 6 天錢包 NT$1,000 升級 Max 5×（NT$1,987.5）→ 確定調整停用');
+  clickMo({act:'close'}); ok(els.ov.hidden&&S.subs.anthropic==='pro'&&S.wallet===1000,'work-calendar：錢不夠時不改了照樣關掉、方案不變');
+  newRun('laravel'); S.day=6; S.subs.anthropic='max5'; S.wallet=-350; showSetup(true);
+  ok(!goOff()&&!els.mo.innerHTML.includes('錢包不夠付這次的訂閱'),'work-calendar：錢包負數、沒改方案 → 確定調整照樣能按');
+  clickMo({pv:'anthropic',pp:'pro'}); ok(!goOff(),'work-calendar：錢包負數也能降級（付 NT$0）');
+  clickMo({act:'confirm'}); ok(S.subs.anthropic==='pro'&&S.wallet===-350,'work-calendar：降級生效、不扣錢');
+  newRun('laravel'); S.subs.anthropic='max5'; S.used.sub.anthropic={d:0,w:0}; S.wallet=-350; const ts0=ticket('fe',2); S.issues=[ts0];
+  const rs0=settle(job(ts0,'anthropic','sonnet','sub',{tk:200}));
+  ok(rs0.ok&&near(S.used.sub.anthropic.d,200)&&S.wallet===-350&&C.bills('anthropic',ts0).find(b=>b.id==='sub').ok,'billing-methods：錢包負數時已有的訂閱照樣能用、扣額度不扣錢');
   /* 訂閱額度 */
   newRun('laravel'); S.subs.anthropic='pro'; S.used.sub.anthropic={d:100,w:1700};
   ok(quotaLeft('sub','anthropic')===100,'work-calendar：每週上限比較緊時剩 100k');
@@ -997,8 +1016,8 @@ function tests(){
   ok(oaiBtns.map(b=>b[0]).join()==='不訂閱,Plus,Pro 200,Pro 500'&&!oaiBtns.some(b=>b[0]==='Pro'),'agent-catalog：開局 OpenAI 按鈕依序是不訂閱、Plus、Pro 200、Pro 500',oaiBtns.map(b=>b[0]).join());
   ok(oaiBtns[3]?.[1]==='NT$16,250/月・每日 12.5M','agent-catalog：Pro 500 顯示 NT$16,250/月・每日 12.5M',oaiBtns[3]?.[1]);
   clickMo({pv:'openai',pp:'pro500'});
-  ok(els.mo.innerHTML.includes('這次要從個人錢包付</span><b class="num">NT$16,250</b>')&&els.mo.innerHTML.includes('付完剩 <b class="num">-NT$8,250</b>'),'agent-catalog：月初只訂 Pro 500 要付 NT$16,250、付完剩 -NT$8,250');
-  clickMo({act:'confirm'}); ok(S.wallet===-8250&&S.st.subFee===16250&&S.subs.openai==='pro500','agent-catalog：確認後錢包 -8,250、訂閱費 16,250、OpenAI 是 pro500',[S.wallet,S.st.subFee,S.subs.openai].join());
+  ok(els.mo.innerHTML.includes('這次要從個人錢包付</span><b class="num">NT$16,250</b>')&&els.mo.innerHTML.includes('付完剩 <b class="num">-NT$8,250</b>')&&/data-act="confirm" disabled/.test(els.mo.innerHTML)&&els.mo.innerHTML.includes('錢包不夠付這次的訂閱'),'agent-catalog：月初只訂 Pro 500 要付 NT$16,250，起始錢包 NT$8,000 付不起、開始第 1 天停用');
+  clickMo({act:'confirm'}); ok(S.wallet===8000&&S.st.subFee===0&&S.subs.openai==='none','agent-catalog：付不起時按確認不扣錢、OpenAI 仍不訂閱',[S.wallet,S.st.subFee,S.subs.openai].join());
   start();
   ok(['anthropic','openai','google','zhipu','moonshot'].every(v=>els.mo.innerHTML.includes(`data-pv="${v}" data-pp="none"`))&&!els.mo.innerHTML.includes('data-pv="deepseek"')&&!els.mo.innerHTML.includes('data-pv="local"'),'agent-catalog：開局只列五家訂閱，每家從不訂閱開始');
   /* 派工台選模型 */
@@ -1038,10 +1057,25 @@ function tests(){
   S.subs.anthropic='max5'; charge('sub','anthropic',model('anthropic','opus'),200); ok(near(S.used.sub.anthropic.d,400)&&near(S.used.sub.anthropic.w,400),'billing-methods：200k Opus（w 2）吃訂閱 400k');
   charge('corp','anthropic',model('anthropic','sonnet'),200); ok(near(S.corp,12000-90)&&near(S.corpDay,90)&&near(S.st.corp,90),'billing-methods：公司 API 扣預算、計入當日與月底帳單');
   ok(charge('local','local',model('local','gemma'),200).spend==='電費','billing-methods：本地 GPU 記為電費');
-  S.wallet=10; charge('api','anthropic',model('anthropic','sonnet'),200); ok(near(S.wallet,-80),'billing-methods：錢包可以變負的');
+  S.wallet=10; let cw=charge('api','anthropic',model('anthropic','sonnet'),200); ok(S.wallet===0&&cw.short&&near(cw.frac,10/90),'billing-methods：個人 API 不會把錢包扣成負數，只付剩下的',S.wallet);
+  /* 錢包見底（gh-26-01-money-off-score） */
+  newRun('laravel'); S.wallet=200; const tb0=ticket('fe',2); S.issues=[tb0]; const api0=S.st.api;
+  const rb=settle(job(tb0,'anthropic','sonnet','api',{tk:400/.45,hrs:2}));
+  ok(!rb.ok&&S.wallet===0&&near(S.st.api-api0,200)&&near(S.st.tk.anthropic,200/.45)&&near(rb.hrs,1)&&S.issues.includes(tb0)&&tb0.tries===1&&S.log[0].msg.includes('錢包見底，agent 停在一半'),'billing-methods：花費 NT$400、錢包 NT$200 → 付完 200 停在一半、失敗留在佇列',[S.wallet,S.st.api,rb.hrs].join());
+  /* 錢包見底：GA 照額度不夠送 quota；自我審核抓到錯誤也救不回來 */
+  {const ge=[]; globalThis.gtag=(k,n,p)=>ge.push({n,p});
+  newRun('laravel'); S.wallet=200; const tq0=ticket('fe',2); S.issues=[tq0];
+  const rc0=settle(job(tq0,'anthropic','sonnet','api',{tk:400/.45,hrs:2,ok:false,caught:true,rv:1}));
+  ok(!rc0.ok&&S.wallet===0&&S.st.caught===0&&S.issues.includes(tq0),'billing-methods：錢包見底時自我審核抓到錯誤也救不回來');
+  const jr=ge.find(e=>e.n==='job_result'); ok(jr&&jr.p.outcome==='quota'&&jr.p.bill==='api'&&jr.p.cost===200,'billing-methods：錢包見底 GA job_result 送 outcome quota、cost 200',JSON.stringify(jr?.p));
+  delete globalThis.gtag;}
+  newRun('laravel'); S.hours=8; S.wallet=5; const te0=ticket('laravel',2); S.issues=[te0]; Object.assign(sel,{issue:te0.id,v:'anthropic',m:'sonnet',b:'api',rv:0}); evaluate();
+  ok(S.wallet===0&&!te0.evaluated&&S.log[0].msg.includes('錢包見底，評估沒做完'),'billing-methods：個人 API 評估錢不夠 → 錢包歸零、不算已評估',S.log[0]?.msg);
   /* 錢包不夠只警告、不擋派工 */
   newRun('laravel'); S.hours=8; S.wallet=10; const tw=ticket('fe',1); S.issues=[tw]; sel.issue=tw.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'api',rv:0}); render();
-  ok(els.app.innerHTML.includes('錢包可能不夠付這一筆。')&&!/data-act="go" disabled/.test(els.app.innerHTML),'billing-methods：錢包不夠只警告、派工按鈕可按');
+  ok(els.app.innerHTML.includes('錢包可能不夠，跑到一半會停下來。')&&!/data-act="go" disabled/.test(els.app.innerHTML),'billing-methods：錢包不夠只警告、派工按鈕可按');
+  for(const w of [0,-350]){S.wallet=w; const nb=C.bills('anthropic',tw).find(b=>b.id==='api'); ok(!nb.ok&&nb.note==='錢包見底','billing-methods：錢包 NT$'+w+' 時個人 API 停用、註記錢包見底'); render(); ok(sel.b!=='api'&&/data-b="api" disabled/.test(els.app.innerHTML),'billing-methods：錢包見底時派工台的個人 API 按鈕停用、自動換掉');}
+  S.wallet=1; ok(C.bills('anthropic',tw).find(b=>b.id==='api').ok,'billing-methods：錢包 NT$1 時個人 API 還能用');
   /* 額度用完 */
   newRun('laravel'); S.subs.anthropic='pro'; S.used.sub.anthropic={d:250,w:250}; const tq=ticket('fe',2); S.issues=[tq];
   const rq=settle(job(tq,'anthropic','sonnet','sub',{tk:400,hrs:2}));
@@ -1336,17 +1370,19 @@ function tests(){
   const endRun=(mode,set)=>{newRun('laravel',mode); resetStore(); S.day=20; set(); showEnd(); const h=els.mo.innerHTML;
     return {h,score:+h.match(/<span>總分<\/span><span>([\d,-]+)<\/span>/)[1].replace(/,/g,''),grade:h.match(/<span class="g">(\w)<\/span>/)[1],title:h.match(/<div class="gt"><b>([^<]+)<\/b>/)[1]};};
   const base=()=>{S.kpi=300; S.trust=50; S.st.subFee=2000; S.st.audits=1;};
-  let r=endRun('serial',base); ok(r.score===3870&&r.grade==='A','month-end-scoring：3,870 分在單線是 A',r.score+r.grade);
-  r=endRun('parallel',base); ok(r.score===3870&&r.grade==='C','month-end-scoring：3,870 分在平行是 C',r.score+r.grade);
-  r=endRun('serial',()=>{base(); S.st.subFee=0; S.st.api=50000;}); ok(r.score===3000+200-1500-80,'month-end-scoring：個人花費項下限 −1,500（花費 NT$20,000）',r.score);
-  r=endRun('serial',()=>{base(); S.st.subFee=16250;}); ok(r.score===2089,'month-end-scoring：只訂 Pro 500 花 NT$16,250 照算，總分 2,089',r.score);
-  ok(SPEND_FLOOR===20000&&monthScore().score===r.score&&monthScore().grade===r.grade&&monthScore(12000).score===2620,'month-end-scoring：結算單用 monthScore()，sim 傳舊下限 12000 會重算成 2,620',[monthScore().score,monthScore(12000).score].join());
-  r=endRun('serial',()=>{S.kpi=0; S.trust=0; S.st.outIncome=3000; S.st.outPenalty=1000; S.st.api=500;}); ok(r.score===Math.round((8000-(500+1000-3000))/8),'month-end-scoring：個人花費 = 訂閱 + API + 外包違約金 − 外包收入',r.score);
-  ok(r.h.includes('總分 = KPI × 10 + 信任 × 4 + 省下的個人預算 ÷ 8 − 稽核次數 × 80'),'month-end-scoring：結算單寫出公式');
+  let r=endRun('serial',base); ok(r.score===3120,'month-end-scoring：KPI 300、信任 50、花 NT$2,000、稽核 1 次 → 3,120',r.score);
+  r=endRun('serial',()=>{base(); S.st.subFee=16250;}); ok(r.score===3120,'month-end-scoring：只訂 Pro 500 花 NT$16,250，總分一樣 3,120',r.score);
+  r=endRun('serial',()=>{base(); S.st.subFee=0; S.st.api=50000;}); ok(r.score===3120,'month-end-scoring：花 NT$50,000 也不影響總分',r.score);
+  ok(monthScore().score===r.score&&monthScore().grade===r.grade&&monthScore().self===50000,'month-end-scoring：結算單用 monthScore()，self 是你自己掏的錢',[monthScore().score,monthScore().self].join());
+  r=endRun('serial',()=>{S.kpi=0; S.trust=0; S.st.outIncome=3000; S.st.outPenalty=1000; S.st.api=500;}); ok(r.score===0&&r.h.includes('<span>你自己掏的錢</span><span>-NT$1,500</span>'),'month-end-scoring：外包收入不加分，你自己掏的錢 = 訂閱 + API + 外包違約金 − 外包收入',r.score);
+  ok(r.h.includes('總分 = KPI × 10 + 信任 × 4 − 稽核次數 × 80')&&!r.h.includes('省下的個人預算'),'month-end-scoring：結算單寫出新公式');
+  r=endRun('serial',()=>{base(); S.wallet=5430;}); ok(r.h.includes('<span>月底錢包餘額</span><span>NT$5,430</span>')&&r.score===3120,'month-end-scoring：結算單列出月底錢包餘額，不影響總分');
   /* 評等門檻 */
-  const gradeAt=(mode,score)=>endRun(mode,()=>{S.trust=0; S.st.subFee=8000; S.kpi=score/10;}).grade;
-  ok([[4600,'S'],[4590,'A'],[3800,'A'],[3000,'B'],[2200,'C'],[2190,'D']].every(([s,g])=>gradeAt('serial',s)===g),'month-end-scoring：單線門檻 4,600／3,800／3,000／2,200');
-  ok([[7360,'S'],[7350,'A'],[6080,'A'],[4800,'B'],[3520,'C'],[3510,'D']].every(([s,g])=>gradeAt('parallel',s)===g),'month-end-scoring：平行門檻 ×1.6');
+  /* 個位數用信任補（信任 × 4），才能測到 4,099 這種 spec 例子的確切值 */
+  const gradeAt=(mode,score)=>endRun(mode,()=>{S.kpi=Math.floor(score/10); S.trust=score%10/4;}).grade;
+  ok([[4300,'S'],[4299,'A'],[3300,'A'],[2500,'B'],[1700,'C'],[1699,'D']].every(([s,g])=>gradeAt('serial',s)===g),'month-end-scoring：單線門檻 4,300／3,300／2,500／1,700');
+  ok([[6880,'S'],[6879,'A'],[5280,'A'],[4000,'B'],[2720,'C'],[2719,'D']].every(([s,g])=>gradeAt('parallel',s)===g),'month-end-scoring：平行門檻 ×1.6（6,880／5,280／4,000／2,720）');
+  ok(endRun('serial',base).grade==='B'&&endRun('parallel',base).grade==='C','month-end-scoring：3,120 分單線 B、平行 C');
   /* 稱號 */
   const titleOf=set=>endRun('serial',()=>{S.kpi=120; S.trust=0; set();}).title;
   ok(titleOf(()=>{})==='還在摸索的開發者','month-end-scoring：預設稱號');
@@ -1406,7 +1442,7 @@ function tests(){
   ok(names()==='subscription,subscription'&&subEv()==='anthropic:max20@6,zhipu:none@6','play-analytics：週一只送改過的訂閱',subEv());
   /* game_end 帶 score 與 grade */
   newRun('laravel','serial'); S.kpi=300; S.trust=70; S.day=20; ev.length=0; showEnd();
-  ok(ev.length===1&&ev[0].name==='game_end'&&ev[0].p.score===4280&&ev[0].p.grade==='A'&&ev[0].p.day===20,'play-analytics：game_end 帶 score 4280、grade A',JSON.stringify(ev[0]?.p));
+  ok(ev.length===1&&ev[0].name==='game_end'&&ev[0].p.score===3280&&ev[0].p.grade==='B'&&ev[0].p.day===20,'play-analytics：game_end 帶 score 3280、grade B',JSON.stringify(ev[0]?.p));
   /* gtag 會丟例外：遊戲照常開局 */
   globalThis.gtag=()=>{throw new Error('blocked');};
   let threw=false; try{newRun('laravel'); showSetup(false); clickMo({act:'confirm'});}catch(e){threw=true;}
@@ -1701,6 +1737,11 @@ function tests(){
   ok(Ru.RULE_TABS.map(t=>t.title).join()==='基本,派工與成功率,付費與稽核,工單與陷阱,投資與電腦,結算','rules-reference：分頁標題與順序');
   for(const t of Ru.RULE_TABS){press({rtab:t.id}); ok(selTab()===t.id&&els.mo.innerHTML.includes(Ru.rulesTab(t.id)),`rules-reference：點 ${t.title} 會選中並顯示內容`);}
   press({rtab:'score'}); ok(els.mo.innerHTML.includes('總分 = KPI ×'),'rules-reference：結算分頁顯示總分公式');
+  /* gh-26-01-money-off-score：錢不算分、錢包用光就停、外包 KPI × 250、起始錢包 */
+  ok(Ru.rulesTab('score').includes('總分 = KPI × 10 + 信任 × 4 − 稽核次數 × 80。')&&Ru.rulesTab('score').includes('錢不算分')&&!Ru.rulesTab('score').includes('÷'),'rules-reference：結算分頁寫新公式、錢不算分');
+  ok(Ru.rulesTab('basic').includes('個人錢包 NT$8,000')&&Ru.rulesTab('basic').includes('錢包不夠付這次的訂閱就不能確認'),'rules-reference：基本分頁寫起始錢包 NT$8,000 與訂閱要付得起');
+  ok(Ru.rulesTab('billing').includes('agent 停在一半')&&Ru.rulesTab('billing').includes('錢包 NT$0 以下時不能選'),'rules-reference：付費分頁寫錢包見底的規則');
+  ok(Ru.rulesTab('tickets').includes('報酬 = KPI × 250')&&Ru.rulesTab('tickets').includes('可能變成負數'),'rules-reference：工單分頁寫外包報酬與違約金可扣成負數');
   press({rtab:'invest'}); press({act:'close'}); ok(els.ov.hidden,'rules-reference：從標頭打開，關閉後隱藏彈窗');
   Ru.showRules(); ok(selTab()==='invest','rules-reference：同一次開頁記住上次的分頁');
   ok(Ru.rulesTab('nope')===Ru.rulesTab('basic'),'rules-reference：未知分頁退回基本');
@@ -1712,8 +1753,8 @@ function tests(){
   {
   const plain=id=>Ru.rulesTab(id).replace(/ data-h="[^"]*"/g,''); // 窄螢幕卡片用的欄名屬性不影響比對
   const sc=plain('score'), bi=plain('billing'), iv=plain('invest'), D=dataModule;
-  ok(M.GRADES.join()==='4600,3800,3000,2200'&&M.PAR_GRADE===1.6&&M.GRADES.every(t=>sc.includes(`<td>${t}</td>`)&&sc.includes(`<td>${Math.round(t*M.PAR_GRADE)}</td>`))&&sc.includes('<td>7360</td>'),'rules-reference：結算分頁列出單線與平行模式的評等門檻');
-  ok(['kpi','trust','spendDiv','audit'].every(k=>sc.includes(`× ${M.SCORE[k]}`)||sc.includes(`÷ ${M.SCORE[k]}`)),'rules-reference：結算分頁的總分權重來自 SCORE');
+  ok(M.GRADES.join()==='4300,3300,2500,1700'&&M.PAR_GRADE===1.6&&M.GRADES.every(t=>sc.includes(`<td>${t}</td>`)&&sc.includes(`<td>${Math.round(t*M.PAR_GRADE)}</td>`))&&sc.includes('<td>6880</td>'),'rules-reference：結算分頁列出單線與平行模式的評等門檻');
+  ok(['kpi','trust','audit'].every(k=>sc.includes(`× ${M.SCORE[k]}`)),'rules-reference：結算分頁的總分權重來自 SCORE');
   ok(plain('tickets').includes(`評估時間 ×${D.MCP_EVAL_HRS}`),'rules-reference：MCP 評估時間倍率來自常數');
   ok(bi.includes(D.nt(A.CORP_DAY_LIMIT))&&bi.includes(`信任 −${A.AUDIT_TRUST}`)&&bi.includes(SEAT.trust.join('／')),'rules-reference：付費分頁的公司單日上限、稽核扣分、席位門檻來自常數');
   ok(['md',...D.INV_KEYS].every(k=>{const I=D.INVEST[k];return iv.includes(I.name)&&iv.includes(`<td>${I.hrs}h</td>`)&&iv.includes(`<td>${D.nt(I.cost)}</td>`)&&iv.includes(I.desc);}),'rules-reference：投資分頁列出每項投資的工時、預算與效果');
@@ -1847,6 +1888,8 @@ function tests(){
    newRun('laravel'); S.subs.anthropic='pro'; tr=rt('laravel',4); pick3(tr,'anthropic','sonnet','sub'); const L=quotaLeft('sub','anthropic'); S.used.sub.anthropic.d+=L-30; S.used.sub.anthropic.w+=L-30;
    A.research('agent');
    ok(near(quotaLeft('sub','anthropic'),0)&&S.issues.length===1&&S.issues[0]===tr&&tr.research&&S.log[0].msg.includes('額度不夠，研究沒做完'),'research：額度只剩 30k 時研究沒做完、不拆單',S.log[0]?.msg);
+   newRun('laravel'); tr=rt('laravel',4); pick3(tr,'anthropic','sonnet','api'); S.wallet=5; A.research('agent');
+   ok(S.wallet===0&&S.issues.length===1&&S.issues[0]===tr&&tr.research&&S.log[0].msg.includes('錢包見底，研究沒做完'),'research：個人 API 錢包只剩 NT$5 時研究沒做完、不拆單（gh-26-01）',S.log[0]?.msg);
    newRun('laravel'); tr=rt('laravel',4,{out:true,pay:1280,client:GIG_CLIENT}); pick3(tr,'anthropic','sonnet','corp'); const snap=JSON.stringify([S.corp,S.hours,S.issues.length]);
    const ev=[]; globalThis.gtag=(k,n,p)=>ev.push(n); A.research('agent'); delete globalThis.gtag;
    ok(JSON.stringify([S.corp,S.hours,S.issues.length])===snap&&tr.research&&!ev.length,'research：外包研究單選公司 API 時不動作、不送事件');

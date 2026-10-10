@@ -137,7 +137,7 @@ export function dispatchPanel(){
   else if(PAR()&&is.due<=S.day&&e.hrs+.2>S.hours) warn='這張今天到期，但下班前跑不完，會逾期。';
   else if(PAR()&&e.hrs+.2>S.hours) warn='今天跑不完，agent 會跑過夜，明早才有結果。';
   else if(!PAR()&&e.hrs*1.2>S.hours) warn='今天剩的工時可能不夠跑完。';
-  else if(sel.b==='api'&&cl.hi>S.wallet) warn='錢包可能不夠付這一筆。';
+  else if(sel.b==='api'&&cl.hi>S.wallet) warn='錢包可能不夠，跑到一半會停下來。';
   const mh=manualHrs(is), ec=evalCost(model(sel.v,sel.m),sel.v), rc=researchCost(model(sel.v,sel.m),sel.v);
   const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m))||!!hwBlock(model(sel.v,sel.m))||(sel.b==='local'&&localBusy());
   return `<div class="ph"><h2>派工台</h2><span>${is.title}</span></div>

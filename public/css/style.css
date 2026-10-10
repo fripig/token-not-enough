@@ -164,6 +164,7 @@ button:disabled{cursor:not-allowed;opacity:.42}
 .pv>b::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--vc);margin-right:6px}
 .pv .seg .sb{min-width:110px}
 .sum{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 12px;background:var(--sunk);border-radius:6px;font-size:13px}
+.sum .short{flex-basis:100%;color:var(--bad);font-weight:600}
 .rules{margin:0;padding-left:1.2em;color:var(--muted);font-size:13px;display:flex;flex-direction:column;gap:3px;max-width:68ch}
 .evt{border:1px solid var(--line);border-radius:6px;padding:12px 14px;background:var(--paper)}
 .evt b{display:block;margin-bottom:2px}

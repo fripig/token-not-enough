@@ -84,14 +84,14 @@ export function cancelJobs(pred,note){
   out.forEach(j=>{j.issue.running=false;settle(j,{frac:Math.max(.05,1-j.left/j.hrs),fail:true,note});});
   return out.length;
 }
-/* 扣款：派工與評估共用。訂閱／席位額度不夠時只扣剩下的，回傳 short 與實際完成比例 frac */
+/* 扣款：派工與評估共用。訂閱／席位額度或個人錢包不夠時只扣剩下的，回傳 short 與實際完成比例 frac；個人 API 不會把錢包扣成負數 */
 export function charge(b,v,M,tk){
   if(b==='sub'||b==='seat'){
     const need=tk*M.w, left=quotaLeft(b,v);
     if(need>left){ useQuota(b,v,left); return {spend:`額度 ${kt(left)}`,short:true,frac:need>0?left/need:0}; }
     useQuota(b,v,need); return {spend:`額度 ${kt(need)}`,short:false,frac:1};
   }
-  if(b==='api'){ const c=tk*M.price*S.priceMod[v]; S.wallet-=c; S.st.api+=c; return {spend:nt(c),short:false,frac:1,cost:c}; }
+  if(b==='api'){ const c=tk*M.price*S.priceMod[v], paid=Math.min(c,Math.max(0,S.wallet)); S.wallet-=paid; S.st.api+=paid; return {spend:nt(paid),short:paid<c,frac:c>0?paid/c:1,cost:paid}; }
   if(b==='corp'){ const c=tk*M.price*S.priceMod[v]; S.corp-=c; S.corpDay+=c; S.st.corp+=c; return {spend:'公司 '+nt(c),short:false,frac:1,cost:c}; }
   return {spend:'電費',short:false,frac:1};
 }
@@ -120,7 +120,7 @@ export function settle(j,o={}){
   if(!j.ok&&!j.caught&&j.rv&&!o.fail) note='審核沒抓到，上線後測試才爆';
   if(j.stop&&!o.fail) note=j.sdd?'寫規格時就發現牽扯整個架構，先停下來':'做到一半發現牽扯整個架構，先停下來';
   const ch=charge(b,v,M,tk); spend=ch.spend;
-  if(ch.short){ tk*=ch.frac; hrs=Math.max(.3,hrs*Math.max(.3,ch.frac)); ok=false; note='撞到用量上限，agent 停在一半'; }
+  if(ch.short){ tk*=ch.frac; hrs=Math.max(.3,hrs*Math.max(.3,ch.frac)); ok=false; note=b==='api'?'錢包見底，agent 停在一半':'撞到用量上限，agent 停在一半'; }
   /* 解決衝突工單本身不會再衝突 */
   if(ok&&!is.merge&&o.conflict&&Math.random()<o.conflict){ok=false;conflict=true;}
   /* App 上架審核在 agent 做完之後才發生，自我審核救不回來 */
@@ -190,7 +190,7 @@ export function evaluate(){
   S.st.tk[sel.v]+=used; S.st.byBill[sel.b]+=used;
   const evt=outcome=>track('evaluate',{vendor:sel.v,model:sel.m,bill:sel.b,cx,stack:is.stack,gig:!!is.out,outcome});
   const ew=`評估｜${VENDORS[sel.v].agent} / ${M.name}・${BILL_LABEL[sel.b]}`;
-  if(ch.short){ evt('quota'); log('bad',`✗ ${is.title}｜${ew}｜額度不夠，評估沒做完｜${ch.spend}`); render(); return; }
+  if(ch.short){ evt('quota'); log('bad',`✗ ${is.title}｜${ew}｜${sel.b==='api'?'錢包見底':'額度不夠'}，評估沒做完｜${ch.spend}`); render(); return; }
   is.evaluated=true;
   if(is.trap&&Math.random()<revealRate(M)){ reveal(is); evt('found'); S.st.trapFound++; log('ok',`★ ${is.title}｜${ew}｜發現牽扯架構：原估複雜度 ${is.shownCx}，實際 ${is.cx}｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
   else{ evt('clear'); log('dim',`· ${is.title}｜${ew}｜評估完成，看起來沒問題｜${kt(tk)} tokens｜${ch.spend}｜${h1(hrs)}h`); }
@@ -247,7 +247,7 @@ export function research(via){
   if(agent){
     ch=charge(sel.b,sel.v,M,cost.tk); const used=cost.tk*ch.frac; useHw(sel.v,sel.m);
     S.st.tk[sel.v]+=used; S.st.byBill[sel.b]+=used;
-    if(ch.short){ evt('quota'); log('bad',`✗ ${is.title}｜${rw}｜額度不夠，研究沒做完｜${ch.spend}`); render(); return; }
+    if(ch.short){ evt('quota'); log('bad',`✗ ${is.title}｜${rw}｜${sel.b==='api'?'錢包見底':'額度不夠'}，研究沒做完｜${ch.spend}`); render(); return; }
   }
   const title=is.title, [a,b]=splitResearch(is);
   evt('split');

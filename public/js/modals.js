@@ -17,8 +17,10 @@ export function planPicker(adjust){
   const seat=canSeat?`<div class="pv" style="--vc:var(--accent)"><b>向公司申請第 ${S.seats.length+1} 個團隊席位（${SEAT.review} 天後審核，信任需 ${SEAT.trust[S.seats.length]} 以上）</b><div class="seg">
     ${[['','不申請'],...SEAT.vendors.filter(v=>!S.seats.includes(v)).map(v=>[v,VENDORS[v].name])].map(([v,n])=>`<button class="sb ${draft.seat===v?'sel':''}" data-seat="${v}">${n}<small>${v?'公司付・每日 2.5M 額度':'自己想辦法'}</small></button>`).join('')}</div></div>`:'';
   const cost=planCost(adjust);
-  return `${rows}${seat}<div class="sum"><span>這次要從個人錢包付</span><b class="num">${nt(cost)}</b><span>付完剩 <b class="num">${nt(S.wallet-cost)}</b></span></div>`;
+  return `${rows}${seat}<div class="sum"><span>這次要從個人錢包付</span><b class="num">${nt(cost)}</b><span>付完剩 <b class="num">${nt(S.wallet-cost)}</b></span>${planShort(adjust)?'<span class="short">錢包不夠付這次的訂閱</span>':''}</div>`;
 }
+/* 這次要付錢而且錢包不夠才擋；沒改、降級（付 NT$0）不受錢包影響 */
+export const planShort=adjust=>{const c=planCost(adjust);return c>0&&c>S.wallet;};
 export function planCost(adjust){
   let c=0; const wl=adjust?4-Math.floor((S.day-1)/5):4;
   for(const v of SUBV){
@@ -66,7 +68,7 @@ export function showSetup(adjust){
     </div></div>
     ${draft.mode==='parallel'?`<div class="sec"><label>同時跑幾個 agent</label><div class="seg">${SLOT_CHOICES.map(n=>`<button class="sb ${draft.slots===n?'sel':''}" data-slots="${n}">同時 ${n} 個 agent<small>審 PR 最多 ×${(1+REVIEW_LOAD*(n-1)).toFixed(2)}・衝突最多 ${Math.round(10*(n-1))}%</small></button>`).join('')}</div></div>`:''}`}
     <div class="plans">${planPicker(adjust)}</div>
-    <div class="actions"><button class="btn primary" data-act="confirm">${adjust?'確定調整':'開始第 1 天'}</button>${adjust?'<button class="btn ghost" data-act="close">不改了</button>':''}</div>`;
+    <div class="actions"><button class="btn primary" data-act="confirm" ${planShort(adjust)?'disabled':''}>${adjust?'確定調整':'開始第 1 天'}</button>${adjust?'<button class="btn ghost" data-act="close">不改了</button>':''}</div>`;
   };
   /* 規則 modal 關閉後重畫開局彈窗、掛回處理器，draft 不重設 */
   const back=()=>{draw();mo.onclick=onClick;};
@@ -82,7 +84,7 @@ export function showSetup(adjust){
     else if(t.dataset.act==='close'){ov.hidden=true;}
     else if(t.dataset.act==='rules'){showRules(back);}
     else if(t.dataset.act==='confirm'){
-      const c=planCost(adjust); S.wallet-=c; S.st.subFee+=c;
+      if(planShort(adjust)) return; const c=planCost(adjust); S.wallet-=c; S.st.subFee+=c;
       if(!adjust){
         const outChanged=draft.outsource!==S.outsource; S.outsource=draft.outsource;
         if(draft.companies.join()!==S.companies.join()){S.companies=draft.companies;firstIssues();}
@@ -135,13 +137,12 @@ export function showBadSave(){
   ov.hidden=false;
   mo.onclick=e=>{const t=e.target.closest('button');if(!t)return;if(t.dataset.act==='new')start();};
 }
-/* 總分權重與評等門檻（平行模式門檻 ×PAR_GRADE）；個人花費超過 SPEND_FLOOR 就不再多扣 */
-export const SCORE={kpi:10,trust:4,spendBase:8000,spendDiv:8,spendFloor:-12000,audit:80}, GRADES=[4600,3800,3000,2200], PAR_GRADE=1.6;
-export const SPEND_FLOOR=SCORE.spendBase-SCORE.spendFloor;
-/* 月底總分與評等（tools/sim.js 的 SIM_FLOOR 傳別的 floor 重算） */
-export function monthScore(floor=SPEND_FLOOR){
+/* 總分權重與評等門檻（平行模式門檻 ×PAR_GRADE）；錢不算分，個人花費只顯示與判定稱號 */
+export const SCORE={kpi:10,trust:4,audit:80}, GRADES=[4300,3300,2500,1700], PAR_GRADE=1.6;
+/* 月底總分與評等；self 是你自己掏的錢 */
+export function monthScore(){
   const self=S.st.subFee+S.st.api+S.st.outPenalty-S.st.outIncome;
-  const score=Math.round(S.kpi*SCORE.kpi+S.trust*SCORE.trust+Math.max(SCORE.spendBase-floor,SCORE.spendBase-self)/SCORE.spendDiv-S.st.audits*SCORE.audit);
+  const score=Math.round(S.kpi*SCORE.kpi+S.trust*SCORE.trust-S.st.audits*SCORE.audit);
   const gm=PAR()?PAR_GRADE:1; const gi=GRADES.findIndex(t=>score>=t*gm);
   return {self,score,grade:gi<0?'D':'SABC'[gi]};
 }
@@ -169,6 +170,7 @@ export function showEnd(){
     <div><span>個人 API 帳單</span><span>${nt(S.st.api)}</span></div>
     ${S.outsource?`<div><span>外包收入</span><span>${nt(S.st.outIncome)}</span></div><div><span>外包違約金</span><span>${nt(S.st.outPenalty)}</span></div>`:''}
     <div class="tot"><span>你自己掏的錢</span><span>${nt(self)}</span></div>
+    <div><span>月底錢包餘額</span><span>${nt(S.wallet)}</span></div>
     <div><span>公司 API 帳單</span><span>${nt(S.st.corp)}</span></div>
     <hr>${vendorLines}<hr>
     <div><span>完成工單</span><span>${S.st.done} 張</span></div>
@@ -186,7 +188,7 @@ export function showEnd(){
     <hr><div class="tot"><span>總分</span><span>${score.toLocaleString('en-US')}</span></div>
     ${best?`<div><span>先前最佳</span><span>${best.toLocaleString('en-US')}</span></div>`:''}
   </div>
-  <p class="lead">總分 = KPI × ${SCORE.kpi} + 信任 × ${SCORE.trust} + 省下的個人預算 ÷ ${SCORE.spendDiv} − 稽核次數 × ${SCORE.audit}</p>
+  <p class="lead">總分 = KPI × ${SCORE.kpi} + 信任 × ${SCORE.trust} − 稽核次數 × ${SCORE.audit}</p>
   <div class="actions"><button class="btn primary" data-act="again">再玩一個月</button><button class="btn ghost" data-act="close">看看紀錄</button></div>`;
   ov.hidden=false;
   mo.onclick=e=>{const t=e.target.closest('button');if(!t)return;if(t.dataset.act==='again')start();if(t.dataset.act==='close'){ov.hidden=true;app.querySelector('[data-act="end"]')?.setAttribute('disabled','');}};
