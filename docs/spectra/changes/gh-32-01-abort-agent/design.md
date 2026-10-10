@@ -49,6 +49,14 @@ Alternative considered: a single click with no protection. Rejected because the 
 
 `job_result` `outcome` gains `cancelled`, checked before `aborted`. Day-end and outage cancellation keep `aborted`, so GA can separate the player's choice from forced stops.
 
+### Shown estimate for a running hidden trap
+
+Found by `/spectra-review` after the first implementation: `makeJob` sizes a hidden trap's job from the true complexity, and the dispatch log line (`預計 <hours>h`), the job row's completion time and its progress bar showed those true hours. A trap shown as complexity 1 with true complexity 4 showed about four times the panel's estimate right after dispatch, and cancelling then cost about 5% of the tokens — cheaper than an architecture evaluation. The player chose to hide the true time.
+
+`makeJob` keeps `hrs` (the real run time, unchanged) and adds `shownHrs`: the estimate for the ticket as shown, multiplied by the same random factor that `hrs` uses. The factor is drawn once and reused, so the `Math.random` call order (`ok`, tokens, hours, review catch) stays as it is and fixed-seed simulations are unchanged. For any ticket that is not an unrevealed trap `shownHrs` equals `hrs`. The dispatch log line's 預計 hours use `shownHrs`. The job row uses elapsed = `hrs − left`: while elapsed is below `shownHrs` it shows the completion time `now + shownHrs − elapsed` and a bar of `elapsed / shownHrs`; once elapsed reaches `shownHrs` it shows 超過預估，還在跑 with a full bar. A job saved before this change has no `shownHrs` and uses `hrs`; `SAVE_VER` stays.
+
+Alternatives considered: accepting the leak and recording it as a risk, or charging at least the evaluation cost when a hidden-trap job is cancelled. The first leaves the cheap trap check in place; the second makes the cancel price itself reveal the trap.
+
 ## Implementation Contract
 
 **Behavior**
@@ -58,6 +66,7 @@ Alternative considered: a single click with no protection. Rejected because the 
 - Security audit roll for sensitive tickets on personal billing and the company overdraft check run as for any settled job.
 - Log line (class warn): `⏹ 中止 <title>｜<agent> / <model name>・<billing>｜燒掉 <tokens>｜<spend>｜<hours>h`, where `<model name>` includes the effort suffix as in other result lines.
 - GA: one `job_result` with `outcome: 'cancelled'` and the usual parameters.
+- Running unrevealed trap: the dispatch log's 預計 hours, the row's completion time and progress bar follow the shown-complexity estimate (`shownHrs`); after it passes, the row reads 超過預估，還在跑 with a full bar. The actual run time, tokens and outcome are unchanged.
 - Rules pop-up: the parallel-mode text says the player can cancel a background agent, paying only for the part already run, and that the ticket returns to the queue without counting as a failure.
 
 **Interfaces**
@@ -65,6 +74,7 @@ Alternative considered: a single click with no protection. Rejected because the 
 - `cancelJob(id)` exported from `public/js/actions.js`.
 - `settle(j, {frac, fail, cancel, note})`: `cancel` is new and optional.
 - `cancelArm` and `armCancel(id)` exported from `public/js/view.js`.
+- Job object gains `shownHrs` (hours); missing on old saved jobs, read as `hrs`.
 - DOM: `data-cancel="<ticket id>"` on the job row button.
 
 **Failure modes**
@@ -78,11 +88,12 @@ Alternative considered: a single click with no protection. Rejected because the 
 
 **Scope boundaries**
 
-- In: actions.js cancel action and `settle` option, view.js button and armed state, main.js delegation, rules.js text, tools/check.js, docs/DESIGN.md.
+- In: actions.js cancel action, `settle` option and `shownHrs` on jobs, view.js job row timing for hidden traps, view.js button and armed state, main.js delegation, rules.js text, tools/check.js, docs/DESIGN.md.
 - Out: serial mode, sim auto-player, save format, game-forced cancellation behavior.
 
 ## Risks / Trade-offs
 
 - [Cancel right after dispatch still costs 5% of the job's tokens] → Intended: the floor matches forced cancellation and keeps cancel from being free.
 - [A cancelled job's pre-rolled outcome (success, review catch) is discarded and re-rolled on the next dispatch] → The player never sees the pre-rolled result, so re-rolling gives no information; the cost of the cancelled run is the price of a re-roll.
+- [A trap still shows itself once the shown estimate passes] → Intended: noticing it then costs at least the shown-complexity run, which matches the trap design (做下去才知道).
 - [Armed state lives outside `S`] → It is UI-only, not saved, and reset on any other click; no game rule depends on it.

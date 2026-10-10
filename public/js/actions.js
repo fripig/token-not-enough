@@ -17,8 +17,9 @@ export function reveal(is){ if(!hiddenTrap(is)) return; is.shownCx=is.cx; is.cx=
 export function makeJob(is){
   const hidden=hiddenTrap(is), e=est(trueView(is),sel.v,sel.m);
   const stop=hidden&&e.M.cap<is.trueCx, f=stop?(S.inv.sdd?SDD_TRAP_STOP:TRAP_STOP):1;
-  const ok=!stop&&Math.random()<e.p;
-  return {issue:is,v:sel.v,m:sel.m,ef:efOf(sel.ef),b:sel.b,M:e.M,rv:sel.rv,tk:e.tk*f*R(.7,1.3),hrs:e.hrs*f*R(.8,1.2),ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd:S.inv.sdd,research:!!is.research};
+  const ok=!stop&&Math.random()<e.p, tk=e.tk*f*R(.7,1.3), n=R(.8,1.2);
+  /* shownHrs：畫面與紀錄看到的預估，陷阱曝光前照顯示的複雜度算，才不會從時間看出陷阱；實際跑 hrs */
+  return {issue:is,v:sel.v,m:sel.m,ef:efOf(sel.ef),b:sel.b,M:e.M,rv:sel.rv,tk,hrs:e.hrs*f*n,shownHrs:(hidden?est(is,sel.v,sel.m).hrs:e.hrs*f)*n,ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd:S.inv.sdd,research:!!is.research};
 }
 /* GA：派工與結果共用的選擇參數；舊存檔的 job 沒有 m、ef */
 export const RV_ID=['none','self','strict'];
@@ -35,7 +36,7 @@ export function dispatch(via='panel',preset='none'){
   /* 復盤用：記下派工當下看到的條件（成功率是派工台顯示的，陷阱照顯示的複雜度） */
   const tags=[`複雜度 ${is.cx}`,is.due<=S.day?'今天到期':`第 ${is.due} 天到期`,...(is.inc?['事故']:[]),...(is.sens?['機敏']:[]),...(is.out?['外包']:[]),...(is.research?['需研究']:[])].join('・');
   const how=via==='quick'?`一鍵派工方案 ${preset}`:via==='batch'?`批次派工方案 ${preset}`:'派工台';
-  log('dim',`→ 派出 ${is.title}（${tags}）｜${VENDORS[j.v].agent} / ${j.M.name}・${BILL_LABEL[j.b]}・${REVIEW[j.rv].name}｜成功率 ${Math.round(pe*100)}%｜${how}｜預計 ${h1(j.hrs)}h`);
+  log('dim',`→ 派出 ${is.title}（${tags}）｜${VENDORS[j.v].agent} / ${j.M.name}・${BILL_LABEL[j.b]}・${REVIEW[j.rv].name}｜成功率 ${Math.round(pe*100)}%｜${how}｜預計 ${h1(j.shownHrs)}h`);
   if(PAR()){
     j.left=j.hrs; is.running=true; S.jobs.push(j); sel.issue=null;
     advance(.2); render(); return;

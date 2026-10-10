@@ -38,8 +38,8 @@ export function render(){
   if(!qs) qs=`<div class="q none">目前沒有任何訂閱。只能用 API、公司預算或本地模型。</div>`;
 
   const jobsHtml=!PAR()?'':`<div class="ph" style="margin-top:6px"><h2>背景 agent</h2><span>${S.jobs.length} / ${S.slots} 個工作槽</span></div>
-    <div class="jobs">${S.jobs.map(j=>{const pr=Math.max(0,1-j.left/j.hrs);const lbl=BILL_LABEL[j.b];
-      return `<div class="job" style="--vc:${vc(j.v)}"><div class="jt"><b>${j.issue.title}</b><span class="num">${clock(8-S.hours+j.left)} 完成</span>${cancelBtn(j.issue.id)}</div>
+    <div class="jobs">${S.jobs.map(j=>{const sh=j.shownHrs??j.hrs, el=j.hrs-j.left, over=el>=sh, pr=over?1:Math.max(0,el/sh);const lbl=BILL_LABEL[j.b];
+      return `<div class="job" style="--vc:${vc(j.v)}"><div class="jt"><b>${j.issue.title}</b><span class="num">${over?'超過預估，還在跑':`${clock(8-S.hours+sh-el)} 完成`}</span>${cancelBtn(j.issue.id)}</div>
       <div class="jm">${VENDORS[j.v].agent} / ${j.M.name}・${lbl}${j.issue.due<=S.day?'・<span style="color:var(--bad)">今天到期</span>':''}</div>
       <div class="bar"><i style="width:${pr*100}%;background:var(--vc)"></i></div></div>`;}).join('')
       ||'<div class="empty" style="padding:14px">沒有 agent 在跑。派出去的工作會在這裡同時進行。</div>'}</div>`;

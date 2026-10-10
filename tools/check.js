@@ -2162,6 +2162,27 @@ function tests(){
    ok(Vw.cancelArm===null&&S.jobs.length===1&&els.app.innerHTML.includes(`data-cancel="${u2.id}">中止</button>`),'abort-agent：點非按鈕的地方也恢復');
    newRun('laravel','serial'); const u3=ticket('laravel',2); S.issues=[u3]; render();
    ok(!els.app.innerHTML.includes('data-cancel'),'abort-agent：單線模式沒有中止按鈕');}
+  /* 陷阱曝光前照顯示的複雜度顯示時間（review 發現真實時數會洩漏陷阱） */
+  {const row=id=>{const h=els.app.innerHTML, a=h.indexOf(`data-cancel="${id}"`), st=h.lastIndexOf('<div class="job"',a); return h.slice(st,h.indexOf('</div></div>',a)+12);};
+   const bar=r=>parseFloat(r.match(/width:([\d.]+)%/)?.[1]);
+   newRun('laravel','parallel'); Vw.armCancel(null);
+   const p1=ticket('laravel',1,{trap:true,trueCx:4,trueBase:BASE[4]}); run(p1,{hrs:4,shownHrs:1,left:3.8}); S.hours=7.8; render();
+   ok(row(p1.id).includes('10:00 完成')&&near(bar(row(p1.id)),20,1e-6),'shown-estimate：陷阱 9:12 時顯示 10:00 完成、進度 20%',row(p1.id));
+   p1.running=true; S.jobs[0].left=2.5; S.hours=6.5; render();
+   ok(row(p1.id).includes('超過預估，還在跑')&&bar(row(p1.id))===100,'shown-estimate：10:30 超過預估，還在跑、進度條滿',row(p1.id));
+   newRun('laravel','parallel'); const p2=ticket('laravel',2); run(p2,{hrs:2,shownHrs:2,left:1.8}); S.hours=7.8; render();
+   ok(row(p2.id).includes('11:00 完成'),'shown-estimate：一般工單 11:00 完成',row(p2.id));
+   newRun('laravel','parallel'); const p3=ticket('laravel',2); run(p3,{hrs:2,left:1.5}); S.hours=8; render();
+   ok(row(p3.id).includes('10:30 完成')&&near(bar(row(p3.id)),25,1e-6),'shown-estimate：舊存檔沒有 shownHrs 時用真實時數',row(p3.id));
+   /* makeJob 與派工紀錄 */
+   newRun('laravel','parallel'); Object.assign(sel,{v:'anthropic',m:'sonnet',b:'api',rv:0,ef:1});
+   const p4=ticket('laravel',1,{trap:true,trueCx:4,trueBase:BASE[4]}); const j4=makeJob(p4);
+   const sh=est(p4,'anthropic','sonnet').hrs, tr=est(trueView(p4),'anthropic','sonnet').hrs;
+   ok(near(j4.shownHrs/j4.hrs,sh/tr,1e-9)&&j4.hrs>j4.shownHrs*2,'shown-estimate：陷阱 job 的 shownHrs 照顯示的複雜度、同一個隨機倍率',`${j4.shownHrs} ${j4.hrs}`);
+   const p5=ticket('laravel',2);
+   {const j5=makeJob(p5); ok(j5.shownHrs===j5.hrs,'shown-estimate：一般工單 shownHrs 等於 hrs');}
+   S.issues=[p4]; sel.issue=p4.id; S.hours=8; dispatch(); const j6=S.jobs[0], dl=S.log.find(l=>l.msg.includes('→ 派出'));
+   ok(dl.msg.endsWith(`預計 ${h1(j6.shownHrs)}h`)&&h1(j6.shownHrs)!==h1(j6.hrs),'shown-estimate：派工紀錄的預計時數用 shownHrs',dl.msg);}
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);
