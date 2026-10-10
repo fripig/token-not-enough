@@ -82,9 +82,23 @@ export function invPanel(){
   const btn=(k,st)=>{const I=INVEST[k], why=investBlock(k,st);
     return `<button class="sb" data-inv="${k}" ${st?`data-st="${st}"`:''} ${why?'disabled':''}><b>${k==='md'?STACKS[st].name:I.name}</b><small>${why||`${I.hrs}h・公司 ${nt(I.cost)}`}</small></button>`;};
   const row=(k,body)=>`<div class="inv"><div><b>${INVEST[k].name}</b><span>${INVEST[k].desc}${k==='md'?`・每條技術線 ${INVEST.md.hrs}h、公司 ${nt(INVEST.md.cost)}`:''}</span></div><div class="seg">${body}</div></div>`;
-  return `<section class="panel"><div class="ph"><h2>工程投資</h2><span>效果維持到月底・已做 ${invCount()} 項</span></div>
-    <div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${INV_KEYS.map(k=>row(k,btn(k))).join('')}${hwRow()}</div></section>`;
+  const f=invFolded();
+  return `<section class="panel"><div class="ph"><h2><button class="fold" data-act="invfold" aria-expanded="${!f}">${f?'▸':'▾'} 工程投資</button></h2><span>${f?'':'效果維持到月底・'}已做 ${invCount()} 項</span></div>
+    ${f?'':`<div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${INV_KEYS.map(k=>row(k,btn(k))).join('')}${hwRow()}</div>`}</section>`;
 }
+/* 工程投資面板收合：瀏覽器偏好，存 localStorage，不進存檔；讀寫失敗就只記在這一頁 */
+export const INV_FOLD_KEY='tokgame-invfold';
+export let invFold=null;
+export function invFolded(){
+  if(invFold===null){try{invFold=localStorage.getItem(INV_FOLD_KEY)==='1';}catch(e){invFold=false;}}
+  return invFold;
+}
+export function toggleInvFold(){
+  invFold=!invFolded();
+  try{localStorage.setItem(INV_FOLD_KEY,invFold?'1':'0');}catch(e){}
+}
+/* 下次 render 重新讀 localStorage（check.js 用） */
+export function resetInvFold(){invFold=null;}
 /* 採購電腦：公司採購申請，不扣 API 預算，到貨當天看信任 */
 export function hwRow(){
   const b=k=>{const H=HW[k], why=hwReqBlock(k);
