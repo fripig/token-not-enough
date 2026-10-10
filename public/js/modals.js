@@ -24,11 +24,13 @@ export function planPicker(adjust){
 }
 /* 這次要付錢而且錢包不夠才擋；沒改、降級（付 NT$0）不受錢包影響 */
 export const planShort=adjust=>{const c=planCost(adjust);return c>0&&c>S.wallet;};
+/* 週一一家的費用：從不訂閱開新方案收全月，付費方案升級補剩下週數的差價，降級 0 */
+export const subCost=(cur,next,day)=>cur===0&&next>0?next:Math.max(0,next-cur)*(4-Math.floor((day-1)/5))/4;
 export function planCost(adjust){
-  let c=0; const wl=adjust?4-Math.floor((S.day-1)/5):4;
+  let c=0;
   for(const v of SUBV){
-    const np=VENDORS[v].plans.find(p=>p.id===draft.subs[v]).price, op=adjust?planOf(v).price:0;
-    c+=Math.max(0,np-op)*wl/4;
+    const np=VENDORS[v].plans.find(p=>p.id===draft.subs[v]).price;
+    c+=adjust?subCost(planOf(v).price,np,S.day):np;
   }
   return c;
 }

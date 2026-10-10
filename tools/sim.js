@@ -19,7 +19,7 @@
 // 複雜度 ≥4 且案主允許時用 GLM-5.3，否則 Qwen3-Coder-Next，政府標案用 Gemma 4 31B；跑不完（單線超過今天工時、平行今天到期跑不完）的模型略過，沒有能用的才照舊。買了沒用照樣每台每天扣信任。
 // SIM_SUB=pro200|pro500 讓自動玩家改訂 OpenAI 的 Pro 200 或 Pro 500（不訂 Anthropic Max 5×，照價付月費）：OpenAI 沒當機、今日訂閱額度還超過 300k 時，
 // 每張單（公司與外包）都派 Codex Sol 走個人訂閱；額度不夠才照舊（能用 DeepSeek 就用，否則 Sonnet，沒有 Anthropic 訂閱所以走公司 API）。
-// SIM_UPGRADE=1 讓自動玩家存錢升級：第 6、11、16 天（週一）開工時，錢包付得起差價又能留 NT$1,500 給個人 API，就把 OpenAI 升到 Pro 500，否則 Pro 200（照剩餘週數補差價）；
+// SIM_UPGRADE=1 讓自動玩家存錢升級：第 6、11、16 天（週一）開工時，錢包付得起差價又能留 NT$1,500 給個人 API，就把 OpenAI 升到 Pro 500，否則 Pro 200（照遊戲的 subCost：從不訂閱開新方案收全月，已有方案升級補剩餘週數差價）；
 // 有 OpenAI 訂閱後照 SIM_SUB 的派法（今日額度還超過 300k 就派 Codex Sol 走個人訂閱）。量「接外包→存錢→升級」這條路，和 SIM_OUTSOURCE=1 一起用。
 // SIM_UPGRADE=2 同上，但升到 Pro 500 之後就不再接外包單（放著逾期只賠錢、不扣分）。
 // SIM_RESEARCH_RATE=<比例> 可覆寫研究單比例（例如 SIM_RESEARCH_RATE=0 關掉研究單，亂數序列和沒有研究單時一樣）。
@@ -36,6 +36,7 @@ import {START,S,sel,setResearchRate,setTrapRate} from '../public/js/state.js';
 import {est,hwBlock,localBusy,quotaLeft} from '../public/js/calc.js';
 import {PAR,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
 import {dispatchPanel} from '../public/js/view.js';
+import {subCost} from '../public/js/modals.js';
 // 自動玩家不記最高分（和改成模組前一樣）
 globalThis.localStorage={getItem(){return null},setItem(){}};
 
@@ -101,9 +102,9 @@ function sim(){
         while(S.day<=20&&guard++<2000){
           const skip=new Set();
           if(UPG&&UPG_DAYS.includes(S.day)){
-            const wl=4-Math.floor((S.day-1)/5), cur=oaiPrice(S.subs.openai);
-            const up=['pro500','pro'].find(id=>oaiPrice(id)>cur&&(oaiPrice(id)-cur)*wl/4<=S.wallet-UPG_RESERVE);
-            if(up){const c=(oaiPrice(up)-cur)*wl/4; S.subs.openai=up; S.wallet-=c; S.st.subFee+=c;}
+            const cur=oaiPrice(S.subs.openai);
+            const up=['pro500','pro'].find(id=>oaiPrice(id)>cur&&subCost(cur,oaiPrice(id),S.day)<=S.wallet-UPG_RESERVE);
+            if(up){const c=subCost(cur,oaiPrice(up),S.day); S.subs.openai=up; S.wallet-=c; S.st.subFee+=c;}
           }
           const sk=SEAT_DAYS.indexOf(S.day); if(sk>=0&&sk<SEATS&&!S.seats.includes(SEAT.vendors[sk])) S.seats.push(SEAT.vendors[sk]);
           if(HWSIM&&!S.hwReq){const k=HW_ORDER.find(k=>!S.hw[k]); if(k&&S.trust>=HW[k].trust) requestHw(k);}

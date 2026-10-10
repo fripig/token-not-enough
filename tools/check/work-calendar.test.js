@@ -49,9 +49,16 @@ section("週一補差價",()=>{
   const adjCost=(day,v,from,to)=>{newRun('laravel'); S.day=day; S.subs[v]=from; showSetup(true); clickMo({pv:v,pp:to}); return M.planCost(true);};
   ok(adjCost(6,'anthropic','pro','max5')===1987.5,'work-calendar：第 6 天 Pro→Max 5× 補 NT$1,987.5');
   ok(adjCost(11,'anthropic','pro','max5')===1325,'work-calendar：第 11 天 Pro→Max 5× 補 NT$1,325');
-  ok(adjCost(16,'openai','none','plus')===162.5,'work-calendar：第 16 天不訂閱→Plus 補 NT$162.5');
+  ok(adjCost(16,'openai','none','plus')===650,'work-calendar：第 16 天不訂閱→Plus 收全月 NT$650');
+  ok(adjCost(16,'openai','none','pro')===6500,'work-calendar：第 16 天不訂閱→Pro 200 收全月 NT$6,500');
+  ok(adjCost(6,'moonshot','none','member')===300,'work-calendar：第 6 天不訂閱→Kimi 會員 收全月 NT$300');
+  ok(adjCost(16,'openai','plus','pro')===1462.5,'work-calendar：第 16 天 Plus→Pro 200 補 NT$1,462.5');
+  ok(els.mo.innerHTML.includes('新訂閱收整個月，升級只補剩下週數的差價，降級不退費。'),'work-calendar：週一彈窗說明新訂閱收全月');
   ok(adjCost(11,'anthropic','max5','pro')===0,'work-calendar：降級不用付錢');
   const w0=S.wallet; clickMo({act:'confirm'}); ok(S.subs.anthropic==='pro'&&S.wallet===w0,'work-calendar：降級立即生效、不退費');
+  { newRun('laravel'); S.day=6; S.subs.anthropic='pro'; showSetup(true); clickMo({pv:'anthropic',pp:'none'}); const w1=S.wallet; clickMo({act:'confirm'});
+    S.day=11; showSetup(true); clickMo({pv:'anthropic',pp:'pro'});
+    ok(S.wallet===w1&&M.planCost(true)===650,'work-calendar：第 6 天退訂 Pro、第 11 天再訂收全月 NT$650'); }
   ok(adjCost(11,'openai','pro','pro500')===4875,'agent-catalog：第 11 天 Pro 200→Pro 500 補 NT$4,875');
   clickMo({act:'confirm'}); ok(S.subs.openai==='pro500'&&dataModule.planOf('openai').day===12500&&dataModule.planOf('openai').week===50000,'agent-catalog：升級 Pro 500 後額度 12,500k／50,000k');
   newRun('laravel'); S.day=6; S.subs.anthropic='pro'; showSetup(true); clickMo({pv:'anthropic',pp:'max20'}); clickMo({act:'close'});
