@@ -1,10 +1,4 @@
-# month-end-scoring Specification
-
-## Purpose
-
-Turns the month into a score, a letter grade and a title, and shows a receipt of where the money, tokens and time went.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Score formula
 
@@ -45,31 +39,6 @@ The grade SHALL be S at 4,300 or more, A at 3,300, B at 2,500, C at 1,700, and D
 | parallel | 6,880 | S |
 | parallel | 6,879 | A |
 | parallel | 2,719 | D |
-
----
-### Requirement: Title
-
-The receipt SHALL show the first matching title: 資安部門的常客 (2 or more audits), 自費養 AI 的勇者 (personal spend above NT$7,000), 公司帳單上的頭號人物 (company bill above NT$10,500), 對岸模型省錢達人 (DeepSeek, 智譜 GLM and Kimi above 40% of tokens), 地端信仰者 (local above 40% of tokens), 手工藝工程師 (more than 12 hand-written attempts), Token 精算師 (grade S or A), otherwise 還在摸索的開發者.
-
-#### Scenario: Audits take precedence
-
-- **WHEN** a month ends with 2 audits and grade S
-- **THEN** the title is 資安部門的常客
-
-#### Scenario: Default title
-
-- **WHEN** no rule matches and the grade is C
-- **THEN** the title is 還在摸索的開發者
-
-
-<!-- @trace
-source: gh-09-01-core-rules-specs
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - tools/check.js
-  - tools/fake-dom.js
--->
 
 ---
 ### Requirement: Receipt

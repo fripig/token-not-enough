@@ -115,16 +115,7 @@ When the month-end receipt opens, the game SHALL send `game_end` with the common
 #### Scenario: Month end
 
 - **WHEN** a serial run reaches the month-end receipt with KPI 300, trust 70, no personal spending and no audits
-- **THEN** `game_end` is sent once with `day` 20, `score` 4280 and `grade` A
-
-
-<!-- @trace
-source: gh-10-01-play-analytics
-updated: 2026-10-09
-code:
-  - tools/check.js
-  - docs/DESIGN.md
--->
+- **THEN** `game_end` is sent once with `day` 20, `score` 3280 and `grade` B
 
 ---
 ### Requirement: Game version stamp
