@@ -1,7 +1,7 @@
-import {RESEARCH_DIRECT_TK,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc} from './data.js';
+import {RESEARCH_DIRECT_TK,SKILLS_CX,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
 import {REVIEW,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetFor,quotaLeft,stackHint} from './calc.js';
-import {INV_STACKS,PAR,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad} from './actions.js';
+import {INV_STACKS,PAR,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
 
 /* ===== 畫面 ===== */
 export const app=document.getElementById('app'), ov=document.getElementById('ov'), mo=document.getElementById('mo');
@@ -60,7 +60,7 @@ export function render(){
   ${meters}
   <div class="quotas">${qs}</div>
   <div class="main">
-    <section class="panel"><div class="ph"><h2>工單佇列</h2><span>${S.issues.filter(i=>!i.running).length} 張・依到期排序</span></div>${S.inv.skills?`<button class="btn ghost" data-act="batch" ${canQuick()?'':'disabled'}>批次派工（複雜度 ≤2）</button>`:''}<div class="issues">${list}</div>${jobsHtml}</section>
+    <section class="panel"><div class="ph"><h2>工單佇列</h2><span>${S.issues.filter(i=>!i.running).length} 張・依到期排序</span></div>${S.inv.skills?`<button class="btn ghost" data-act="batch" ${canQuick()?'':'disabled'}>批次派工（複雜度 ≤${SKILLS_CX[lv(S.inv.skills)]}）</button>`:''}<div class="issues">${list}</div>${jobsHtml}</section>
     <section class="panel">${dispatchPanel()}</section>
   </div>
   ${invPanel()}
@@ -79,12 +79,21 @@ export function quickBtn(is){
   return `<button class="qk" data-quick="${is.id}" ${canQuick()?'':'disabled'}><b>一鍵派工：方案 ${PN[i]}</b><span>${VENDORS[p.v].agent} / ${model(p.v,p.m).name}・${BILL_LABEL[p.b]}</span>${skip.length?`<span class="why">${PN[skip[0].i]} 不能用：${skip[0].r}</span>`:''}${risk?`<span class="why">機敏工單用個人帳號：${Math.round(auditOdds(p.v)*100)}% 機率被資安稽核</span>`:''}</button>`;
 }
 export function invPanel(){
-  const btn=(k,st)=>{const I=INVEST[k], why=investBlock(k,st);
-    return `<button class="sb" data-inv="${k}" ${st?`data-st="${st}"`:''} ${why?'disabled':''}><b>${k==='md'?STACKS[st].name:I.name}</b><small>${why||`${I.hrs}h・公司 ${nt(I.cost)}`}</small></button>`;};
-  const row=(k,body)=>`<div class="inv"><div><b>${INVEST[k].name}</b><span>${INVEST[k].desc}${k==='md'?`・每條技術線 ${INVEST.md.hrs}h、公司 ${nt(INVEST.md.cost)}`:''}</span></div><div class="seg">${body}</div></div>`;
+  /* 有等級的投資按鈕寫下一級（買滿寫最高級）；鎖住時寫要先做什麼 */
+  const btn=(k,st)=>{const I=invCost(k,st), why=investBlock(k,st), cur=invLevel(k,st), max=invMax(k), L=Math.min(cur+1,max);
+    const tag=max>1&&(cur>=1||k==='ai')?` Lv${L}`:'';
+    return `<button class="sb" data-inv="${k}" ${st?`data-st="${st}"`:''} ${why?'disabled':''}><b>${k==='md'?STACKS[st].name:INVEST[k].name}${tag}</b><small>${why||`${I.hrs}h・公司 ${nt(I.cost)}`}</small></button>`;};
+  const row=(k,body)=>{const I=INVEST[k];
+    return `<div class="inv"><div><b>${I.name}</b><span>${I.desc}${k==='md'?`・每條技術線 ${I.hrs}h、公司 ${nt(I.cost)}`:''}${I.lv2?`。Lv2：${I.lv2.desc}，${I.lv2.hrs}h、公司 ${nt(I.lv2.cost)}`:''}</span></div><div class="seg">${body}</div></div>`;};
   const f=invFolded();
   return `<section class="panel"><div class="ph"><h2><button class="fold" data-act="invfold" aria-expanded="${!f}">${f?'▸':'▾'} 工程投資</button></h2><span>${f?'':'效果維持到月底・'}已做 ${invCount()} 項</span></div>
-    ${f?'':`<div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${INV_KEYS.map(k=>row(k,btn(k))).join('')}${hwRow()}</div>`}</section>`;
+    ${f?'':`<div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${INV_KEYS.map(k=>row(k,btn(k))).join('')}${confRow()}${hwRow()}</div>`}</section>`;
+}
+/* 國內研討會：平日自費報名，週末出席、下週一生效 */
+export function confRow(){
+  const b=k=>{const C=CONF[k], why=confBlock(k);
+    return `<button class="sb" data-conf="${k}" ${why?'disabled':''}><b>${C.name}</b><small>${CONF_CATS[C.cat]}${C.stacks.length?`・${C.stacks.map(st=>STACKS[st].name).join('、')}`:''}・自費 ${nt(C.fee)}</small>${why?`<small>${why}</small>`:''}</button>`;};
+  return `<div class="inv"><div><b>國內研討會（週末自費）</b><span>平日報名、不花工時、不看信任，週末出席、下週一生效；第 ${CONF_LAST_DAY} 天後不能報名，一週一場。技術線場讓涵蓋的技術線自己手寫 ×${CONF_MANUAL}、不再算不熟，並開放 CLAUDE.md Lv2；資安場開放 ${INVEST.scan.name} Lv2、AI 場開放${INVEST.skills.name} Lv2、綜合場開放${INVEST.tests.name} Lv2；每去一場開放${INVEST.ai.name}下一級</span></div><div class="seg">${CONF_KEYS.map(b).join('')}</div></div>`;
 }
 /* 工程投資面板收合：瀏覽器偏好，存 localStorage，不進存檔；讀寫失敗就只記在這一頁 */
 export const INV_FOLD_KEY='tokgame-invfold';
