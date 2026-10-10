@@ -4,6 +4,7 @@
 // 沒帶參數就全跑；帶 spec 名稱只跑那幾份。任何一條斷言不符就以非 0 結束。
 import {readdirSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 // 先檢查 CHECK_SEED，格式不對就在跑任何測試之前以 1 結束
 import './check-seed.js';
 
@@ -15,6 +16,7 @@ if(unknown.length){
   console.error(`沒有這份檢查：${unknown.join(', ')}\n可用的名稱：${names.join(' ')}`);
   process.exit(1);
 }
-const files=(want.length?want:names).map(n=>new URL(`${n}.test.js`,dir).pathname);
+// 用 fileURLToPath 而不是 .pathname：路徑有空白或中文時 .pathname 會是 %20 這類編碼，node --test 找不到檔
+const files=(want.length?want:names).map(n=>fileURLToPath(new URL(`${n}.test.js`,dir)));
 const r=spawnSync(process.execPath,['--test','--test-reporter=spec',...files],{stdio:'inherit'});
 process.exitCode=r.status??1;

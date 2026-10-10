@@ -35,13 +35,13 @@ export function near(a,b,eps=1e-9){return Math.abs(a-b)<=eps;}
 /* 一個區段是一個 node:test 測試：裡面有任何一條 ok() 不符，跑完後這個測試失敗並列出不符的斷言 */
 export function section(name,fn){
   test(name,async t=>{
-    fails=[]; count=0;
-    try{ await fn(); }
-    finally{
-      const bad=fails; fails=null;
-      t.diagnostic(`${count-bad.length}/${count} 條斷言通過`);
-      if(bad.length) throw new Error(`${bad.length} 條斷言不符：\n${bad.join('\n')}`);
-    }
+    fails=[]; count=0; let err=null;
+    try{ await fn(); }catch(e){ err=e; }
+    const bad=fails; fails=null;
+    t.diagnostic(`${count-bad.length}/${count} 條斷言通過`);
+    // 區段中途丟出例外時保留原本的錯誤（常是搬移後少了前一段的準備），已不符的斷言附在訊息後面
+    if(err){ if(bad.length&&err instanceof Error) err.message+=`\n（之前另有 ${bad.length} 條斷言不符：${bad.join('、')}）`; throw err; }
+    if(bad.length) throw new Error(`${bad.length} 條斷言不符：\n${bad.join('\n')}`);
   });
 }
 /* 去掉 JS 註解（保留字串、模板字串與 ${} 裡的程式），換行照留；i18n 檢查用 */
