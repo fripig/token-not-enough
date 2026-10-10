@@ -91,6 +91,7 @@ function sim(){
         else{ S.subs.anthropic='max5'; S.wallet-=3300; S.st.subFee+=3300; }
         let guard=0;
         while(S.day<=20&&guard++<2000){
+          const skip=new Set();
           if(UPG&&UPG_DAYS.includes(S.day)){
             const wl=4-Math.floor((S.day-1)/5), cur=oaiPrice(S.subs.openai);
             const up=['pro500','pro'].find(id=>oaiPrice(id)>cur&&(oaiPrice(id)-cur)*wl/4<=S.wallet-UPG_RESERVE);
@@ -106,7 +107,7 @@ function sim(){
           }
           let acted=true;
           while(acted){acted=false;
-            const free=S.issues.filter(i=>!i.running&&!(UPG_STOP&&i.out&&S.subs.openai==='pro500'));
+            const free=S.issues.filter(i=>!i.running&&!skip.has(i.id)&&!(UPG_STOP&&i.out&&S.subs.openai==='pro500'));
             if(free.length&&S.hours>.3&&(!PAR()||S.jobs.length<S.slots)){
               sel.issue=free[0].id; sel.rv=g%3;
               const dsOk=!cnBlock(free[0],'deepseek',model('deepseek','chat'));
@@ -120,10 +121,18 @@ function sim(){
               if(EFF){const gap=model(sel.v,sel.m).cap-free[0].cx; sel.ef=gap<=-1?2:gap>=2?0:1;}
               if(subOk)sel.b='sub'; else if(hm)sel.b='local'; else if(seatV)sel.b='seat'; else if(dsOk||free[0].out||LUNA)sel.b='api'; else sel.b=quotaLeft('sub','anthropic')>300?'sub':'corp';
               if(sel.b==='corp'&&S.corp<=0) sel.b='api';
+              /* 錢包見底時個人 API 不能用：改走 Anthropic 訂閱或公司 API（外包單不能用公司），都不行就派本地 Gemma */
+              if(sel.b==='api'&&S.wallet<=0){
+                const fb=quotaLeft('sub','anthropic')>300?'sub':S.corp>0&&!free[0].out?'corp':'';
+                if(fb){ sel.v='anthropic'; sel.m=HAIKU?'haiku':'sonnet'; sel.b=fb; }
+                else{ sel.v='local'; sel.m='gemma'; sel.b='local'; }
+              }
               /* SIM_RESEARCH：研究單先研究，拆出來的單下一輪照順序派 */
               if(RSCH&&free[0].research&&!researchBlock(free[0],RSCH)){ research(RSCH); acted=true; continue; }
-              const before=S.hours; dispatch(); acted=S.hours!==before||PAR();
+              const before=S.hours, n0=S.jobs.length; dispatch(); acted=S.hours!==before||PAR();
               if(!PAR()&&S.hours===before)acted=false;
+              /* 平行模式派不出去（付費方式不能用、本地 GPU 忙）的單今天略過，換下一張 */
+              if(PAR()&&S.jobs.length===n0&&S.hours===before) skip.add(free[0].id);
             } else if(PAR()&&S.jobs.length&&S.hours>0){ wait(true); acted=true; }
           }
           const d=S.day; endDay(); if(d===20)break;
