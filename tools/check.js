@@ -2064,6 +2064,8 @@ function tests(){
   newRun('laravel','parallel'); S.inv.skills=2; S.hours=8; S.slots=4; S.presets=presetsOf(DEFAULT_PRESETS);
   {const b2=[1,3,4,2].map(cx=>ticket('fe',cx,{due:5})); S.issues=[...b2]; batch();
    ok(S.jobs.length===3&&S.jobs.every(j=>j.issue.cx<=3)&&!b2[2].running&&S.issues.includes(b2[2]),'domestic-conference：skills Lv2 批次派工到複雜度 3，複雜度 4 留著',S.jobs.map(j=>j.issue.cx).join());}
+  newRun('laravel'); S.inv.skills=1; render(); ok(els.app.innerHTML.includes('批次派工（複雜度 ≤2）'),'domestic-conference：skills Lv1 批次派工按鈕寫 ≤2');
+  S.inv.skills=2; render(); ok(els.app.innerHTML.includes('批次派工（複雜度 ≤3）'),'domestic-conference：skills Lv2 批次派工按鈕寫 ≤3');
   /* 提升 agent 能力 */
   newRun('laravel'); S.conf.went=['coscup','hitcon']; S.inv.ai=2;
   ok(near(est(ticket('fe',4),'anthropic','sonnet',0).p,.96),'domestic-conference：agent 能力 Lv2，複雜度 4 前端單 Sonnet 成功率 0.96');

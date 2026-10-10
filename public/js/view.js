@@ -1,4 +1,4 @@
-import {RESEARCH_DIRECT_TK,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
+import {RESEARCH_DIRECT_TK,SKILLS_CX,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
 import {REVIEW,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetFor,quotaLeft,stackHint} from './calc.js';
 import {INV_STACKS,PAR,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
@@ -60,7 +60,7 @@ export function render(){
   ${meters}
   <div class="quotas">${qs}</div>
   <div class="main">
-    <section class="panel"><div class="ph"><h2>工單佇列</h2><span>${S.issues.filter(i=>!i.running).length} 張・依到期排序</span></div>${S.inv.skills?`<button class="btn ghost" data-act="batch" ${canQuick()?'':'disabled'}>批次派工（複雜度 ≤2）</button>`:''}<div class="issues">${list}</div>${jobsHtml}</section>
+    <section class="panel"><div class="ph"><h2>工單佇列</h2><span>${S.issues.filter(i=>!i.running).length} 張・依到期排序</span></div>${S.inv.skills?`<button class="btn ghost" data-act="batch" ${canQuick()?'':'disabled'}>批次派工（複雜度 ≤${SKILLS_CX[lv(S.inv.skills)]}）</button>`:''}<div class="issues">${list}</div>${jobsHtml}</section>
     <section class="panel">${dispatchPanel()}</section>
   </div>
   ${invPanel()}
