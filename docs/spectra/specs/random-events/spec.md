@@ -30,6 +30,8 @@ code:
 
 Each event SHALL have exactly this effect. Price drop and outage SHALL pick a random vendor other than 自架開源; quota cut SHALL pick a random subscription vendor (Anthropic, OpenAI, Google, 智譜 GLM, Kimi).
 
+The manager event SHALL compare KPI with the pace threshold day × 7 (strictly greater passes), where day is the day being started. Its text SHALL state the current KPI and, for praise and doubt, the threshold; no event text SHALL contain 不是有買 AI 嗎.
+
 ##### Example: events
 
 | Title | Effect |
@@ -40,7 +42,7 @@ Each event SHALL have exactly this effect. Price drop and outage SHALL pick a ra
 | 年度預算凍結 | Company budget × 0.7 |
 | `<vendor>` 調整訂閱用量政策 | That vendor's daily and weekly subscription quota × 0.8 for the rest of the month |
 | 大新聞爆發，流量暴增 | Two incident tickets are added; if the day is before 6, shows 新聞流量比平常高一點 with the text 監控曲線抖了一下，系統還撐得住。沒有其他變化。 and adds no ticket instead |
-| 主管在週會上點名稱讚 / 主管問進度怎麼這麼慢 | Trust +6 (cap 100) if KPI > day × 7, otherwise trust −4 (floor 0) |
+| 主管在週會上點名稱讚 / 主管問進度怎麼這麼慢 / 主管在週會上提醒進度 | KPI > day × 7: 主管在週會上點名稱讚, text 「KPI 已經 `<kpi>`，超過 `<day × 7>`，AI 工具用得很有效率。」信任 +6。, trust +6 (cap 100). Otherwise on day 6 or later: 主管問進度怎麼這麼慢, text 「KPI 才 `<kpi>`，要超過 `<day × 7>` 才跟得上進度。」信任 -4。, trust −4 (floor 0). Otherwise (day before 6): 主管在週會上提醒進度, text 「KPI 目前 `<kpi>`。第一週先熟悉工具，之後 KPI 要超過天數 × 7。」沒有其他變化。, trust unchanged |
 | 外包案尾款入帳 | Wallet + NT$1,500 |
 
 #### Scenario: Budget freeze
@@ -51,12 +53,28 @@ Each event SHALL have exactly this effect. Price drop and outage SHALL pick a ra
 #### Scenario: Manager praise
 
 - **WHEN** the manager event happens on day 5 with KPI 40 and trust 70
-- **THEN** the title is 主管在週會上點名稱讚 and trust is 76
+- **THEN** the title is 主管在週會上點名稱讚, the text is 「KPI 已經 40，超過 35，AI 工具用得很有效率。」信任 +6。 and trust is 76
 
-#### Scenario: Manager doubt
+#### Scenario: Manager reminder in the first week
 
 - **WHEN** the manager event happens on day 5 with KPI 35 and trust 70
-- **THEN** the title is 主管問進度怎麼這麼慢 and trust is 66
+- **THEN** the title is 主管在週會上提醒進度, the text is 「KPI 目前 35。第一週先熟悉工具，之後 KPI 要超過天數 × 7。」沒有其他變化。 and trust is 70
+
+#### Scenario: Manager doubt from day 6
+
+- **WHEN** the manager event happens on day 6 with KPI 42 and trust 70
+- **THEN** the title is 主管問進度怎麼這麼慢, the text is 「KPI 才 42，要超過 42 才跟得上進度。」信任 -4。 and trust is 66
+
+##### Example: manager event outcomes
+
+| Day | KPI | Trust before | Title | Trust after |
+| --- | --- | --- | --- | --- |
+| 2 | 0 | 70 | 主管在週會上提醒進度 | 70 |
+| 2 | 15 | 70 | 主管在週會上點名稱讚 | 76 |
+| 5 | 35 | 70 | 主管在週會上提醒進度 | 70 |
+| 6 | 43 | 98 | 主管在週會上點名稱讚 | 100 |
+| 6 | 42 | 70 | 主管問進度怎麼這麼慢 | 66 |
+| 7 | 0 | 2 | 主管問進度怎麼這麼慢 | 0 |
 
 #### Scenario: Ban too early
 
