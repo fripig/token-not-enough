@@ -1,7 +1,7 @@
 import {S,addGigs,clearSave,fresh,makeIssue,readSave,resetIds,sel} from './state.js';
 import {log} from './calc.js';
-import {batch,dispatch,endDay,evaluate,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait} from './actions.js';
-import {app,render} from './view.js';
+import {batch,dispatch,endDay,evaluate,research,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait} from './actions.js';
+import {app,render,toggleInvFold} from './view.js';
 import {showBadSave,showResume,showSetup} from './modals.js';
 import {showRules} from './rules.js';
 
@@ -22,12 +22,15 @@ app.addEventListener('click',e=>{
   else if(t.dataset.act==='go')dispatch();
   else if(t.dataset.act==='manual')manual();
   else if(t.dataset.act==='eval')evaluate();
+  else if(t.dataset.act==='research')research('agent');
+  else if(t.dataset.act==='selfresearch')research('self');
   else if(t.dataset.act==='rescope')rescope();
   else if(t.dataset.act==='end')endDay();
   else if(t.dataset.act==='wait1')wait(false);
   else if(t.dataset.act==='waitn')wait(true);
   else if(t.dataset.act==='adjust')showSetup(true);
   else if(t.dataset.act==='rules')showRules();
+  else if(t.dataset.act==='invfold'){toggleInvFold();render();}
 });
 
 /* 第 1 天的工單依公司產生；開局換公司時重抽 */

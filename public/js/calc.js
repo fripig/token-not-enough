@@ -1,4 +1,4 @@
-import {BIG,CATCH,MANUAL_HRS,RETRY,STACK_HRS,UNFAMILIAR_HRS,FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,effModel,efOf,kt,model,planOf} from './data.js';
+import {BIG,CATCH,MANUAL_HRS,RESEARCH_DIRECT_TK,RETRY,STACK_HRS,UNFAMILIAR_HRS,FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,effModel,efOf,kt,model,planOf} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
 import {PAR} from './actions.js';
 
@@ -46,7 +46,7 @@ export const P_STEP=[.95,.8,.5,.25,.1];
 export function est(is,v,mid,rv=sel.rv,ef=sel.ef){
   const M0=model(v,mid), M=effModel(M0,efOf(ef)), raw=M.cap-is.cx, diff=raw+stackGap(is,M);
   const md=!!S.inv.md[is.stack], sdd=S.inv.sdd;
-  const tk=is.base*M.verb*(is.big&&M.ctx?BIG.tk:1)*(M0.cap-is.cx>=1?.85:1)*REVIEW[rv].tk*(md?MD_TK:1)*(sdd?SDD_TK:1);
+  const tk=is.base*M.verb*(is.big&&M.ctx?BIG.tk:1)*(M0.cap-is.cx>=1?.85:1)*REVIEW[rv].tk*(md?MD_TK:1)*(sdd?SDD_TK:1)*(is.research?RESEARCH_DIRECT_TK:1);
   let p=P_STEP[Math.min(4,Math.max(0,1-diff))];
   if(is.big&&M.ctx)p+=BIG.p; if(is.big&&!M.ctx&&M.cap<4)p-=BIG.p;
   if(md)p+=MD_P; if(sdd&&is.cx>=3)p+=SDD_P;

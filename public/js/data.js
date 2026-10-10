@@ -53,6 +53,7 @@ export const STACKS={
     4:['Laravel 大版本升級','CKEditor 換成 Tiptap 的內容轉換','CDN 快取失效策略重寫','權限系統改成角色＋政策','CI 流程從零改成容器化部署'],
     5:['舊資料庫拆分遷移','從單體拆出搜尋服務','整站改 SSR 還要保住 SEO'],
     trap:['文章網址只要改一下格式','順便把作者欄位改成可以多選','時區改成跟著使用者設定，應該很快','後台列表加一個「全部匯出」按鈕就好'],
+    research:[{t:'會員系統整合第三方登入與付費牆',parts:['會員資料表加上第三方帳號綁定','付費牆改成依會員方案判斷']},{t:'文章版本歷程與排程發布',parts:['文章修訂紀錄與差異比對','排程發布與到點自動上架']},{t:'站內搜尋改用 Meilisearch',parts:['文章索引同步到 Meilisearch','搜尋 API 換成新索引並保留舊參數']}],
     inc:['正式站 502：worker 不停重啟','WAF 誤擋編輯後台','首頁快取被打穿，RDS CPU 99%','排程重複發送推播']}},
   rails:{name:'Rails',company:'Rails 後端',level:1,desc:'Convention over configuration，簡單工單便宜模型就夠用。',pool:{
     1:['帳單 Email 主旨少了公司名稱','後台 flash 訊息沒有翻譯','價目表頁連結指到舊方案','註冊頁密碼提示文字錯誤'],
@@ -61,6 +62,7 @@ export const STACKS={
     4:['Rails 大版本升級','Webpacker 換成 importmap','權限從 CanCanCan 換成 Pundit','背景任務從 Sidekiq 搬到 Solid Queue'],
     5:['單一資料庫拆成多租戶分庫','計費系統改成用量計價','把報表模組拆成獨立服務'],
     trap:['帳號只要改成可以屬於多個組織','順便讓方案支援按月或按年切換','User 加一個軟刪除，應該改一行就好','金額欄位從整數改成小數，很快吧'],
+    research:[{t:'訂閱方案改成可升降級並按天折算',parts:['方案變更與按天折算計價','帳單與發票改用新計價結果']},{t:'多租戶加上自訂網域',parts:['租戶網域對應與 DNS 驗證','依網域切換租戶並自動簽憑證']},{t:'通知系統支援 Email、Slack、Webhook',parts:['通知改成可插拔的頻道介面','Slack 與 Webhook 頻道實作']}],
     inc:['Sidekiq 佇列塞爆，帳單沒寄出','部署後 migration 鎖表','Stripe webhook 重複扣款','Puma worker 記憶體爆掉不停重啟']}},
   rust:{name:'Rust',company:'Rust 基礎設施',level:3,desc:'編譯測試比較慢；能力不足的模型容易卡在 borrow checker。',pool:{
     1:['CLI --help 說明打錯字','log 等級預設改成 info','README 範例指令過期','錯誤訊息補上檔案路徑'],
@@ -69,6 +71,7 @@ export const STACKS={
     4:['tokio 大版本升級','自訂 trait 物件改成泛型消除 dyn','gRPC 服務從 tonic 舊版遷移','加上 graceful shutdown 與重試'],
     5:['把 C 函式庫的 FFI 包成安全介面','單機服務改成分散式共識','核心路徑改寫成 lock-free'],
     trap:['這個 struct 只要多存一個 reference','順便把同步函式改成 async','設定改成可以熱重載，應該很快','錯誤型別統一一下，改幾行就好'],
+    research:[{t:'log 管線加上取樣與背壓',parts:['log 取樣策略與設定','佇列滿時的背壓處理']},{t:'服務加上 mTLS 雙向驗證',parts:['憑證載入與輪替','連線握手改成驗證對方憑證']},{t:'儲存層改成可插拔的後端',parts:['抽出儲存 trait 與既有實作','新增 S3 後端實作']}],
     inc:['proxy 在高流量下 panic 重啟','記憶體洩漏讓節點被 OOM kill','憑證輪替後 TLS 握手全失敗','新版 binary 在 ARM 機器啟動就 segfault']}},
   app:{name:'App',company:'App 開發',level:2,desc:'要跑模擬器所以比較慢；部分工單要過 App Store 審核。',pool:{
     1:['設定頁版本號沒更新','深色模式下按鈕文字看不到','推播文案錯字','啟動畫面 logo 被裁切'],
@@ -77,6 +80,7 @@ export const STACKS={
     4:['React Native 大版本升級','登入改用 Sign in with Apple','改成 Jetpack Compose 重寫主畫面','導入 deep link 與 universal link'],
     5:['iOS 與 Android 共用核心改成 Kotlin Multiplatform','整個 App 改成離線優先架構','從 WebView 包殼改成原生 App'],
     trap:['登入狀態只要改成多帳號切換','順便支援橫向模式','字體大小跟著系統設定，應該很快','底部選單加一個分頁就好'],
+    research:[{t:'App 加上離線下載文章',parts:['文章下載與本地儲存','離線閱讀頁與同步狀態']},{t:'會員中心改成原生畫面',parts:['會員資料 API 串接與快取','原生會員中心畫面']},{t:'推播改成可依興趣分類訂閱',parts:['訂閱分類設定頁','推播 topic 註冊與後端對應']}],
     inc:['新版上架後啟動就閃退','推播憑證過期，全部收不到通知','API 改版讓舊版 App 全部登不進去','付款頁在特定機型白畫面']}},
   sre:{name:'SRE',company:'SRE',level:2,desc:'選了 SRE 事故單比較多，常常當天就要處理完。',pool:{
     1:['告警訊息少了服務名稱','值班表下週排錯人','狀態頁連結指到舊網址','Grafana 面板時區顯示 UTC'],
@@ -85,6 +89,7 @@ export const STACKS={
     4:['監控從自架 Prometheus 搬到託管服務','導入混沌工程演練','多可用區容錯切換','全站限流與熔斷策略'],
     5:['單一區域改成多區域主備','建立完整的錯誤預算政策與發版閘門','整個值班與事故流程重新設計'],
     trap:['只要把告警閾值調高一點','順便把 log 保存期限拉長','健康檢查加一個資料庫檢查，應該很快','Pod 加一個 readiness probe 就好'],
+    research:[{t:'建立服務的 SLO 與告警',parts:['定義 SLI 與收集指標','依錯誤預算設定告警']},{t:'資料庫改成讀寫分離',parts:['建立讀取副本與複寫監控','應用程式讀寫路由切換']},{t:'事故通報流程自動化',parts:['告警自動開事故單並通知值班','事故時間軸與事後檢討範本']}],
     inc:['磁碟滿了 log 寫不進去','憑證過期，全站 HTTPS 失效','DNS 設定被改壞，服務全斷','資料庫主節點掛掉沒有自動切換']}},
   devops:{name:'DevOps',company:'DevOps',level:2,desc:'要等 CI 與 terraform，執行時間比較長。',pool:{
     1:['CI 徽章連結失效','Dockerfile 註解過期','部署通知少了版本號','.gitignore 漏掉建置產物'],
@@ -93,6 +98,7 @@ export const STACKS={
     4:['Kubernetes 大版本升級','部署改成 GitOps（Argo CD）','CI 從 Jenkins 搬到 GitHub Actions','導入藍綠部署'],
     5:['整套基礎設施改寫成 IaC','單一叢集拆成多叢集','自建內部開發者平台'],
     trap:['只要在 pipeline 多加一個步驟','順便把 Node 版本升上去','環境變數改一下名稱，應該很快','Terraform 改一個參數就好'],
+    research:[{t:'部署流程加上金絲雀發布',parts:['流量分流與金絲雀環境','依錯誤率自動回滾']},{t:'各環境設定改用 Terraform 模組管理',parts:['抽出共用 Terraform 模組','staging 與正式環境改用模組']},{t:'CI 加上安全掃描與 SBOM',parts:['相依套件掃描與 SBOM 產出','掃描結果擋 PR 與例外清單']}],
     inc:['部署 pipeline 卡住，全部門無法上線','Runner 額度用完，CI 全部排隊','映像檔倉庫認證過期，部署全失敗','Terraform apply 誤刪正式環境安全群組']}},
   fe:{name:'前端',company:'前端',desc:'',pool:{
     1:['首頁 banner 在手機版被切掉','表單 placeholder 顏色太淡','favicon 換新版','行事曆元件週日顯示錯位'],
@@ -101,6 +107,7 @@ export const STACKS={
     4:['Vue 2 升級到 Vue 3','Webpack 換成 Vite','整站導入 TypeScript','前端錯誤監控與 source map 上傳'],
     5:['舊後台改寫成 SPA','導入微前端拆分各團隊頁面','設計系統全面改版'],
     trap:['表單只要多一個欄位','順便讓整站支援深色模式','日期顯示改成跟著語系，應該很快','把這個彈窗改成可以拖拉，改一下就好'],
+    research:[{t:'後台編輯器改成區塊式',parts:['區塊資料格式與轉換','區塊編輯器介面']},{t:'全站表單改用共用表單元件',parts:['共用表單元件與驗證規則','既有表單換成共用元件']},{t:'首頁改成可由編輯拖拉排版',parts:['版位設定資料與 API','拖拉排版編輯介面']}],
     inc:[]}}
 };
 export const COMPANIES=['laravel','rails','rust','app','sre','devops'];
@@ -165,6 +172,9 @@ export const STACK_HRS={rust:1.2,app:1.15,devops:1.25};             // 技術線
 export const STORE_RATE=.4, INC_KPI=1.6, HARD_KPI=1.3, LATE_KPI=.5; // 需上架審核比例、事故 KPI、難線 KPI、逾期扣 KPI 比例
 export const CONFLICT=.1, CI_CONFLICT=.5, PR_HRS=.2, PR_REVIEWED=.5, EVAL_HRS=.5; // 每個還在跑的 agent 衝突機率與 CI 倍率、審 PR 每單位複雜度時數與自審倍率、評估時數
 export const RESCOPE={ok:5,no:3,days:2};                            // 找主管：同意與拒絕各扣多少信任、延幾天
+/* 研究單：直接派工 token 倍率；agent 研究的 token（× 模型 token 倍率）與時數（× 模型速度）；自己研究的時數；拆成哪兩個複雜度 */
+export const RESEARCH_DIRECT_TK=4, RESEARCH_TK=40, RESEARCH_HRS=.5, RESEARCH_SELF_HRS=1.5;
+export const RESEARCH_SPLIT={4:[2,3],5:[3,3]};
 /* 採購電腦：走公司採購申請，不扣公司 API 預算；到貨當天看信任決定核不核准 */
 export const PC_SPEED=.7, HW_REQ_HRS=1, HW_SETUP_HRS=1, HW_IDLE=2;
 export const HW={

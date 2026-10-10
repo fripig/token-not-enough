@@ -1,7 +1,7 @@
-import {BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc} from './data.js';
+import {RESEARCH_DIRECT_TK,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
 import {REVIEW,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetFor,quotaLeft,stackHint} from './calc.js';
-import {INV_STACKS,PAR,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad} from './actions.js';
+import {INV_STACKS,PAR,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad} from './actions.js';
 
 /* ===== 畫面 ===== */
 export const app=document.getElementById('app'), ov=document.getElementById('ov'), mo=document.getElementById('mo');
@@ -45,9 +45,10 @@ export function render(){
       <span class="t">${i.title}</span><span class="k">${i.out?nt(i.pay):`+${i.kpi}`}</span>
       <span class="meta"><span class="pips" title="複雜度 ${i.cx}">${[1,2,3,4,5].map(n=>`<i class="${n<=i.cx?'on':''}"></i>`).join('')}</span>
       <span class="num">~${kt(i.base)} tokens</span>
-      ${i.out?'<span class="chip out">外包</span>':''}<span class="chip stack">${STACKS[i.stack].name}</span>${unfamiliar(i)?'<span class="chip unfam">不熟</span>':''}${i.merge?'<span class="chip trap">合併衝突</span>':''}${i.store?'<span class="chip store">需上架審核</span>':''}${i.revealed?`<span class="chip trap">牽一髮動全身・原估 ${i.shownCx}</span>`:i.evaluated?'<span class="chip">已評估</span>':''}
+      ${i.out?'<span class="chip out">外包</span>':''}<span class="chip stack">${STACKS[i.stack].name}</span>${unfamiliar(i)?'<span class="chip unfam">不熟</span>':''}${i.merge?'<span class="chip trap">合併衝突</span>':''}${i.research?'<span class="chip rsch">需研究</span>':''}${i.store?'<span class="chip store">需上架審核</span>':''}${i.revealed?`<span class="chip trap">牽一髮動全身・原估 ${i.shownCx}</span>`:i.evaluated?'<span class="chip">已評估</span>':''}
       ${i.inc?'<span class="chip inc">事故</span>':''}${i.sens?'<span class="chip sens">機敏</span>':''}${i.big?'<span class="chip big">大型 codebase</span>':''}${i.client.ban?`<span class="chip ban">${i.client.name}・${i.client.ban==='all'?'禁中國模型':'禁中國雲端'}</span>`:S.cnBan&&!i.out?'<span class="chip ban">禁中國雲端</span>':`<span class="chip">${i.client.name}</span>`}
       <span class="chip ${left<=0?'due':''}">${left<=0?'今天到期':`剩 ${left} 天`}</span>${i.tries?`<span class="chip">已失敗 ${i.tries} 次</span>`:''}</span>
+      ${i.research?`<span class="rnote">直接派工 token ×${RESEARCH_DIRECT_TK}（先研究可拆成兩張小單）</span>`:''}
     </button>${quickBtn(i)}</div>`;}).join('') || `<div class="empty">工單清空了。可以提早下班，把工時留給明天。</div>`;
 
   app.innerHTML=`
@@ -81,9 +82,23 @@ export function invPanel(){
   const btn=(k,st)=>{const I=INVEST[k], why=investBlock(k,st);
     return `<button class="sb" data-inv="${k}" ${st?`data-st="${st}"`:''} ${why?'disabled':''}><b>${k==='md'?STACKS[st].name:I.name}</b><small>${why||`${I.hrs}h・公司 ${nt(I.cost)}`}</small></button>`;};
   const row=(k,body)=>`<div class="inv"><div><b>${INVEST[k].name}</b><span>${INVEST[k].desc}${k==='md'?`・每條技術線 ${INVEST.md.hrs}h、公司 ${nt(INVEST.md.cost)}`:''}</span></div><div class="seg">${body}</div></div>`;
-  return `<section class="panel"><div class="ph"><h2>工程投資</h2><span>效果維持到月底・已做 ${invCount()} 項</span></div>
-    <div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${INV_KEYS.map(k=>row(k,btn(k))).join('')}${hwRow()}</div></section>`;
+  const f=invFolded();
+  return `<section class="panel"><div class="ph"><h2><button class="fold" data-act="invfold" aria-expanded="${!f}">${f?'▸':'▾'} 工程投資</button></h2><span>${f?'':'效果維持到月底・'}已做 ${invCount()} 項</span></div>
+    ${f?'':`<div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${INV_KEYS.map(k=>row(k,btn(k))).join('')}${hwRow()}</div>`}</section>`;
 }
+/* 工程投資面板收合：瀏覽器偏好，存 localStorage，不進存檔；讀寫失敗就只記在這一頁 */
+export const INV_FOLD_KEY='tokgame-invfold';
+export let invFold=null;
+export function invFolded(){
+  if(invFold===null){try{invFold=localStorage.getItem(INV_FOLD_KEY)==='1';}catch(e){invFold=false;}}
+  return invFold;
+}
+export function toggleInvFold(){
+  invFold=!invFolded();
+  try{localStorage.setItem(INV_FOLD_KEY,invFold?'1':'0');}catch(e){}
+}
+/* 下次 render 重新讀 localStorage（check.js 用） */
+export function resetInvFold(){invFold=null;}
 /* 採購電腦：公司採購申請，不扣 API 預算，到貨當天看信任 */
 export function hwRow(){
   const b=k=>{const H=HW[k], why=hwReqBlock(k);
@@ -123,7 +138,7 @@ export function dispatchPanel(){
   else if(PAR()&&e.hrs+.2>S.hours) warn='今天跑不完，agent 會跑過夜，明早才有結果。';
   else if(!PAR()&&e.hrs*1.2>S.hours) warn='今天剩的工時可能不夠跑完。';
   else if(sel.b==='api'&&cl.hi>S.wallet) warn='錢包可能不夠，跑到一半會停下來。';
-  const mh=manualHrs(is), ec=evalCost(model(sel.v,sel.m),sel.v);
+  const mh=manualHrs(is), ec=evalCost(model(sel.v,sel.m),sel.v), rc=researchCost(model(sel.v,sel.m),sel.v);
   const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m))||!!hwBlock(model(sel.v,sel.m))||(sel.b==='local'&&localBusy());
   return `<div class="ph"><h2>派工台</h2><span>${is.title}</span></div>
   <div class="sec"><label>選 AGENT 與模型</label>${rows}</div>
@@ -145,6 +160,8 @@ export function dispatchPanel(){
   <div class="actions">
     <button class="btn primary" data-act="go" ${blocked||S.hours<.2||(PAR()&&S.jobs.length>=S.slots)?'disabled':''}>${PAR()?'派到背景':'派給'} ${VENDORS[sel.v].agent}</button>
     <button class="btn ghost" data-act="manual" ${mh>S.hours||manualBlocked()?'disabled':''}>${manualBlocked()?'本地 GPU 跑 agent 中，電腦卡到沒辦法手寫':`自己手寫（${h1(mh)}h，0 token）`}</button>
+    ${is.research?`<button class="btn ghost" data-act="research" ${researchBlock(is,'agent')?'disabled':''}>先讓 agent 研究拆單（${kt(rc.tk)} tokens，${h1(rc.hrs)}h）</button>
+    <button class="btn ghost" data-act="selfresearch" ${researchBlock(is,'self')?'disabled':''}>自己研究拆單（${h1(selfResearchHrs(is))}h，0 token）</button>`:''}
     ${canEvaluate(is)?`<button class="btn ghost" data-act="eval" ${blocked||ec.hrs>S.hours?'disabled':''}>先讓 agent 評估架構（${kt(ec.tk)} tokens，${h1(ec.hrs)}h）</button>`:''}
     ${is.revealed&&!is.rescoped&&!is.out?`<button class="btn ghost" data-act="rescope">找主管重新評估</button>`:''}
   </div>`;
