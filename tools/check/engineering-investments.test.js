@@ -14,7 +14,6 @@ import * as C from '../../public/js/calc.js';
 import * as M from '../../public/js/modals.js';
 import * as St from '../../public/js/state.js';
 import * as Ru from '../../public/js/rules.js';
-import * as Vw from '../../public/js/view.js';
 
 const son=model('anthropic','sonnet'), hai=model('google','flash');
 
@@ -307,40 +306,6 @@ section("派工台的 SDD 選項與派工方案（gh-33-01-sdd-levels）",()=>{
   }
 });
 
-section("工程投資面板收合（gh-22-02-invest-panel-collapse）",()=>{
-  /* 工程投資面板收合（gh-22-02-invest-panel-collapse） */
-  {
-  const FK='tokgame-invfold', clickApp=ds=>els.app.on.click({target:{closest:()=>({dataset:ds})}});
-  const panel=()=>{const h=els.app.innerHTML, i=h.indexOf('data-act="invfold"'); return i<0?'':h.slice(i,h.indexOf('</section>',i));};
-  const open=()=>panel().includes('aria-expanded="true"')&&panel().includes('▾ 工程投資')&&panel().includes('data-inv=')&&panel().includes('data-hw=');
-  const shut=()=>panel().includes('aria-expanded="false"')&&panel().includes('▸ 工程投資')&&!panel().includes('data-inv=')&&!panel().includes('data-hw=');
-  newRun('laravel'); resetStore(); Vw.resetInvFold(); invest('tests'); invest('ci'); render();
-  ok(open(),'invest-panel-collapse：沒有偏好時展開，列出投資與採購電腦');
-  clickApp({act:'invfold'});
-  ok(shut()&&panel().includes('已做 2 項')&&!panel().includes('效果維持到月底')&&store[FK]==='1','invest-panel-collapse：點標題收合，只留已做 N 項、存 1',panel());
-  clickApp({act:'invfold'});
-  ok(open()&&store[FK]==='0','invest-panel-collapse：再點一次展開、存 0');
-  {const g0=globalThis.gtag, ev=[]; globalThis.gtag=(...a)=>ev.push(a); clickApp({act:'invfold'}); clickApp({act:'invfold'}); globalThis.gtag=g0;
-   ok(ev.length===0,'invest-panel-collapse：切換不送 GA 事件',JSON.stringify(ev));}
-  ok(/<h2><button class="fold" data-act="invfold"/.test(els.app.innerHTML),'invest-panel-collapse：標題仍是 h2，切換按鈕在裡面');
-  for(const [v,want] of [[null,'true'],['1','false'],['0','true']]){
-    resetStore(v===null?{}:{[FK]:v}); Vw.resetInvFold(); render();
-    ok(panel().includes(`aria-expanded="${want}"`),`invest-panel-collapse：存的值 ${v??'沒有'} → aria-expanded ${want}`);
-  }
-  {const ls=global.localStorage; let threw=false, a=false, b=false;
-   global.localStorage={getItem(){throw new Error('blocked');},setItem(){throw new Error('blocked');},removeItem(){throw new Error('blocked');}};
-   try{Vw.resetInvFold(); render(); a=open(); clickApp({act:'invfold'}); b=shut();}catch(e){threw=true;}
-   global.localStorage=ls;
-   ok(!threw&&a&&b,'invest-panel-collapse：localStorage 失效時先展開、點了仍能收合',[threw,a,b].join());}
-  resetStore(); Vw.resetInvFold(); newRun('laravel'); render(); St.saveGame(); const s1=store[St.SAVE_KEY], log1=S.log.length;
-  clickApp({act:'invfold'}); St.saveGame();
-  ok(s1&&store[St.SAVE_KEY]===s1&&S.log.length===log1,'invest-panel-collapse：收合不改存檔內容、不寫紀錄');
-  start(); ok(shut(),'invest-panel-collapse：開新局維持收合');
-  Vw.resetInvFold(); render(); ok(shut(),'invest-panel-collapse：重新整理後照存的值收合');
-  resetStore(); Vw.resetInvFold();
-  }
-});
-
 section("國內研討會（gh-22-01-domestic-conference）",()=>{
   /* 國內研討會（gh-22-01-domestic-conference） */
   {
@@ -434,9 +399,9 @@ section("國內研討會（gh-22-01-domestic-conference）",()=>{
   /* 投資面板 */
   newRun('laravel'); S.inv.md.laravel=1; S.inv.tests=2; S.inv.ci=1; ok(invCount()===4,'engineering-investments：CLAUDE.md、單元測試 Lv1＋Lv2、CI 算 4 項');
   S.day=20; showEnd(); ok(els.mo.innerHTML.includes('<span>工程投資</span><span>4 項</span>'),'engineering-investments：結算顯示工程投資 4 項');
-  newRun('laravel'); S.hours=8; invest('monitor'); Vw.resetInvFold(); resetStore(); render();
+  newRun('laravel'); S.hours=8; invest('monitor'); resetStore(); render();
   ok(/data-inv="monitor"\s+disabled><b>監控告警<\/b><small>已完成/.test(els.app.innerHTML),'engineering-investments：買過監控告警的按鈕顯示已完成');
-  newRun(['rails','app']); Vw.resetInvFold(); resetStore(); render();
+  newRun(['rails','app']); resetStore(); render();
   {const order=[...els.app.innerHTML.matchAll(/data-inv="md" data-st="(\w+)"/g)].map(m=>m[1]).join();
    ok(order==='rails,app,laravel,rust,sre,devops,fe','engineering-investments：CLAUDE.md 按鈕順序 rails、app、laravel、rust、sre、devops、fe',order);}
   {const n=(els.app.innerHTML.match(/data-conf="/g)||[]).length; ok(n===10&&els.app.innerHTML.includes('國內研討會（週末自費）'),'domestic-conference：面板有十個研討會按鈕',n);}

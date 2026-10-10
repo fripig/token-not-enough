@@ -1,7 +1,7 @@
 import {S,addGigs,clearSave,fresh,makeIssue,readSave,resetIds,sel} from './state.js';
 import {log} from './calc.js';
 import {batch,cancelJob,dispatch,endDay,evaluate,research,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait,registerConf,dayStartLine} from './actions.js';
-import {app,armCancel,cancelArm,render,toggleInvFold} from './view.js';
+import {app,armCancel,cancelArm,render,setTab} from './view.js';
 import {showBadSave,showResume,showSetup} from './modals.js';
 import {showRules} from './rules.js';
 import {initLang,setLang} from './i18n.js';
@@ -13,7 +13,8 @@ app.addEventListener('click',e=>{
   if(cancelArm!==null&&!(t&&+t.dataset.cancel===cancelArm)){armCancel(null);render();}
   if(!t||t.disabled) return;
   if(t.dataset.cancel){const id=+t.dataset.cancel; if(cancelArm===id){armCancel(null);cancelJob(id);}else armCancel(id); render();}
-  else if(t.dataset.iss){sel.issue=+t.dataset.iss;render();}
+  else if(t.dataset.iss){sel.issue=+t.dataset.iss;setTab('dispatch');render();}
+  else if(t.dataset.tab){setTab(t.dataset.tab);render();}
   else if(t.dataset.v){sel.v=t.dataset.v;sel.m=t.dataset.m;if(sel.v==='local')sel.b='local';else if(sel.b==='local')sel.b='api';render();}
   else if(t.dataset.b){sel.b=t.dataset.b;render();}
   else if(t.dataset.rv){sel.rv=+t.dataset.rv;render();}
@@ -37,7 +38,6 @@ app.addEventListener('click',e=>{
   else if(t.dataset.act==='waitn')wait(true);
   else if(t.dataset.act==='adjust')showSetup(true);
   else if(t.dataset.act==='rules')showRules();
-  else if(t.dataset.act==='invfold'){toggleInvFold();render();}
   else if(t.dataset.lang){setLang(t.dataset.lang);render();}
 });
 
@@ -49,7 +49,7 @@ export function firstIssues(){
   log('dim',dayStartLine(1,false,4,g));
 }
 export function start(){
-  clearSave(); fresh(); firstIssues();
+  clearSave(); fresh(); firstIssues(); setTab('dispatch');
   render(); showSetup(false);
 }
 /* 開頁：先決定語言；有存檔問要不要繼續，存檔壞了先提示，都沒有就開新局 */

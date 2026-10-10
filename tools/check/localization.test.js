@@ -266,7 +266,7 @@ section("工單標題跟著目前語言（gh-38-01-untranslated-tickets）",()=>
    const a=Object.assign(makeIssue(false),{title:'跑馬燈文字錯字',src:{k:'laravel',g:'1',i:0}}), b=Object.assign(makeIssue(false),{title:'RSS 日期時區差 8 小時',src:{k:'laravel',g:'1',i:1},running:true});
    S.issues=[a,b]; S.jobs=[{issue:b,v:'anthropic',m:'sonnet',ef:1,b:'corp',M:dataModule.model('anthropic','sonnet'),rv:0,tk:100,hrs:2,shownHrs:2,left:1,ok:true,caught:false,hidden:false,stop:false,sdd:0}]; sel.issue=a.id;
    I.setLang('en'); render(); const h=els.app.innerHTML;
-   ok(h.includes('<span class="t">Typo in the news ticker</span>')&&h.includes('<span>Typo in the news ticker</span>')&&h.includes('<b>RSS dates off by 8 hours</b>')&&!h.includes('跑馬燈文字錯字')&&!h.includes('RSS 日期時區差'),'畫面：切到英文後卡片、派工台標題、背景 agent 列都是英文標題');
+   ok(h.includes('<span class="t">Typo in the news ticker</span>')&&h.includes('<p class="dpt">Typo in the news ticker</p>')&&h.includes('<b>RSS dates off by 8 hours</b>')&&!h.includes('跑馬燈文字錯字')&&!h.includes('RSS 日期時區差'),'畫面：切到英文後卡片、派工台標題、背景 agent 列都是英文標題');
    I.setLang('zh-TW'); render(); ok(els.app.innerHTML.includes('跑馬燈文字錯字')&&els.app.innerHTML.includes('RSS 日期時區差 8 小時'),'畫面：切回繁中又是中文標題');}
   /* 紀錄：切換前寫的不變，切換後寫的用英文標題 */
   {resetStore(); I.setLang('zh-TW'); newRun('laravel'); S.day=2; S.hours=8;

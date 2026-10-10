@@ -74,7 +74,7 @@ export const DICT={
   'ui.inv.mdCost':' · {h}h and company {cost} per stack',
   'ui.inv.lv2':'. Lv2: {desc}, {h}h, company {cost}',
   'ui.inv.title':'Engineering investments',
-  'ui.inv.lasting':'Effects last until month end · ',
+  'ui.inv.note':'Effects last until month end and reset each run.',
   'ui.inv.count':'{n} done',
   'ui.conf.fee':'Self-paid {fee}',
   'ui.conf.title':'Local conferences (weekends, self-paid)',

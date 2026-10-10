@@ -1,10 +1,11 @@
 // game-layout 的規則檢查：docs/spectra/specs/game-layout/spec.md
 import {ok,section,newRun,ticket,clickApp} from './lib.js';
 import {readFileSync} from 'node:fs';
-import {els} from '../fake-dom.js';
-import {S,sel} from '../../public/js/state.js';
+import {els,store} from '../fake-dom.js';
+import {S,sel,saveGame,SAVE_KEY} from '../../public/js/state.js';
 import {log} from '../../public/js/calc.js';
-import {dispatch} from '../../public/js/actions.js';
+import {start} from '../../public/js/main.js';
+import {dispatch,invest,endDay} from '../../public/js/actions.js';
 import {render,dispatchPanel} from '../../public/js/view.js';
 
 /* 主畫面切成「動作列之前」與「動作列」兩段 */
@@ -61,4 +62,29 @@ section('game-layout：深色模式的彈窗遮罩讓畫面變暗',()=>{
 section('game-layout：選項按鈕文字靠左',()=>{
   ok(/(^|\})\.sb\{[^}]*text-align:left/.test(css),'game-layout：.sb 設 text-align:left');
   ok(/\.dock\{[^}]*position:sticky/.test(css)&&/\.dock\{[^}]*bottom:0/.test(css),'game-layout：動作列 sticky 在底部');
+});
+
+section('game-layout：派工台與工程投資是同一欄的兩個分頁',()=>{
+  const h=()=>els.app.innerHTML;
+  const panelHidden=id=>new RegExp(`data-tabpanel="${id}"[^>]*hidden`).test(h());
+  const active=()=>(h().match(/aria-selected="true"[^>]*data-tab="(\w+)"|data-tab="(\w+)"[^>]*aria-selected="true"/)||[]).slice(1).find(Boolean);
+  newRun('laravel','parallel'); S.hours=8; const is=ticket('fe',1); S.issues=[is]; render();
+  ok((h().match(/role="tablist"/g)||[]).length===1&&h().includes('data-tab="dispatch"')&&h().includes('data-tab="invest"'),'game-layout：有一組分頁，派工台與工程投資');
+  ok(active()==='dispatch'&&!panelHidden('dispatch')&&panelHidden('invest'),'game-layout：預設在派工台，投資分頁藏起來',active());
+  ok(!h().includes('data-act="invfold"'),'game-layout：沒有投資面板收合按鈕');
+  clickApp({tab:'invest'});
+  ok(active()==='invest'&&panelHidden('dispatch')&&!panelHidden('invest'),'game-layout：點工程投資分頁切過去');
+  clickApp({inv:'tests'});
+  ok(active()==='invest'&&/data-tab="invest"[^>]*>[^<]*<small>已做 1 項<\/small>/.test(h()),'game-layout：買了投資留在投資分頁，標籤寫已做 1 項');
+  S.day=2; clickApp({conf:'coscup'}); ok(active()==='invest'&&S.conf.req==='coscup','game-layout：報名研討會留在投資分頁');
+  S.trust=70; clickApp({hw:'pc'}); ok(active()==='invest'&&S.hwReq?.k==='pc','game-layout：申請採購電腦留在投資分頁');
+  clickApp({iss:is.id});
+  ok(active()==='dispatch'&&sel.issue===is.id&&!panelHidden('dispatch'),'game-layout：在投資分頁點工單切回派工台並選好那張');
+  clickApp({tab:'invest'}); endDay();
+  ok(active()==='dispatch','game-layout：換日回到派工台');
+  clickApp({tab:'invest'}); start();
+  ok(active()==='dispatch','game-layout：開新局回到派工台');
+  newRun('laravel'); render(); saveGame(null); const snap=JSON.stringify(S), sv=store[SAVE_KEY], n=S.log.length, g0=globalThis.gtag, ev=[]; globalThis.gtag=(...a)=>ev.push(a);
+  clickApp({tab:'invest'}); clickApp({tab:'dispatch'}); clickApp({tab:'invest'}); saveGame(null); globalThis.gtag=g0;
+  ok(JSON.stringify(S)===snap&&store[SAVE_KEY]===sv&&S.log.length===n&&ev.length===0,'game-layout：切分頁不改狀態、存檔、紀錄，不送 GA');
 });

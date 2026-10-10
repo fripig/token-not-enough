@@ -74,7 +74,7 @@ export const DICT={
   'ui.inv.mdCost':'・每條技術線 {h}h、公司 {cost}',
   'ui.inv.lv2':'。Lv2：{desc}，{h}h、公司 {cost}',
   'ui.inv.title':'工程投資',
-  'ui.inv.lasting':'效果維持到月底・',
+  'ui.inv.note':'效果維持到月底，每局歸零。',
   'ui.inv.count':'已做 {n} 項',
   'ui.conf.fee':'自費 {fee}',
   'ui.conf.title':'國內研討會（週末自費）',

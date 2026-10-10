@@ -66,9 +66,8 @@ export function render(){
   <div class="quotas">${qs}</div>
   <div class="main">
     <section class="panel"><div class="ph"><h2>${t('ui.queue.title')}</h2><span>${t('ui.queue.count',{n:S.issues.filter(i=>!i.running).length})}</span></div>${S.inv.skills?`<button class="btn ghost" data-act="batch" ${canQuick()?'':'disabled'}>${t('ui.batch',{cx:SKILLS_CX[lv(S.inv.skills)]})}</button>`:''}<div class="issues">${list}</div>${jobsHtml}</section>
-    <section class="panel">${dispatchPanel()}</section>
+    ${tabPanel()}
   </div>
-  ${invPanel()}
   <section class="panel">
     <div class="ph"><h2>${t('ui.log.title')}</h2></div>
     <div class="log">${logLines(S.log)||`<p class="dim">${t('ui.log.empty')}</p>`}</div>
@@ -105,9 +104,17 @@ export function invPanel(){
     return `<button class="sb" data-inv="${k}" ${st?`data-st="${st}"`:''} ${why?'disabled':''}><b>${k==='md'?STACKS[st].name:INVEST[k].name}${tag}</b><small>${why||t('ui.inv.cost',{h:I.hrs,cost:nt(I.cost)})}</small></button>`;};
   const row=(k,body)=>{const I=INVEST[k];
     return `<div class="inv"><div><b>${I.name}</b><span>${I.desc}${k==='md'?t('ui.inv.mdCost',{h:I.hrs,cost:nt(I.cost)}):''}${I.lv2?t('ui.inv.lv2',{desc:I.lv2.desc,h:I.lv2.hrs,cost:nt(I.lv2.cost)}):''}</span></div><div class="seg">${body}</div></div>`;};
-  const f=invFolded();
-  return `<section class="panel"><div class="ph"><h2><button class="fold" data-act="invfold" aria-expanded="${!f}">${f?'▸':'▾'} ${t('ui.inv.title')}</button></h2><span>${f?'':t('ui.inv.lasting')}${t('ui.inv.count',{n:invCount()})}</span></div>
-    ${f?'':`<div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${INV_KEYS.map(k=>row(k,btn(k))).join('')}${confRow()}${hwRow()}</div>`}</section>`;
+  return `<p class="hint">${t('ui.inv.note')}</p>
+    <div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${INV_KEYS.map(k=>row(k,btn(k))).join('')}${confRow()}${hwRow()}</div>`;
+}
+/* 派工台與工程投資：同一欄的兩個分頁。兩頁都產生，沒選到的藏起來；選哪頁不進存檔 */
+export let tab='dispatch';
+export const setTab=id=>{tab=id;};
+export function tabPanel(){
+  const tb=(id,label)=>`<button role="tab" class="tab ${tab===id?'on':''}" data-tab="${id}" aria-selected="${tab===id}" aria-controls="tp-${id}">${label}</button>`;
+  const tp=(id,body)=>`<div role="tabpanel" class="tp" id="tp-${id}" data-tabpanel="${id}" ${tab===id?'':'hidden'}>${body}</div>`;
+  return `<section class="panel tabbed"><div class="tabs" role="tablist">${tb('dispatch',t('ui.dp.title'))}${tb('invest',`${t('ui.inv.title')} <small>${t('ui.inv.count',{n:invCount()})}</small>`)}</div>
+    ${tp('dispatch',dispatchPanel())}${tp('invest',invPanel())}</section>`;
 }
 /* 國內研討會：平日自費報名，週末出席、下週一生效 */
 export function confRow(){
@@ -115,19 +122,6 @@ export function confRow(){
     return `<button class="sb" data-conf="${k}" ${why?'disabled':''}><b>${C.name}</b><small>${CONF_CATS[C.cat]}${C.stacks.length?`${t('sep')}${C.stacks.map(st=>STACKS[st].name).join(t('sep.list'))}`:''}${t('sep')}${t('ui.conf.fee',{fee:nt(C.fee)})}</small>${why?`<small>${why}</small>`:''}</button>`;};
   return `<div class="inv"><div><b>${t('ui.conf.title')}</b><span>${t('ui.conf.desc',{last:CONF_LAST_DAY,x:CONF_MANUAL,scan:INVEST.scan.name,skills:INVEST.skills.name,tests:INVEST.tests.name,ai:INVEST.ai.name})}</span></div><div class="seg">${CONF_KEYS.map(b).join('')}</div></div>`;
 }
-/* 工程投資面板收合：瀏覽器偏好，存 localStorage，不進存檔；讀寫失敗就只記在這一頁 */
-export const INV_FOLD_KEY='tokgame-invfold';
-export let invFold=null;
-export function invFolded(){
-  if(invFold===null){try{invFold=localStorage.getItem(INV_FOLD_KEY)==='1';}catch(e){invFold=false;}}
-  return invFold;
-}
-export function toggleInvFold(){
-  invFold=!invFolded();
-  try{localStorage.setItem(INV_FOLD_KEY,invFold?'1':'0');}catch(e){}
-}
-/* 下次 render 重新讀 localStorage（check.js 用） */
-export function resetInvFold(){invFold=null;}
 /* 採購電腦：公司採購申請，不扣 API 預算，到貨當天看信任 */
 export function hwRow(){
   const b=k=>{const H=HW[k], why=hwReqBlock(k);
@@ -147,7 +141,7 @@ export const logLines=a=>a.map(l=>`<p class="${l.cls}">${l.msg}</p>`).join('');
 export const DP_RECENT=3;
 export function dispatchPanel(){
   const is=S.issues.find(i=>i.id===sel.issue), sp=t('sep'), ls=t('sep.list');
-  if(!is) return `<div class="ph"><h2>${t('ui.dp.title')}</h2></div><div class="empty">${t('ui.dp.empty1')}<br>${t('ui.dp.empty2')}</div>${S.log.length?`<div class="recent"><label>${t('ui.dp.recent')}</label>${logLines(S.log.slice(0,DP_RECENT))}</div>`:''}`;
+  if(!is) return `<div class="empty">${t('ui.dp.empty1')}<br>${t('ui.dp.empty2')}</div>${S.log.length?`<div class="recent"><label>${t('ui.dp.recent')}</label>${logLines(S.log.slice(0,DP_RECENT))}</div>`:''}`;
   // ensure billing valid
   const avail=(v,M)=>S.outage!==v&&!cnBlock(is,v,M)&&!hwBlock(M);
   if(!avail(sel.v,model(sel.v,sel.m))){for(const v in VENDORS){const M=VENDORS[v].models.find(M=>avail(v,M));if(M){sel.v=v;sel.m=M.id;break;}}if(sel.v==='local')sel.b='local';else if(sel.b==='local')sel.b='api';}
@@ -173,7 +167,7 @@ export function dispatchPanel(){
   else if(sel.b==='api'&&cl.hi>S.wallet) warn=t('ui.warn.wallet');
   const mh=manualHrs(is), ec=evalCost(model(sel.v,sel.m),sel.v), rc=researchCost(model(sel.v,sel.m),sel.v);
   const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m))||!!hwBlock(model(sel.v,sel.m))||(sel.b==='local'&&localBusy());
-  return `<div class="ph"><h2>${t('ui.dp.title')}</h2><span>${issueTitle(is)}</span></div>
+  return `<p class="dpt">${issueTitle(is)}</p>
   <div class="sec"><label>${t('ui.dp.pick')}</label>${rows}</div>
   <div class="sec"><label>${t('ui.dp.bill')}</label><div class="seg">${segs}</div>${S.seats.length&&!S.seats.includes(sel.v)?`<p class="hint">${t('ui.dp.seatHint',{seats:S.seats.map(v=>VENDORS[v].name).join(ls),agents:S.seats.map(v=>VENDORS[v].agent).join(ls)})}</p>`:''}</div>
   <div class="sec"><label>${t('ui.dp.review')}</label><div class="seg">${REVIEW.map((r,i)=>`<button class="sb ${sel.rv===i?'sel':''}" data-rv="${i}">${r.name}<small>${i?t('ui.dp.reviewDesc',{tk:r.tk,p:Math.round(catchRate(i,M)*100)}):t('ui.dp.reviewNone')}</small></button>`).join('')}</div></div>
