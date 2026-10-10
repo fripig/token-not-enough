@@ -26,7 +26,7 @@
 // SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
 // SIM_LOG=1 每種模式額外印出月底執行紀錄的筆數（平均、最多）與存檔 JSON 的字元數（平均、最多），量紀錄整月保留後的大小。
 import {els} from './fake-dom.js';
-import './seed.js';
+import './sim-seed.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {firstIssues,start} from '../public/js/main.js';
 import {COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model,CONF,CONF_KEYS,CONF_LAST_DAY} from '../public/js/data.js';

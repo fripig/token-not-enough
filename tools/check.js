@@ -1,8 +1,9 @@
 // 規則檢查（非遊戲本體）
-// 用法：node tools/check.js
+// 用法：node tools/check.js（預設固定種子；CHECK_SEED=<整數> 換種子，CHECK_SEED=random 用真亂數）
 // 用假的 DOM 載入遊戲模組，把 spec 裡的範例數字逐條斷言；任何一條不符就以非 0 結束。
 import {readFileSync} from 'node:fs';
 import {els,store,resetStore} from './fake-dom.js';
+import './check-seed.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {boot,firstIssues,start} from '../public/js/main.js';
 import {BASE,CLIENTS,COMPANIES,DEFAULT_PRESETS,EFFORT,KPI,SEAT,STACKS,VENDORS,bestKey,cnBlock,effModel,h1,kt,model,presetsOf,rnd} from '../public/js/data.js';
