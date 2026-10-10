@@ -971,7 +971,7 @@ function tests(){
   S.inv.sdd=1; h=panel();
   ok(h.includes('開發流程')&&/data-sdd="0"/.test(h)&&/class="sb sel" data-sdd="1"/.test(h)&&!h.includes('data-sdd="2"'),'買了 Lv1：不用、markdown，亮 markdown');
   S.inv.sdd=2; h=panel(); ok(/class="sb sel" data-sdd="2"/.test(h)&&h.includes('框架（Lv2）'),'買了 Lv2：三個按鈕，亮框架');
-  ok(/data-sdd="2">框架（Lv2）<small>token ×1\.2・≥3 成功率 \+15%・陷阱燒 5%/.test(h)&&/data-sdd="0">不用<small>陷阱燒 40%/.test(h),'SDD 按鈕寫出 token、成功率、陷阱燒的比例');
+  ok(/data-sdd="2">框架（Lv2）<small>Spectra／OpenSpec／Spec Kit・token ×1\.2・≥3 成功率 \+15%・陷阱燒 5%/.test(h)&&/data-sdd="1">markdown（Lv1）<small>例如 Superpowers・/.test(h)&&/data-sdd="0">不用<small>陷阱燒 40%/.test(h),'SDD 按鈕寫出實際工具、token、成功率、陷阱燒的比例');
   S.inv.sdd=1; const off0=est(t2,'anthropic','sonnet',0,1,0);
   clickApp({sdd:'0'}); h=panel();
   ok(sel.sdd===0&&/class="sb sel" data-sdd="0"/.test(h)&&!/SDD markdown：/.test(h),'點不用：亮不用，提示不寫 SDD');

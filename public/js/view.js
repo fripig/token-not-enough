@@ -1,4 +1,4 @@
-import {RESEARCH_DIRECT_TK,SKILLS_CX,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
+import {RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
 import {S,sel,unfamiliar} from './state.js';
 import {REVIEW,sddLevel,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetFor,quotaLeft,stackHint} from './calc.js';
 import {INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
@@ -79,7 +79,7 @@ export function render(){
 export function sddRow(){
   const own=lv(S.inv.sdd); if(!own) return '';
   const cur=sddLevel(), pc=x=>`${Math.round(x*100)}%`;
-  const b=L=>`<button class="sb ${cur===L?'sel':''}" data-sdd="${L}">${L?`${SDD_NAME[L]}（Lv${L}）`:SDD_NAME[0]}<small>${L?`token ×${SDD_TK[L]}・≥3 成功率 +${pc(SDD_P[L])}・陷阱燒 ${pc(SDD_TRAP_STOP[L])}`:`陷阱燒 ${pc(TRAP_STOP)}`}</small></button>`;
+  const b=L=>`<button class="sb ${cur===L?'sel':''}" data-sdd="${L}">${L?`${SDD_NAME[L]}（Lv${L}）`:SDD_NAME[0]}<small>${L?`${SDD_EG[L]}・token ×${SDD_TK[L]}・≥3 成功率 +${pc(SDD_P[L])}・陷阱燒 ${pc(SDD_TRAP_STOP[L])}`:`陷阱燒 ${pc(TRAP_STOP)}`}</small></button>`;
   return `<div class="sec"><label>開發流程</label><div class="seg"><span class="seglbl">SDD</span>${[0,1,2].filter(L=>L<=own).map(b).join('')}</div></div>`;
 }
 /* 工單卡片上的一鍵派工按鈕：顯示會用哪個方案、前面的方案為什麼不能用 */

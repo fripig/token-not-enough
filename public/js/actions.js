@@ -1,4 +1,4 @@
-import {RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
+import {RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
 import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardStack,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks} from './state.js';
 import {REVIEW,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
 import {render} from './view.js';
@@ -303,7 +303,7 @@ export function invest(k,st,want){
   if(k==='md') S.inv.md[st]=L; else S.inv[k]=L;
   track('invest',{investment:k==='ai'?`ai${L}`:L>=2?`${k}2`:k,stack:k==='md'?st:'none'});
   if(PAR()) advance(I.hrs); else S.hours-=I.hrs;
-  log('ok',`★ 工程投資：${name}${k==='md'?`（${STACKS[st].name}）`:''}｜${h1(I.hrs)}h｜公司 ${nt(I.cost)}`);
+  log('ok',`★ 工程投資：${name}${k==='md'?`（${STACKS[st].name}）`:k==='sdd'?`（${SDD_EG[L]}）`:''}｜${h1(I.hrs)}h｜公司 ${nt(I.cost)}`);
   return true;
 }
 /* 國內研討會：平日報名、自費、不花工時、不看信任；週末出席，下週一生效 */
