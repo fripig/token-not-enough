@@ -78,7 +78,7 @@ code:
 ---
 ### Requirement: Subscription purchase and weekly adjustment
 
-The opening modal 月初：決定這個月怎麼付 token SHALL let the player pick one plan per subscription vendor (Anthropic, OpenAI, Google, 智譜 GLM, Kimi), default 不訂閱, and SHALL charge the full monthly price of every chosen plan to the personal wallet on confirm. The Monday modal 週一：調整訂閱 SHALL let the player change plans and SHALL charge, per vendor, max(0, new price − current price) × (weeks left ÷ 4), where weeks left = 4 − floor((day − 1) ÷ 5). Downgrades SHALL take effect immediately with no refund. Every subscription payment SHALL be added to the subscription fee total. The modal SHALL show 這次要從個人錢包付 with the amount and the wallet balance after paying. When the amount is above NT$0 and exceeds the wallet, the confirm button (開始第 1 天 or 確定調整) SHALL be disabled and the modal SHALL show 錢包不夠付這次的訂閱; plans SHALL stay selectable. An amount of NT$0 (no change or only downgrades) SHALL never be blocked, even with a negative wallet, and plans already held SHALL keep working whatever the wallet. Choosing 不改了 SHALL close the modal without changes.
+The opening modal 月初：決定這個月怎麼付 token SHALL let the player pick one plan per subscription vendor (Anthropic, OpenAI, Google, 智譜 GLM, Kimi), default 不訂閱, and SHALL charge the full monthly price of every chosen plan to the personal wallet on confirm. The Monday modal 週一：調整訂閱 SHALL let the player change plans and SHALL charge, per vendor: when the current plan is 不訂閱 (price NT$0) and the new plan is paid, the full monthly price of the new plan; otherwise max(0, new price − current price) × (weeks left ÷ 4), where weeks left = 4 − floor((day − 1) ÷ 5). Downgrades SHALL take effect immediately with no refund. Every subscription payment SHALL be added to the subscription fee total. The Monday modal lead line SHALL say that a new subscription is charged the full month, an upgrade pays the difference for the weeks left, and a downgrade is not refunded. The modal SHALL show 這次要從個人錢包付 with the amount and the wallet balance after paying. When the amount is above NT$0 and exceeds the wallet, the confirm button (開始第 1 天 or 確定調整) SHALL be disabled and the modal SHALL show 錢包不夠付這次的訂閱; plans SHALL stay selectable. An amount of NT$0 (no change or only downgrades) SHALL never be blocked, even with a negative wallet, and plans already held SHALL keep working whatever the wallet. Choosing 不改了 SHALL close the modal without changes.
 
 #### Scenario: Buying at the start
 
@@ -98,8 +98,23 @@ The opening modal 月初：決定這個月怎麼付 token SHALL let the player p
 | --- | --- | --- | --- |
 | 6 | Anthropic Pro NT$650 | Max 5× NT$3,300 | NT$1,987.5 (2,650 × 3/4) |
 | 11 | Anthropic Pro NT$650 | Max 5× NT$3,300 | NT$1,325 (2,650 × 2/4) |
-| 16 | OpenAI 不訂閱 | Plus NT$650 | NT$162.5 (650 × 1/4) |
+| 16 | OpenAI Plus NT$650 | Pro 200 NT$6,500 | NT$1,462.5 (5,850 × 1/4) |
 | 11 | Anthropic Max 5× | Pro | NT$0, plan becomes Pro |
+
+#### Scenario: New subscription on Monday is charged the full month
+
+##### Example: new subscription costs
+
+| Day | From | To | Charged |
+| --- | --- | --- | --- |
+| 16 | OpenAI 不訂閱 | Plus NT$650 | NT$650 |
+| 16 | OpenAI 不訂閱 | Pro 200 NT$6,500 | NT$6,500 |
+| 6 | Kimi 不訂閱 | 會員 NT$300 | NT$300 |
+
+#### Scenario: Re-subscribing after dropping a plan
+
+- **WHEN** on day 6 the player downgrades Anthropic Pro to 不訂閱 (NT$0, no refund) and on day 11 picks Anthropic Pro again
+- **THEN** day 11 charges the full NT$650
 
 #### Scenario: Monday upgrade the wallet cannot cover
 
