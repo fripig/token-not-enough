@@ -183,7 +183,7 @@ section("字典一致性：key 集合、程式裡寫死的 key、題庫長度",(
     /* 已經寫的紀錄與工單標題維持原本的語言 */
     resetStore(); I.setLang('zh-TW'); newRun('laravel'); firstIssues(); const t0=S.issues[0].title, first=S.log[S.log.length-1].msg;
     clickLang('en'); render();
-    ok(CJK.test(t0)&&els.app.innerHTML.includes(t0)&&els.app.innerHTML.includes('Ticket queue'),'i18n：佇列裡的工單維持中文標題，卡片標籤是英文');
+    ok(CJK.test(t0)&&!els.app.innerHTML.includes(t0)&&els.app.innerHTML.includes(St.issueTitle?.(S.issues[0])??'\u0000')&&els.app.innerHTML.includes('Ticket queue'),'i18n：切換後佇列裡的工單標題跟著換成英文（gh-38-01）');
     endDay(); const msgs=S.log.map(l=>l.msg);
     ok(msgs.includes(first)&&CJK.test(first)&&msgs.some(m=>m.includes('Day 1 done'))&&msgs.some(m=>m.includes('Day 2 starts')),'i18n：切換後舊紀錄維持中文、新紀錄是英文');
     /* 中文寫的存檔用英文讀 */
@@ -217,4 +217,71 @@ section("字典一致性：key 集合、程式裡寫死的 key、題庫長度",(
    /* 開局說明：錢不算分 */
    ok(I.LANGS[0].dict['ui.setup.r.late'].includes('錢不算分')&&!I.LANGS[0].dict['ui.setup.r.late'].includes('花了多少錢')&&I.LANGS[1].dict['ui.setup.r.late'].includes('money does not score'),'開局說明：月底結算看 KPI、信任與稽核，錢不算分');
   }
+});
+
+section("工單標題跟著目前語言（gh-38-01-untranslated-tickets）",()=>{
+  const IT=is=>St.issueTitle?St.issueTitle(is):is.title, CJK=/[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uff00-\uffef]/;
+  const zhD=I.LANGS[0].dict, enD=I.LANGS[1].dict;
+  const at=(D,src)=>{const e=D[`pool.${src.k}.${src.g}`]?.[src.i]; return src.g==='research'?('p' in src?e?.parts?.[src.p]:e?.t):e;};
+  const rnd0=Math.random;
+  /* 各種工單：zh-TW 產生，切到英文看題庫同位置的英文標題，切回來是中文 */
+  I.setLang('zh-TW'); seedRandom(5); newRun(['laravel','sre']); S.day=15; S.outsource=true;
+  const gen=[...Array(400)].map(()=>makeIssue(false)), incs=[...Array(30)].map(()=>makeIssue(true)), gigs=[...Array(60)].map(()=>St.makeGig());
+  Math.random=rnd0;
+  const all=[...gen,...incs,...gigs];
+  ok(all.every(i=>i.src&&at(zhD,i.src)===i.title),'標題：產生的工單都記下題庫位置，位置指到產生時的標題',JSON.stringify(all.find(i=>!i.src||at(zhD,i.src)!==i.title)));
+  ok(gen.some(i=>i.trap&&i.src?.g==='trap')&&gen.some(i=>i.src?.g==='research')&&gen.some(i=>/^[1-5]$/.test(i.src?.g))&&incs.every(i=>i.src?.g==='inc'),'標題：抽樣涵蓋一般、陷阱暗示標題、研究單、事故單');
+  /* 案主名稱是照目前語言的 getter，比對時案主只看 id，另外確認還是同一個物件 */
+  const fields=i=>JSON.stringify({...i,client:i.client.id}), snap=all.map(fields), cl=all.map(i=>i.client);
+  I.setLang('en');
+  ok(all.every((i,n)=>fields(i)===snap[n]&&i.client===cl[n]),'標題：切換語言不改任何工單欄位');
+  ok(all.every(i=>IT(i)===at(enD,i.src)&&!CJK.test(IT(i))),'標題：切到英文後一般、陷阱、事故、外包、研究單都顯示同位置的英文標題',JSON.stringify(all.find(i=>IT(i)!==at(enD,i.src))?.src));
+  const trap=gen.find(i=>i.trap&&i.src.g==='trap'); A.reveal(trap);
+  ok(trap.revealed&&IT(trap)===at(enD,trap.src),'標題：陷阱曝光後仍顯示英文暗示標題');
+  I.setLang('zh-TW');
+  ok(all.every(i=>IT(i)===i.title),'標題：切回繁中顯示原本的中文標題');
+  /* 研究單拆單：兩張各指到同一筆研究題的第一、第二張 */
+  {newRun('laravel'); const r=gen.find(i=>i.research); S.issues=[r]; sel.issue=r.id; const [a,b]=A.splitResearch(r);
+   ok(a.src?.p===0&&b.src?.p===1&&a.src.i===r.src.i&&a.title===r.parts[0]&&b.title===r.parts[1],'標題：拆單記下研究題位置與第幾張',JSON.stringify([a.src,b.src]));
+   I.setLang('en'); ok(IT(a)===at(enD,a.src)&&IT(b)===at(enD,b.src)&&IT(a)!==IT(b),'標題：切到英文後兩張拆單顯示英文拆單標題',IT(a)+' / '+IT(b)); I.setLang('zh-TW');}
+  /* 合併衝突：跑馬燈文字錯字 → Resolve conflict: Typo in the news ticker */
+  {newRun('laravel','parallel'); S.hours=8; const is=Object.assign(makeIssue(false),{title:'跑馬燈文字錯字',src:{k:'laravel',g:'1',i:0},store:false,trap:false});
+   S.issues=[is]; const son=dataModule.model('anthropic','sonnet');
+   Math.random=()=>0; A.settle({issue:is,v:'anthropic',m:'sonnet',ef:1,b:'corp',M:son,rv:0,tk:100,hrs:1,ok:true,caught:false,left:0,hidden:false,stop:false,sdd:0},{conflict:1}); Math.random=rnd0;
+   ok(is.merge&&is.title==='解決衝突：跑馬燈文字錯字'&&IT(is)==='解決衝突：跑馬燈文字錯字','標題：合併衝突單繁中顯示「解決衝突：跑馬燈文字錯字」',IT(is));
+   I.setLang('en'); ok(IT(is)==='Resolve conflict: Typo in the news ticker','標題：切到英文後是 Resolve conflict: Typo in the news ticker',IT(is)); I.setLang('zh-TW');}
+  /* 沒拆就直接派工的研究單撞到合併衝突：前綴加研究題標題 */
+  {newRun('laravel','parallel'); S.hours=8; const r={...gen.find(i=>i.research),store:false}; S.issues=[r];
+   Math.random=()=>0; A.settle({issue:r,v:'anthropic',m:'sonnet',ef:1,b:'corp',M:dataModule.model('anthropic','sonnet'),rv:0,tk:100,hrs:1,ok:true,caught:false,left:0,hidden:false,stop:false,sdd:0},{conflict:1}); Math.random=rnd0;
+   ok(r.merge&&!r.research&&IT(r)===`解決衝突：${at(zhD,r.src)}`,'標題：研究單合併衝突後繁中是「解決衝突：<研究題>」',IT(r));
+   I.setLang('en'); ok(IT(r)===`Resolve conflict: ${at(enD,r.src)}`&&!CJK.test(IT(r)),'標題：切到英文後是 Resolve conflict: <英文研究題>',IT(r)); I.setLang('zh-TW');}
+  /* 沒有題庫位置（舊存檔）與查不到位置：顯示存的字串 */
+  {I.setLang('en');
+   const old={title:'舊標題',stack:'laravel'}, oldMerge={title:'解決衝突：舊標題',merge:true,stack:'laravel'}, far={title:'存的標題',src:{k:'laravel',g:'1',i:9}}, farP={title:'存的拆單',src:{k:'laravel',g:'research',i:0,p:5}}, badK={title:'壞掉',src:{k:'nope',g:'1',i:0}};
+   ok(IT(old)==='舊標題'&&IT(oldMerge)==='解決衝突：舊標題','標題：舊存檔沒有題庫位置的工單（含合併衝突單）顯示存的標題');
+   ok(IT(far)==='存的標題'&&IT(farP)==='存的拆單'&&IT(badK)==='壞掉','標題：位置超出題庫或技術線不存在時顯示存的標題');
+   I.setLang('zh-TW');}
+  /* 畫面：卡片、派工台標題、背景 agent 列 */
+  {resetStore(); I.setLang('zh-TW'); newRun('laravel','parallel'); S.hours=8;
+   const a=Object.assign(makeIssue(false),{title:'跑馬燈文字錯字',src:{k:'laravel',g:'1',i:0}}), b=Object.assign(makeIssue(false),{title:'RSS 日期時區差 8 小時',src:{k:'laravel',g:'1',i:1},running:true});
+   S.issues=[a,b]; S.jobs=[{issue:b,v:'anthropic',m:'sonnet',ef:1,b:'corp',M:dataModule.model('anthropic','sonnet'),rv:0,tk:100,hrs:2,shownHrs:2,left:1,ok:true,caught:false,hidden:false,stop:false,sdd:0}]; sel.issue=a.id;
+   I.setLang('en'); render(); const h=els.app.innerHTML;
+   ok(h.includes('<span class="t">Typo in the news ticker</span>')&&h.includes('<span>Typo in the news ticker</span>')&&h.includes('<b>RSS dates off by 8 hours</b>')&&!h.includes('跑馬燈文字錯字')&&!h.includes('RSS 日期時區差'),'畫面：切到英文後卡片、派工台標題、背景 agent 列都是英文標題');
+   I.setLang('zh-TW'); render(); ok(els.app.innerHTML.includes('跑馬燈文字錯字')&&els.app.innerHTML.includes('RSS 日期時區差 8 小時'),'畫面：切回繁中又是中文標題');}
+  /* 紀錄：切換前寫的不變，切換後寫的用英文標題 */
+  {resetStore(); I.setLang('zh-TW'); newRun('laravel'); S.day=2; S.hours=8;
+   const a=Object.assign(makeIssue(false),{title:'跑馬燈文字錯字',src:{k:'laravel',g:'1',i:0},due:5,trap:false,store:false,inc:false});
+   S.issues=[a]; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'api',rv:0,ef:1}); sel.issue=a.id;
+   const before=S.log.map(l=>l.msg);
+   I.setLang('en'); Math.random=()=>.5; dispatch(); Math.random=rnd0;
+   const msgs=S.log.map(l=>l.msg), added=msgs.slice(0,msgs.length-before.length);
+   ok(added.some(m=>m.includes('Typo in the news ticker'))&&!added.some(m=>m.includes('跑馬燈文字錯字'))&&before.every((m,n)=>msgs[msgs.length-before.length+n]===m),'紀錄：切換後派工的紀錄寫英文標題，之前的紀錄不變',added.join(' / '));
+   I.setLang('zh-TW');}
+  /* 存檔：中文寫的存檔用英文讀，佇列標題是英文 */
+  {resetStore(); I.setLang('zh-TW'); newRun('laravel'); firstIssues(); S.day=4; endDay();
+   const zhT=S.issues.map(i=>i.title); I.setLang('en'); const d=St.readSave();
+   M.showResume(d); els.mo.onclick({target:{closest:()=>({dataset:{act:'resume'}})}});
+   const h=els.app.innerHTML;
+   ok(S.issues.length>0&&S.issues.every(i=>i.src&&h.includes(IT(i))&&!CJK.test(IT(i)))&&zhT.every(x=>!h.includes(x)),'存檔：繁中存檔用英文讀，佇列工單顯示英文標題');
+   I.setLang('zh-TW'); resetStore();}
 });

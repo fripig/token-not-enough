@@ -1,6 +1,6 @@
 import {CONF,HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,lv,normCompanies,objOf,pick,pickClient,presetsOf,rnd} from './data.js';
 import {SLOT_CHOICES} from './actions.js';
-import {t} from './i18n.js';
+import {t,tl} from './i18n.js';
 
 /* ===== 狀態 ===== */
 export let S, sel, uid=0;
@@ -98,18 +98,25 @@ export function makeIssue(inc,st){
   let due=inc?Math.min(20,S.day+(S.inv.monitor?1:0)):S.day+(cx<=2?1+rnd(3):2+rnd(4));
   const stack=st||(inc?pick(S.companies):pickStack());
   const trap=!inc&&cx<=2&&Math.random()<TRAP_RATE, trueCx=Math.random()<.6?4:5;
-  const title=trap&&Math.random()<.5?pick(STACKS[stack].pool.trap):pick(STACKS[stack].pool[inc?'inc':cx]);
-  const is={id:nextId(),title,cx,base,inc:!!inc,stack,
+  /* 記下題庫位置（src），顯示時照目前語言查；亂數呼叫和原本的 pick 一樣 */
+  const g=trap&&Math.random()<.5?'trap':inc?'inc':String(cx), pool=STACKS[stack].pool[g], i=rnd(pool.length);
+  const is={id:nextId(),title:pool[i],src:{k:stack,g,i},cx,base,inc:!!inc,stack,
     trap,trueCx:trap?trueCx:cx,trueBase:trap?BASE[trueCx]*R(.85,1.15):base,revealed:false,evaluated:false,rescoped:false,merge:false,research:false,
     store:stack==='app'&&cx>=2&&Math.random()<STORE_RATE,
     sens:Math.random()<(inc?.55:.25),big:cx>=3&&Math.random()<.45,
     client:inc?CLIENTS[0]:pickClient(),
     due:Math.min(20,due+(!inc&&hardStack(stack)?1:0)),kpi:Math.round(KPI[cx]*(inc?(S.inv.monitor?MONITOR_KPI:INC_KPI):1)*(hardStack(stack)?HARD_KPI:1)),tries:0};
   /* 研究單在所有既有亂數之後才擲；比例是 0 時不擲，亂數序列和沒有研究單時一樣 */
-  if(RESEARCH_RATE>0&&!inc&&cx>=4&&Math.random()<RESEARCH_RATE){ const e=pick(STACKS[stack].pool.research); Object.assign(is,{research:true,title:e.t,parts:[...e.parts]}); }
+  if(RESEARCH_RATE>0&&!inc&&cx>=4&&Math.random()<RESEARCH_RATE){ const rp=STACKS[stack].pool.research, ri=rnd(rp.length), e=rp[ri]; Object.assign(is,{research:true,title:e.t,parts:[...e.parts],src:{k:stack,g:'research',i:ri}}); }
   return is;
 }
 
+/* 顯示用的工單標題：照目前語言查題庫位置（研究單拆單看 p），合併衝突單加前綴；沒有位置（舊存檔）或查不到就用存的 title */
+export function issueTitle(is){
+  const s=is.src, e=s?tl(`pool.${s.k}.${s.g}`)[s.i]:null, x=!s?null:s.g==='research'?(s.p!=null?e?.parts?.[s.p]:e?.t):e;
+  if(typeof x!=='string'||!x) return is.title;
+  return is.merge?t('ui.mergeTitle',{title:x}):x;
+}
 
 /* 外包單：每種工作內容加前端平均抽，只能自己付 token，做完拿現金（KPI × GIG_PAY）不拿 KPI */
 export const GIG_PAY=250, GIG_LATE=.3, GIG_STACKS=[...COMPANIES,'fe'];

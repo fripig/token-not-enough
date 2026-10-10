@@ -1,5 +1,5 @@
 import {RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
-import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardStack,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks} from './state.js';
+import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardStack,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks,issueTitle} from './state.js';
 import {REVIEW,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
 import {render} from './view.js';
 import {showDay,showEnd} from './modals.js';
@@ -42,7 +42,7 @@ export function dispatch(via='panel',preset='none'){
   /* 復盤用：記下派工當下看到的條件（成功率是派工台顯示的，陷阱照顯示的複雜度） */
   const sp=t('sep'), tags=[t('ui.card.cx',{cx:is.cx}),is.due<=S.day?t('ui.dueToday'):t('log.dueOn',{d:is.due}),...(is.inc?[t('ui.chip.inc')]:[]),...(is.sens?[t('ui.chip.sens')]:[]),...(is.out?[t('ui.chip.gig')]:[]),...(is.research?[t('ui.chip.research')]:[])].join(sp);
   const how=via==='quick'?t('log.via.quick',{p:preset}):via==='batch'?t('log.via.batch',{p:preset}):t('log.via.panel');
-  log('dim',t('log.dispatch',{title:is.title,tags,who:who(j.v,j.M,j.b),opts:`${sp}${REVIEW[j.rv].name}${j.sdd?`${sp}SDD ${SDD_NAME[j.sdd]}`:''}`,p:Math.round(pe*100),how,h:h1(j.shownHrs)}));
+  log('dim',t('log.dispatch',{title:issueTitle(is),tags,who:who(j.v,j.M,j.b),opts:`${sp}${REVIEW[j.rv].name}${j.sdd?`${sp}SDD ${SDD_NAME[j.sdd]}`:''}`,p:Math.round(pe*100),how,h:h1(j.shownHrs)}));
   if(PAR()){
     j.left=j.hrs; is.running=true; S.jobs.push(j); sel.issue=null;
     advance(.2); render(); return;
@@ -151,21 +151,21 @@ export function settle(j,o={}){
     S.issues=S.issues.filter(i=>i!==is); const rw=reward(is);
     if(is.inc) S.trust=Math.min(100,S.trust+2);
     if(fixed)S.st.caught++;
-    log('ok',t('log.ok',{title:is.title,who:w+(j.rv?sp+REVIEW[j.rv].name:''),tk:kt(tk),spend,h:h1(hrs),rw}));
+    log('ok',t('log.ok',{title:issueTitle(is),who:w+(j.rv?sp+REVIEW[j.rv].name:''),tk:kt(tk),spend,h:h1(hrs),rw}));
     if(fixed)log('ok',t('log.fixed',{rv:REVIEW[j.rv].name}));
     if(j.hidden)log('warn',t('log.trapForced',{a:is.shownCx,b:is.cx}));
     if(sel.issue===is.id) sel.issue=null;
   } else if(conflict){
     /* 合併衝突：原單原地變成「解決衝突」工單，KPI 等它完成才拿 */
     S.st.conflicts++; if(fixed)S.st.caught++;
-    const title=is.title, cx=Math.max(1,is.cx-1);
+    const title=issueTitle(is), cx=Math.max(1,is.cx-1);
     Object.assign(is,{merge:true,title:t('ui.mergeTitle',{title}),cx,base:BASE[cx]*R(.85,1.15),trap:false,revealed:false,evaluated:false,research:false,big:is.big&&cx>=3,tries:0});
     log('warn',t('log.conflict',{title,who:w,cx,tk:kt(tk),spend,h:h1(hrs)}));
   } else if(o.cancel){
-    log('warn',t('log.cancel',{title:is.title,who:w,tk:kt(tk),spend,h:h1(hrs)}));
+    log('warn',t('log.cancel',{title:issueTitle(is),who:w,tk:kt(tk),spend,h:h1(hrs)}));
   } else {
     is.tries++; is.base*=j.stop?1:RETRY.tk;
-    log('bad',t('log.fail',{title:is.title,who:w,note:note||t('log.note.fail'),tk:kt(tk),spend,h:h1(hrs)}));
+    log('bad',t('log.fail',{title:issueTitle(is),who:w,note:note||t('log.note.fail'),tk:kt(tk),spend,h:h1(hrs)}));
   }
   auditRoll(is,b,v); checkOverdraft();
   return {ok,hrs,rejected};
@@ -187,11 +187,11 @@ export function manual(){
   if(PAR()){ is.running=true; advance(hrs); is.running=false; if(!S.issues.includes(is)){render();return;} }
   else S.hours-=hrs;
   S.st.manual++;
-  if(hiddenTrap(is)){ reveal(is); S.st.trapHit++; fix('trap'); log('bad',t('log.manualTrap',{title:is.title,h:h1(hrs),a:is.shownCx,b:is.cx})); render(); return; }
+  if(hiddenTrap(is)){ reveal(is); S.st.trapHit++; fix('trap'); log('bad',t('log.manualTrap',{title:issueTitle(is),h:h1(hrs),a:is.shownCx,b:is.cx})); render(); return; }
   const ok=is.cx<=3||Math.random()<.7;
   fix(ok?'success':'fail');
-  if(ok){S.issues=S.issues.filter(i=>i!==is);const rw=reward(is);sel.issue=null;log('ok',t('log.manualOk',{title:is.title,h:h1(hrs),rw}));}
-  else{is.tries++;is.base*=RETRY.tk;log('bad',t('log.manualFail',{title:is.title,h:h1(hrs)}));}
+  if(ok){S.issues=S.issues.filter(i=>i!==is);const rw=reward(is);sel.issue=null;log('ok',t('log.manualOk',{title:issueTitle(is),h:h1(hrs),rw}));}
+  else{is.tries++;is.base*=RETRY.tk;log('bad',t('log.manualFail',{title:issueTitle(is),h:h1(hrs)}));}
   render();
 }
 
@@ -210,10 +210,10 @@ export function evaluate(){
   S.st.tk[sel.v]+=used; S.st.byBill[sel.b]+=used;
   const evt=outcome=>track('evaluate',{vendor:sel.v,model:sel.m,bill:sel.b,cx,stack:is.stack,gig:!!is.out,outcome});
   const ew=t('log.evalWho',{who:who(sel.v,M,sel.b)});
-  if(ch.short){ evt('quota'); log('bad',t('log.evalShort',{title:is.title,ew,why:t(sel.b==='api'?'why.walletEmpty':'why.quota'),spend:ch.spend})); render(); return; }
+  if(ch.short){ evt('quota'); log('bad',t('log.evalShort',{title:issueTitle(is),ew,why:t(sel.b==='api'?'why.walletEmpty':'why.quota'),spend:ch.spend})); render(); return; }
   is.evaluated=true;
-  if(is.trap&&Math.random()<revealRate(M)){ reveal(is); evt('found'); S.st.trapFound++; log('ok',t('log.evalFound',{title:is.title,ew,a:is.shownCx,b:is.cx,tk:kt(tk),spend:ch.spend,h:h1(hrs)})); }
-  else{ evt('clear'); log('dim',t('log.evalClear',{title:is.title,ew,tk:kt(tk),spend:ch.spend,h:h1(hrs)})); }
+  if(is.trap&&Math.random()<revealRate(M)){ reveal(is); evt('found'); S.st.trapFound++; log('ok',t('log.evalFound',{title:issueTitle(is),ew,a:is.shownCx,b:is.cx,tk:kt(tk),spend:ch.spend,h:h1(hrs)})); }
+  else{ evt('clear'); log('dim',t('log.evalClear',{title:issueTitle(is),ew,tk:kt(tk),spend:ch.spend,h:h1(hrs)})); }
   auditRoll(is,sel.b,sel.v); checkOverdraft();
   render();
 }
@@ -225,8 +225,8 @@ export function rescope(){
   track('rescope',{cx:is.cx,stack:is.stack,outcome:S.trust>=RESCOPE_TRUST?'approved':'refused'});
   if(S.trust>=RESCOPE_TRUST){
     S.trust-=RESCOPE.ok; is.kpi=Math.round(KPI[is.cx]*(hardStack(is.stack)?HARD_KPI:1)); is.due=Math.min(20,is.due+RESCOPE.days);
-    log('ok',t('log.rescopeOk',{title:is.title,kpi:is.kpi,d:is.due,n:RESCOPE.ok}));
-  } else { S.trust=Math.max(0,S.trust-RESCOPE.no); log('warn',t('log.rescopeNo',{title:is.title,n:RESCOPE.no})); }
+    log('ok',t('log.rescopeOk',{title:issueTitle(is),kpi:is.kpi,d:is.due,n:RESCOPE.ok}));
+  } else { S.trust=Math.max(0,S.trust-RESCOPE.no); log('warn',t('log.rescopeNo',{title:issueTitle(is),n:RESCOPE.no})); }
   render();
 }
 
@@ -252,7 +252,8 @@ export function splitResearch(is){
   const part=(c,title,kpi,pay)=>{const base=BASE[c]*R(.85,1.15);
     return {id:nextId(),title,cx:c,base,inc:false,stack:is.stack,trap:false,trueCx:c,trueBase:base,revealed:false,evaluated:false,rescoped:false,merge:false,research:false,
       store:is.store,sens:is.sens,big:is.big&&c>=3,client:is.client,due:is.due,kpi,tries:0,from:is.id,...(is.out?{out:true,pay}:{})};};
-  const parts=[part(c1,is.parts[0],k1,p1),part(c2,is.parts[1],is.kpi-k1,is.out?is.pay-p1:0)];
+  const src=p=>is.src?{src:{...is.src,p}}:{};
+  const parts=[Object.assign(part(c1,is.parts[0],k1,p1),src(0)),Object.assign(part(c2,is.parts[1],is.kpi-k1,is.out?is.pay-p1:0),src(1))];
   S.issues.splice(at,1,...parts); sel.issue=parts[0].id;
   return parts;
 }
@@ -267,11 +268,11 @@ export function research(via){
   if(agent){
     ch=charge(sel.b,sel.v,M,cost.tk); const used=cost.tk*ch.frac; useHw(sel.v,sel.m);
     S.st.tk[sel.v]+=used; S.st.byBill[sel.b]+=used;
-    if(ch.short){ evt('quota'); log('bad',t('log.researchShort',{title:is.title,rw,why:t(sel.b==='api'?'why.walletEmpty':'why.quota'),spend:ch.spend})); render(); return; }
+    if(ch.short){ evt('quota'); log('bad',t('log.researchShort',{title:issueTitle(is),rw,why:t(sel.b==='api'?'why.walletEmpty':'why.quota'),spend:ch.spend})); render(); return; }
   }
-  const title=is.title, [a,b]=splitResearch(is);
+  const title=issueTitle(is), [a,b]=splitResearch(is);
   evt('split');
-  log('ok',t('log.split',{title,rw,a:a.title,ca:a.cx,b:b.title,cb:b.cx,cost:agent?t('log.splitCost',{tk:kt(cost.tk),spend:ch.spend}):'',h:h1(cost.hrs)}));
+  log('ok',t('log.split',{title,rw,a:issueTitle(a),ca:a.cx,b:issueTitle(b),cb:b.cx,cost:agent?t('log.splitCost',{tk:kt(cost.tk),spend:ch.spend}):'',h:h1(cost.hrs)}));
   if(agent){ auditRoll(is,sel.b,sel.v); checkOverdraft(); }
   render();
 }
@@ -436,13 +437,13 @@ export function endDay(){
   if(killed) rep.push(t('rep.killed',{n:killed}));
   const gigLate=S.issues.filter(i=>i.out&&i.due<=S.day);
   /* 外包逾期：賠違約金，不扣 KPI 和信任 */
-  gigLate.forEach(i=>{const pen=Math.round(i.pay*GIG_LATE);S.wallet-=pen;S.st.outPenalty+=pen;S.st.outLate++;log('bad',t('log.gigLate',{title:i.title,pen:nt(pen)}));});
+  gigLate.forEach(i=>{const pen=Math.round(i.pay*GIG_LATE);S.wallet-=pen;S.st.outPenalty+=pen;S.st.outLate++;log('bad',t('log.gigLate',{title:issueTitle(i),pen:nt(pen)}));});
   if(gigLate.length) rep.push(t('rep.gigLate',{n:gigLate.length,pen:nt(gigLate.reduce((a,i)=>a+Math.round(i.pay*GIG_LATE),0))}));
   const late=S.issues.filter(i=>!i.out&&i.due<=S.day);
   let lateTrust=0;
   /* 研究拆出來的兩張單算同一張原單：都逾期時信任只扣一次 */
   const lateFrom=new Set();
-  late.forEach(i=>{const pen=Math.ceil(i.kpi*LATE_KPI), tr=i.from&&lateFrom.has(i.from)?0:i.inc?(S.inv.monitor?MONITOR_LATE:INC_LATE_TRUST):LATE_TRUST; if(i.from)lateFrom.add(i.from);S.kpi-=pen;S.st.kpiLost+=pen;S.trust=Math.max(0,S.trust-tr);lateTrust+=tr;S.st.late++;log('bad',t('log.late',{title:i.title,pen,tr}));});
+  late.forEach(i=>{const pen=Math.ceil(i.kpi*LATE_KPI), tr=i.from&&lateFrom.has(i.from)?0:i.inc?(S.inv.monitor?MONITOR_LATE:INC_LATE_TRUST):LATE_TRUST; if(i.from)lateFrom.add(i.from);S.kpi-=pen;S.st.kpiLost+=pen;S.trust=Math.max(0,S.trust-tr);lateTrust+=tr;S.st.late++;log('bad',t('log.late',{title:issueTitle(i),pen,tr}));});
   S.issues=S.issues.filter(i=>i.due>S.day);
   if(late.length) rep.push(t('rep.late',{n:late.length,tr:lateTrust}));
   if(S.corpDay>CORP_DAY_LIMIT){S.trust=Math.max(0,S.trust-CORP_DAY_TRUST);rep.push(t('rep.corpDay',{c:nt(S.corpDay),n:CORP_DAY_TRUST}));log('warn',t('log.corpDay',{c:nt(S.corpDay),n:CORP_DAY_TRUST}));}

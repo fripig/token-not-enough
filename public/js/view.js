@@ -1,5 +1,5 @@
 import {RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
-import {S,sel,unfamiliar} from './state.js';
+import {S,issueTitle,sel,unfamiliar} from './state.js';
 import {REVIEW,sddLevel,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetFor,quotaLeft,stackHint} from './calc.js';
 import {INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
 import {LANGS,LANG_SWITCH,lang,t} from './i18n.js';
@@ -40,14 +40,14 @@ export function render(){
 
   const jobsHtml=!PAR()?'':`<div class="ph" style="margin-top:6px"><h2>${t('ui.jobs.title')}</h2><span>${t('ui.jobs.slots',{n:S.jobs.length,slots:S.slots})}</span></div>
     <div class="jobs">${S.jobs.map(j=>{const sh=j.shownHrs??j.hrs, el=j.hrs-j.left, over=el>=sh, pr=over?1:Math.max(0,el/sh);const lbl=BILL_LABEL[j.b];
-      return `<div class="job" style="--vc:${vc(j.v)}"><div class="jt"><b>${j.issue.title}</b><span class="num">${over?t('ui.jobs.over'):t('ui.jobs.done',{t:clock(8-S.hours+sh-el)})}</span>${cancelBtn(j.issue.id)}</div>
+      return `<div class="job" style="--vc:${vc(j.v)}"><div class="jt"><b>${issueTitle(j.issue)}</b><span class="num">${over?t('ui.jobs.over'):t('ui.jobs.done',{t:clock(8-S.hours+sh-el)})}</span>${cancelBtn(j.issue.id)}</div>
       <div class="jm">${VENDORS[j.v].agent} / ${j.M.name}${sp}${lbl}${j.issue.due<=S.day?`${sp}<span style="color:var(--bad)">${t('ui.dueToday')}</span>`:''}</div>
       <div class="bar"><i style="width:${pr*100}%;background:var(--vc)"></i></div></div>`;}).join('')
       ||`<div class="empty" style="padding:14px">${t('ui.jobs.empty')}</div>`}</div>`;
   const list=S.issues.filter(i=>!i.running).sort(queueOrder).map(i=>{
     const left=i.due-S.day;
     return `<div class="issw"><button class="iss ${sel.issue===i.id?'sel':''}" data-iss="${i.id}">
-      <span class="t">${i.title}</span><span class="k">${i.out?nt(i.pay):`+${i.kpi}`}</span>
+      <span class="t">${issueTitle(i)}</span><span class="k">${i.out?nt(i.pay):`+${i.kpi}`}</span>
       <span class="meta"><span class="pips" title="${t('ui.card.cx',{cx:i.cx})}">${[1,2,3,4,5].map(n=>`<i class="${n<=i.cx?'on':''}"></i>`).join('')}</span>
       <span class="num">~${kt(i.base)} tokens</span>
       ${i.out?`<span class="chip out">${t('ui.chip.gig')}</span>`:''}<span class="chip stack">${STACKS[i.stack].name}</span>${unfamiliar(i)?`<span class="chip unfam">${t('ui.chip.unfam')}</span>`:''}${i.merge?`<span class="chip trap">${t('ui.chip.merge')}</span>`:''}${i.research?`<span class="chip rsch">${t('ui.chip.research')}</span>`:''}${i.store?`<span class="chip store">${t('ui.chip.store')}</span>`:''}${i.revealed?`<span class="chip trap">${t('ui.chip.trap',{cx:i.shownCx})}</span>`:i.evaluated?`<span class="chip">${t('ui.chip.evaluated')}</span>`:''}
@@ -164,7 +164,7 @@ export function dispatchPanel(){
   else if(sel.b==='api'&&cl.hi>S.wallet) warn=t('ui.warn.wallet');
   const mh=manualHrs(is), ec=evalCost(model(sel.v,sel.m),sel.v), rc=researchCost(model(sel.v,sel.m),sel.v);
   const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m))||!!hwBlock(model(sel.v,sel.m))||(sel.b==='local'&&localBusy());
-  return `<div class="ph"><h2>${t('ui.dp.title')}</h2><span>${is.title}</span></div>
+  return `<div class="ph"><h2>${t('ui.dp.title')}</h2><span>${issueTitle(is)}</span></div>
   <div class="sec"><label>${t('ui.dp.pick')}</label>${rows}</div>
   <div class="sec"><label>${t('ui.dp.bill')}</label><div class="seg">${segs}</div>${S.seats.length&&!S.seats.includes(sel.v)?`<p class="hint">${t('ui.dp.seatHint',{seats:S.seats.map(v=>VENDORS[v].name).join(ls),agents:S.seats.map(v=>VENDORS[v].agent).join(ls)})}</p>`:''}</div>
   <div class="sec"><label>${t('ui.dp.review')}</label><div class="seg">${REVIEW.map((r,i)=>`<button class="sb ${sel.rv===i?'sel':''}" data-rv="${i}">${r.name}<small>${i?t('ui.dp.reviewDesc',{tk:r.tk,p:Math.round(catchRate(i,M)*100)}):t('ui.dp.reviewNone')}</small></button>`).join('')}</div></div>
