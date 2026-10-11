@@ -66,17 +66,17 @@ The hours and budget in this section are the initial values; the implementation 
 ---
 ### Requirement: CLAUDE.md effect
 
-For a ticket whose stack has CLAUDE.md, agent token estimates SHALL be multiplied by 0.85 and the base success chance SHALL increase by 0.06 at level 1 or 0.15 at level 2, before clamping to 0.05–0.97.
+For a ticket whose stack has CLAUDE.md, agent token estimates SHALL be multiplied by 0.85 and the remaining failure chance SHALL be multiplied by (1 − 0.06) at level 1 or (1 − 0.15) at level 2 (see `dispatch-outcome`), before clamping to 0.05–0.97. Texts SHALL describe the effect as 失敗少 6% / 失敗少 15%.
 
 #### Scenario: Laravel CLAUDE.md
 
 - **WHEN** CLAUDE.md is bought for laravel and a complexity 4 laravel ticket is estimated with Sonnet without review
-- **THEN** tokens are 0.85 × the estimate without the investment and success is 0.86 instead of 0.80
+- **THEN** tokens are 0.85 × the estimate without the investment and success is 0.765 instead of 0.75
 
 #### Scenario: Laravel CLAUDE.md level 2
 
 - **WHEN** CLAUDE.md level 2 is owned for laravel and a complexity 4 laravel ticket is estimated with Sonnet without review
-- **THEN** tokens are 0.85 × the estimate without the investment and success is 0.95
+- **THEN** tokens are 0.85 × the estimate without the investment and success is 0.7875
 
 #### Scenario: Other stack unaffected
 
@@ -90,13 +90,13 @@ With 單元測試, the self-review catch rate SHALL increase by 0.10 at level 1 
 
 #### Scenario: Catch rate only
 
-- **WHEN** 單元測試 is bought and CI 流水線 is not, Sonnet (capability 40) uses 自審, and two other agents are running at completion
-- **THEN** catch rate is 0.87 and conflict probability is 0.2
+- **WHEN** 單元測試 is bought and CI 流水線 is not, Sonnet (capability 40) uses 自審 on a complexity 4 fe ticket, and two other agents are running at completion
+- **THEN** catch rate is 0.3 and conflict probability is 0.2
 
 #### Scenario: Level 2 catch rate
 
-- **WHEN** 單元測試 level 2 is owned and Sonnet (capability 40) uses 自審
-- **THEN** catch rate is 0.95 (the cap) with Sonnet (capability 40) and 0.81 with Gemini Flash (capability 20)
+- **WHEN** 單元測試 level 2 is owned and 自審 is used on a complexity 4 fe ticket
+- **THEN** catch rate is 0.4 with Sonnet (capability 40) and 0.2 with Gemini Flash (capability 20)
 
 ---
 ### Requirement: MCP docs effect
@@ -122,9 +122,9 @@ code:
 ---
 ### Requirement: SDD effect
 
-導入 SDD level 1 SHALL be described as writing markdown spec documents (for example Superpowers) and level 2 as using an SDD framework (Spectra, OpenSpec, Spec Kit). The SDD level applied to an agent dispatch SHALL be the level chosen for that dispatch, capped at the owned level (see Requirement: SDD choice on the dispatch panel). With applied level L ≥ 1, the dispatch token estimate SHALL be multiplied by the factor for L; tickets whose complexity used for the run is 3 or higher SHALL gain the success bonus for L before clamping; and an unrevealed trap dispatched to a model whose capability is below its true complexity × 10 (see `trap-tickets`) SHALL stop after the trap-stop fraction for L of the true token and time cost instead of 0.4, with the log note for L. With applied level 0 the dispatch SHALL behave as without 導入 SDD. Architecture evaluation, research and hand-writing SHALL NOT be affected.
+導入 SDD level 1 SHALL be described as writing markdown spec documents (for example Superpowers) and level 2 as using an SDD framework (Spectra, OpenSpec, Spec Kit). The SDD level applied to an agent dispatch SHALL be the level chosen for that dispatch, capped at the owned level (see Requirement: SDD choice on the dispatch panel). With applied level L ≥ 1, the dispatch token estimate SHALL be multiplied by the factor for L; for tickets whose complexity used for the run is 3 or higher the remaining failure chance SHALL be multiplied by (1 − failure reduction for L) before clamping (see `dispatch-outcome`); and an unrevealed trap dispatched to a model whose capability is below its true complexity × 10 (see `trap-tickets`) SHALL stop after the trap-stop fraction for L of the true token and time cost instead of 0.4, with the log note for L. With applied level 0 the dispatch SHALL behave as without 導入 SDD. Architecture evaluation, research and hand-writing SHALL NOT be affected.
 
-| Applied level | Token factor | Success bonus (complexity ≥3) | Trap-stop fraction | Trap-stop note |
+| Applied level | Token factor | Failure reduction (complexity ≥3) | Trap-stop fraction | Trap-stop note |
 | --- | --- | --- | --- | --- |
 | 0 | 1 | 0 | 0.4 | 做到一半發現牽扯整個架構，先停下來 |
 | 1 | 1.1 | 0.08 | 0.15 | 寫規格時就發現牽扯整個架構，先停下來 |
@@ -144,9 +144,9 @@ code:
 
 | Applied level | Success | Tokens vs. without SDD |
 | --- | --- | --- |
-| 0 | 0.80 | × 1 |
-| 1 | 0.88 | × 1.1 |
-| 2 | 0.95 | × 1.2 |
+| 0 | 0.75 | × 1 |
+| 1 | 0.77 | × 1.1 |
+| 2 | 0.7875 | × 1.2 |
 
 #### Scenario: Trap stops earlier
 
@@ -381,12 +381,12 @@ After attending a 技術線場 conference, each of its covered stacks SHALL coun
 ---
 ### Requirement: Agent capability investment
 
-The game SHALL offer 提升 agent 能力 with levels 1 to 3, each costing 1 hour and NT$200 company budget (tuned by simulator measurement). Level N SHALL be purchasable only after attending at least N conferences of any category and owning level N − 1. Each owned level SHALL add 0.08 to the base success chance of every agent dispatch before clamping to 0.05–0.97. Architecture evaluation and hand-writing SHALL NOT be affected.
+The game SHALL offer 提升 agent 能力 with levels 1 to 3, each costing 1 hour and NT$200 company budget (tuned by simulator measurement). Level N SHALL be purchasable only after attending at least N conferences of any category and owning level N − 1. Each owned level SHALL multiply the remaining failure chance of every agent dispatch by (1 − 0.05) before clamping to 0.05–0.97 (see `dispatch-outcome`). Architecture evaluation and hand-writing SHALL NOT be affected.
 
 #### Scenario: Two levels
 
 - **WHEN** two conferences were attended, 提升 agent 能力 level 2 is owned and a complexity 4 fe ticket is estimated with Sonnet without review
-- **THEN** success is 0.96
+- **THEN** success is 0.774375 (1 − 0.25 × 0.95 × 0.95)
 
 #### Scenario: Locked level
 

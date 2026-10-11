@@ -33,7 +33,7 @@ The rules modal SHALL be titled 遊戲規則 and SHALL show six tab buttons in t
 The tabs SHALL cover, at minimum:
 
 - 基本: days, weeks and hours; starting wallet, company budget and trust; Monday quota reset and subscription changes; single-line and parallel mode including slot choices, PR review time and merge conflicts; the 進階模式 reasoning-effort table.
-- 派工與成功率: the success-rate table by ability minus complexity; the big-codebase adjustment; the self-review table; stack effects; presets and 一鍵派工; the per-dispatch SDD choice (不用 or an owned level, presets remembering it and falling back to the highest owned level).
+- 派工與成功率: the success-rate table by ability minus complexity; that investment bonuses reduce the remaining failure chance; the big-codebase gap adjustment; the self-review table with the catch rate depending on the same gap; stack effects; presets and 一鍵派工; the per-dispatch SDD choice (不用 or an owned level, presets remembering it and falling back to the highest owned level).
 - 付費與稽核: the billing methods; company API daily limit and overdraft penalties; audit odds and penalty; team seats; client bans on Chinese models.
 - 工單與陷阱: complexity with base tokens and KPI; incident tickets; late penalties; unfamiliar stacks; traps, 評估架構 and 找主管重新評估, including the trap-stop fraction for each SDD level; research tickets with their rate, direct-dispatch token premium, agent and self research costs and split table; outsourcing.
 - 投資與電腦: every engineering investment with its hours, cost and effect, including the level 2 cost, effect and unlocking conference category where one exists, and stating that 導入 SDD level 2 needs no conference; 提升 agent 能力 with its per-level effect and unlock rule; every domestic conference with its category, covered stacks and fee, the registration window, weekend attendance, the self-paid rule and the tech-stack conference effect; every hardware purchase with its price text, trust threshold, delivery days and effect; the idle penalty.
@@ -64,12 +64,12 @@ Lines that apply only to 平行模式, 進階模式 or 接外包 SHALL be labele
 #### Scenario: Conferences in the rules
 
 - **WHEN** the player opens 投資與電腦
-- **THEN** the tab lists all ten conferences with their fees from the game constants, the 0.8 hand-writing factor, the four conference-unlocked level 2 effects and the 0.08 per level of 提升 agent 能力
+- **THEN** the tab lists all ten conferences with their fees from the game constants, the 0.8 hand-writing factor, the four conference-unlocked level 2 effects and the 5% fewer failures per level of 提升 agent 能力
 
 #### Scenario: SDD levels in the rules
 
 - **WHEN** the player opens 投資與電腦, then 派工與成功率, then 工單與陷阱
-- **THEN** 投資與電腦 shows 導入 SDD level 1 (markdown, token ×1.1, +8%) and level 2 (框架, token ×1.2, +15%, 1h, NT$200, no conference); 派工與成功率 describes choosing 不用 or an owned SDD level per dispatch; 工單與陷阱 shows the trap-stop fractions 40%, 15% and 5%, all taken from the game constants
+- **THEN** 投資與電腦 shows 導入 SDD level 1 (markdown, token ×1.1, 8% fewer failures) and level 2 (框架, token ×1.2, 15% fewer failures, 1h, NT$200, no conference); 派工與成功率 describes choosing 不用 or an owned SDD level per dispatch; 工單與陷阱 shows the trap-stop fractions 40%, 15% and 5%, all taken from the game constants
 
 ---
 ### Requirement: Rule numbers come from game constants

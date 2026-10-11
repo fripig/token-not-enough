@@ -89,7 +89,7 @@ code:
 ---
 ### Requirement: Effort effect on the agent
 
-When dispatching in 進階 mode the selected effort SHALL modify the chosen model for that dispatch: 低 SHALL lower capability by 10 with a floor of 10, multiply token usage by 0.7 and multiply execution time by 0.8 (faster); 中 SHALL leave the model unchanged; 高 SHALL raise capability by 10 with no ceiling, multiply token usage by 1.5 and multiply execution time by 1.4 (slower). The modified capability SHALL be used for success rate, self-review catch rate and the check whether an agent pushes through an unrevealed trap. Price per 1k token and subscription weight SHALL NOT change. Architecture evaluation and hand-writing SHALL NOT be affected by effort. When the effort is not 中, logs SHALL name the model with the effort, such as Sonnet・高強度.
+When dispatching in 進階 mode the selected effort SHALL modify the chosen model for that dispatch: 低 SHALL lower capability by 10 with a floor of 10, multiply token usage by 0.7 and multiply execution time by 0.8 (faster); 中 SHALL leave the model unchanged; 高 SHALL raise capability by 10 with no ceiling, multiply token usage by 1.5 and multiply execution time by 1.4 (slower). The modified capability SHALL be used for the gap behind the success rate and the self-review catch rate (see `dispatch-outcome` and `self-review`) and for the check whether an agent pushes through an unrevealed trap. Price per 1k token and subscription weight SHALL NOT change. Architecture evaluation and hand-writing SHALL NOT be affected by effort. When the effort is not 中, logs SHALL name the model with the effort, such as Sonnet・高強度.
 
 #### Scenario: Success rate, tokens and time per effort
 
@@ -101,8 +101,8 @@ When dispatching in 進階 mode the selected effort SHALL modify the chosen mode
 | Effort | Capability | Success rate | Token estimate | Hours |
 | ------ | ---------- | ------------ | -------------- | ----- |
 | 低     | 30         | 50%          | 0.7 × 中       | 0.8 × 中 |
-| 中     | 40         | 80%          | 中             | 中    |
-| 高     | 50         | 95%          | 1.5 × 中       | 1.4 × 中 |
+| 中     | 40         | 75%          | 中             | 中    |
+| 高     | 50         | 88%          | 1.5 × 中       | 1.4 × 中 |
 
 #### Scenario: Capability floor and no ceiling
 
