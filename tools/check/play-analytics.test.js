@@ -154,3 +154,14 @@ section("派工與結果事件（gh-14-01-choice-analytics）",()=>{
   delete globalThis.gtag;
   }
 });
+
+section("play-analytics：退單事件",()=>{
+  const ev=[]; globalThis.gtag=(kind,name,p)=>ev.push({kind,name,p});
+  newRun('rails'); const a=ticket('rails',3); S.issues=[a]; ev.length=0; A.abandon(a.id);
+  const e=ev.find(x=>x.name==='abandon');
+  ok(ev.filter(x=>x.name==='abandon').length===1&&e.p.cx===3&&e.p.stack==='rails'&&e.p.gig===false&&e.p.merge===false&&e.p.research===false&&e.p.game_version!==undefined,'play-analytics：退單送一筆 abandon（cx 3、rails、非外包、非衝突、非研究）',JSON.stringify(e?.p));
+  newRun('laravel'); const tr=ticket('laravel',1,{trap:true,trueCx:5,revealed:false}); S.issues=[tr]; ev.length=0; A.abandon(tr.id);
+  ok(ev.find(x=>x.name==='abandon')?.p.cx===1,'play-analytics：退掉隱藏陷阱時 cx 送顯示的 1');
+  newRun('laravel'); const inc=ticket('laravel',4,{inc:true}); S.issues=[inc]; ev.length=0; A.abandon(inc.id);
+  ok(!ev.some(x=>x.name==='abandon'),'play-analytics：事故單退不掉、不送 abandon');
+});

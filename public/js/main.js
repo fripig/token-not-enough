@@ -1,7 +1,7 @@
 import {S,addGigs,clearSave,fresh,makeIssue,readSave,resetIds,sel} from './state.js';
 import {log,prefBill} from './calc.js';
-import {batch,cancelJob,dispatch,endDay,evaluate,research,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait,registerConf,dayStartLine} from './actions.js';
-import {app,armCancel,cancelArm,render,setTab} from './view.js';
+import {abandon,batch,cancelJob,dispatch,endDay,evaluate,research,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait,registerConf,dayStartLine} from './actions.js';
+import {abandonArm,app,armAbandon,armCancel,cancelArm,render,setTab} from './view.js';
 import {showBadSave,showResume,showSetup} from './modals.js';
 import {showRules} from './rules.js';
 import {initLang,setLang} from './i18n.js';
@@ -11,8 +11,10 @@ app.addEventListener('click',e=>{
   const t=e.target.closest('button');
   /* 中止待確認時，點其他地方（含非按鈕）就恢復 */
   if(cancelArm!==null&&!(t&&+t.dataset.cancel===cancelArm)){armCancel(null);render();}
+  if(abandonArm!==null&&!(t&&+t.dataset.abandon===abandonArm)){armAbandon(null);render();}
   if(!t||t.disabled) return;
   if(t.dataset.cancel){const id=+t.dataset.cancel; if(cancelArm===id){armCancel(null);cancelJob(id);}else armCancel(id); render();}
+  else if(t.dataset.abandon){const id=+t.dataset.abandon; if(abandonArm===id){armAbandon(null);abandon(id);}else{armAbandon(id);render();}}
   else if(t.dataset.iss){sel.issue=+t.dataset.iss;setTab('dispatch');render();}
   else if(t.dataset.tab){setTab(t.dataset.tab);render();}
   else if(t.dataset.v){const nv=t.dataset.v!==sel.v;sel.v=t.dataset.v;sel.m=t.dataset.m;if(sel.v==='local')sel.b='local';else{if(sel.b==='local')sel.b='api';if(nv)sel.b=prefBill(sel.v,S.issues.find(i=>i.id===sel.issue),sel.m)??sel.b;}render();}

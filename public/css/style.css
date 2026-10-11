@@ -112,6 +112,7 @@ button:disabled{cursor:not-allowed;opacity:.42}
 .job .jm{font-size:11px;color:var(--muted)}
 .job .jx{padding:2px 8px;font-size:11px;font-weight:600;color:var(--muted);flex:none}
 .job .jx.armed{border-color:var(--bad);color:var(--bad)}
+.btn.ghost.armed{border-color:var(--bad);color:var(--bad)}  /* 派工台的「確定退單？」跟「確定中止？」一樣用紅框提醒 */
 .job .jm::before{content:"";display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--vc);margin-right:6px}
 .hint{margin:0;font-size:12px;color:var(--muted)}
 .modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}

@@ -44,6 +44,7 @@ section("rules-reference（gh-20-01-rules-modal）",()=>{
   ok(M.GRADES.join()==='4300,3300,2500,1700'&&M.PAR_GRADE===1.6&&M.GRADES.every(t=>sc.includes(`<td>${t}</td>`)&&sc.includes(`<td>${Math.round(t*M.PAR_GRADE)}</td>`))&&sc.includes('<td>6880</td>'),'rules-reference：結算分頁列出單線與平行模式的評等門檻');
   ok(['kpi','trust','audit'].every(k=>sc.includes(`× ${M.SCORE[k]}`)),'rules-reference：結算分頁的總分權重來自 SCORE');
   ok(plain('tickets').includes(`評估時間 ×${D.MCP_EVAL_HRS}`),'rules-reference：MCP 評估時間倍率來自常數');
+  ok(plain('tickets').includes(`信任 −${A.ABANDON_TRUST}、不扣 KPI`)&&plain('tickets').includes(`報酬的 ${Ru.pct(St.GIG_LATE)} 違約金`)&&plain('tickets').includes('事故單、跑著 agent 的單（先中止）不能退'),'rules-reference：退單的代價來自 ABANDON_TRUST 與 GIG_LATE');
   ok(bi.includes(D.nt(A.CORP_DAY_LIMIT))&&bi.includes(`信任 −${A.AUDIT_TRUST}`)&&bi.includes(SEAT.trust.join('／')),'rules-reference：付費分頁的公司單日上限、稽核扣分、席位門檻來自常數');
   ok(['md',...D.INV_KEYS].every(k=>{const I=D.INVEST[k];return iv.includes(I.name)&&iv.includes(`<td>${I.hrs}h</td>`)&&iv.includes(`<td>${D.nt(I.cost)}</td>`)&&iv.includes(I.desc);}),'rules-reference：投資分頁列出每項投資的工時、預算與效果');
   ok(D.HW_KEYS.every(k=>{const H=D.HW[k];return iv.includes(H.name)&&iv.includes(`<td>${H.trust}</td>`)&&iv.includes(H.price);}),'rules-reference：投資分頁列出每台電腦的價格與信任門檻');

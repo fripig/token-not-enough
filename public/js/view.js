@@ -1,7 +1,7 @@
 import {CAP_SCALE,RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
-import {S,issueTitle,sel,unfamiliar} from './state.js';
+import {GIG_LATE,S,issueTitle,sel,unfamiliar} from './state.js';
 import {REVIEW,sddLevel,bills,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetBlock,quotaLeft,stackHint} from './calc.js';
-import {INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
+import {ABANDON_TRUST,canAbandon,INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
 import {LANGS,LANG_SWITCH,lang,t} from './i18n.js';
 
 /* ===== 畫面 ===== */
@@ -9,6 +9,10 @@ import {LANGS,LANG_SWITCH,lang,t} from './i18n.js';
 export let cancelArm=null;
 export const armCancel=id=>{cancelArm=id;};
 export const cancelBtn=id=>cancelArm===id?`<button class="btn ghost jx armed" data-cancel="${id}">${t('ui.cancelConfirm')}</button>`:`<button class="btn ghost jx" data-cancel="${id}">${t('ui.cancel')}</button>`;
+/* 退單也是兩段式：第一次按變成「確定退單？」，點別處恢復 */
+export let abandonArm=null;
+export const armAbandon=id=>{abandonArm=id;};
+export const abandonBtn=is=>abandonArm===is.id?`<button class="btn ghost armed" data-abandon="${is.id}">${t('ui.dp.abandonConfirm')}</button>`:`<button class="btn ghost" data-abandon="${is.id}">${is.out?t('ui.dp.abandonGig',{pen:nt(Math.round(is.pay*GIG_LATE))}):t('ui.dp.abandon',{n:ABANDON_TRUST})}</button>`;
 export const app=document.getElementById('app'), ov=document.getElementById('ov'), mo=document.getElementById('mo');
 
 export function render(){
@@ -193,6 +197,7 @@ export function dispatchPanel(){
     <button class="btn ghost" data-act="selfresearch" ${researchBlock(is,'self')?'disabled':''}>${t('ui.dp.selfResearch',{h:h1(selfResearchHrs(is))})}</button>`:''}
     ${canEvaluate(is)?`<button class="btn ghost" data-act="eval" ${blocked||ec.hrs>S.hours?'disabled':''}>${t('ui.dp.eval',{tk:kt(ec.tk),h:h1(ec.hrs)})}</button>`:''}
     ${is.revealed&&!is.rescoped&&!is.out?`<button class="btn ghost" data-act="rescope">${t('ui.dp.rescope')}</button>`:''}
+    ${canAbandon(is)?abandonBtn(is):''}
   </div>
   <p class="dptune">${t('ui.dp.tune')}</p>
   <div class="sec"><label>${t('ui.dp.pick')}</label>${rows}</div>

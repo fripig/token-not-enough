@@ -34,7 +34,7 @@ import {firstIssues,start} from '../public/js/main.js';
 import {CAP_SCALE,COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model,CONF,CONF_KEYS,CONF_LAST_DAY} from '../public/js/data.js';
 import {START,S,sel,setResearchRate,setTrapRate} from '../public/js/state.js';
 import {est,hwBlock,localBusy,quotaLeft} from '../public/js/calc.js';
-import {PAR,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
+import {PAR,abandon,canAbandon,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
 import {dispatchPanel} from '../public/js/view.js';
 import {subCost} from '../public/js/modals.js';
 // 自動玩家不記最高分（和改成模組前一樣）
@@ -85,6 +85,8 @@ const UPG=process.env.SIM_UPGRADE==='1'||process.env.SIM_UPGRADE==='2', UPG_STOP
 const oaiPrice=id=>VENDORS.openai.plans.find(p=>p.id===id).price;
 
 const LOG=process.env.SIM_LOG==='1', logs={};
+/* SIM_ABANDON=1：下班前把今天到期、沒在跑的公司單退掉（−2 信任，比逾期的 −4 與扣 KPI 一半划算） */
+const ABANDON=process.env.SIM_ABANDON==='1';
 
 function sim(){
   if(TRAP!==undefined) setTrapRate(TRAP);
@@ -154,6 +156,7 @@ function sim(){
               if(PAR()&&S.jobs.length===n0&&S.hours===before) skip.add(free[0].id);
             } else if(PAR()&&S.jobs.length&&S.hours>0){ wait(true); acted=true; }
           }
+          if(ABANDON) for(const is of S.issues.filter(i=>!i.out&&i.due<=S.day&&canAbandon(i))) abandon(is.id);
           const d=S.day; endDay(); if(d===20)break;
         }
         const html=els.mo.innerHTML;

@@ -185,6 +185,7 @@ export function showEnd(){
     <hr>${vendorLines}<hr>
     ${row('end.done',t('end.nTickets',{n:S.st.done}))}
     ${row('end.late',t('end.lateVal',{n:S.st.late,kpi:S.st.kpiLost}))}
+    ${row('end.abandoned',t('end.nTickets',{n:S.st.abandoned??0}))}
     ${S.outsource?row('end.outDone',t('end.nTickets',{n:S.st.outDone}))+row('end.outLate',t('end.nTickets',{n:S.st.outLate})):''}
     ${row('end.manual',t('end.nTimes',{n:S.st.manual}))}
     ${row('end.caught',t('end.nTickets',{n:S.st.caught}))}

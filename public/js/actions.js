@@ -218,6 +218,19 @@ export function evaluate(){
   auditRoll(is,sel.b,sel.v); checkOverdraft();
   render();
 }
+/* 找主管退單：事故單與跑著 agent 的單不能退；公司單信任 −ABANDON_TRUST、不扣 KPI，外包單照付逾期違約金 */
+export const ABANDON_TRUST=2;
+export const canAbandon=is=>!!is&&S.issues.includes(is)&&!is.running&&!is.inc;
+export function abandon(id){
+  const is=S.issues.find(i=>i.id===id); if(!canAbandon(is)) return;
+  const title=issueTitle(is), tags=[t('ui.card.cx',{cx:is.cx}),...(is.out?[t('ui.chip.gig')]:[])].join(t('sep'));
+  if(is.out){ const pen=Math.round(is.pay*GIG_LATE); S.wallet-=pen; S.st.outPenalty+=pen; log('warn',t('log.abandonGig',{title,tags,pen:nt(pen)})); }
+  else { S.trust=Math.max(0,S.trust-ABANDON_TRUST); log('warn',t('log.abandon',{title,tags,n:ABANDON_TRUST})); }
+  S.issues=S.issues.filter(i=>i!==is); if(sel.issue===is.id) sel.issue=null; S.st.abandoned++;
+  track('abandon',{cx:is.cx,stack:is.stack,gig:!!is.out,merge:!!is.merge,research:!!is.research});
+  render();
+}
+
 /* 陷阱曝光後可以找主管重新評估一次：信任夠就調 KPI、延期限 */
 export const RESCOPE_TRUST=50;
 export function rescope(){

@@ -20,7 +20,7 @@ export function fresh(){
     hw:objOf(HW_KEYS,()=>false),hwReq:null,hwUsed:objOf(HW_KEYS,()=>false),
     conf:{req:null,went:[]},
     outage:null,corpDay:0,issues:[],log:[],
-    st:{subFee:0,api:0,corp:0,done:0,late:0,audits:0,manual:0,conflicts:0,caught:0,tk:objOf(Object.keys(VENDORS),()=>0),byBill:{sub:0,seat:0,api:0,corp:0,local:0},kpiLost:0,trapHit:0,trapFound:0,outIncome:0,outPenalty:0,outDone:0,outLate:0,confFee:0}};
+    st:{subFee:0,api:0,corp:0,done:0,late:0,audits:0,manual:0,conflicts:0,caught:0,tk:objOf(Object.keys(VENDORS),()=>0),byBill:{sub:0,seat:0,api:0,corp:0,local:0},kpiLost:0,trapHit:0,trapFound:0,outIncome:0,outPenalty:0,outDone:0,outLate:0,confFee:0,abandoned:0}};
   sel={issue:null,v:'anthropic',m:'sonnet',b:'api',rv:sel?.rv??1,ef:sel?.ef??1,sdd:2};
   S.dayStart=daySnap();
 }
@@ -63,7 +63,7 @@ export function loadGame(d){
   /* 舊存檔的投資是 true／false，轉成等級；沒有研討會欄位就補空的 */
   for(const k of INV_KEYS) S.inv[k]=lv(S.inv[k]);
   for(const st in S.inv.md) S.inv.md[st]=lv(S.inv.md[st]);
-  S.conf??={req:null,went:[]}; S.st.confFee??=0;
+  S.conf??={req:null,went:[]}; S.st.confFee??=0; S.st.abandoned??=0;
   /* 舊存檔沒有 SDD 選擇：當 2（用已買的最高級） */
   if(![0,1,2].includes(sel.sdd)) sel.sdd=2;
 }
