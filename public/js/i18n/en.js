@@ -339,7 +339,7 @@ export const DICT={
   'hint.scan':'secret scanning: personal-account audit chance ×{x}',
   'hint.fastlane':'fastlane: rejection chance {p}%',
   'hint.monitor':'Monitoring: late ticket costs trust {n}',
-  'hint.ai':'Agent upgrade Lv{n}: {p}% fewer failures',
+  'hint.ai':'Agent upgrade Lv{n}: {p}% fewer failures ({per}% per level, combined)',
   'hint.mcp':'MCP docs: trap detection +{p}%, assessment time halved',
   'hint.pc':'GPU PC: local run time ×{x}',
   'hint.invest':'Investments: {list}.',

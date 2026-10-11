@@ -339,7 +339,7 @@ export const DICT={
   'hint.scan':'secret scanning：個人帳號稽核機率 ×{x}',
   'hint.fastlane':'fastlane：退件機率 {p}%',
   'hint.monitor':'監控告警：逾期扣信任 {n}',
-  'hint.ai':'提升 agent 能力 Lv{n}：失敗少 {p}%',
+  'hint.ai':'提升 agent 能力 Lv{n}：失敗少 {p}%（每級 {per}%，累計）',
   'hint.mcp':'MCP 文件：識破率 +{p}%、評估時間減半',
   'hint.pc':'顯卡 PC：本地執行時間 ×{x}',
   'hint.invest':'工程投資：{list}。',

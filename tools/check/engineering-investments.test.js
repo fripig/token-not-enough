@@ -409,7 +409,7 @@ section("國內研討會（gh-22-01-domestic-conference）",()=>{
   newRun('laravel'); S.day=2; render(); gaEv.length=0; els.app.on.click({target:{closest:()=>({dataset:{conf:'taiwanai'}})}});
   ok(S.conf.req==='taiwanai'&&els.app.innerHTML.includes('已報名・週末出席')&&els.app.innerHTML.includes('這週已報名其他場'),'domestic-conference：點研討會按鈕報名，其他場顯示已報名其他場');
   newRun('laravel'); S.inv.md.laravel=2; S.inv.ai=1; {const t=ticket('laravel',3); S.issues=[t]; sel.issue=t.id; render();
-   ok(els.app.innerHTML.includes('CLAUDE.md：token ×0.85、失敗少 15%')&&els.app.innerHTML.includes('提升 agent 能力 Lv1：失敗少 5%'),'domestic-conference：派工台提示 Lv2 數值與 agent 能力');}
+   ok(els.app.innerHTML.includes('CLAUDE.md：token ×0.85、失敗少 15%')&&els.app.innerHTML.includes('提升 agent 能力 Lv1：失敗少 5%（每級 5%，累計）'),'domestic-conference：派工台提示 Lv2 數值與 agent 能力');}
   /* 規則 modal */
   {const h=Ru.rulesTab('invest'), D2=dataModule;
    ok(D2.CONF_KEYS.every(k=>h.includes(D2.CONF[k].name)&&h.includes(`NT$${D2.CONF[k].fee.toLocaleString('en-US')}`))&&h.includes('×0.8')&&h.includes('每級所有派工失敗少 5%')&&h.includes('單元測試 Lv2')&&h.includes('×0.25')&&h.includes('≤3')&&h.includes('CLAUDE.md 失敗少 15%')&&h.includes('+20%'),'rules-reference：投資與電腦列出十場研討會、手寫 0.8、Lv2 與 agent 能力每級失敗少 5%');
