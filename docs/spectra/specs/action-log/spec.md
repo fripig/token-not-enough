@@ -37,7 +37,7 @@ Every agent dispatch, in parallel and serial mode, SHALL log one line `→ 派�
 
 #### Scenario: Unrevealed trap shows the shown odds
 
-- **WHEN** an unrevealed trap shown as complexity 1 is dispatched with a capability 3 model and no review
+- **WHEN** an unrevealed trap shown as complexity 1 is dispatched with a capability 30 model and no review
 - **THEN** the dispatch line shows 複雜度 1 and the success rate computed for complexity 1
 
 ##### Example: tags

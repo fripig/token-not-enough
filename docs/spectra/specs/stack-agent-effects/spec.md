@@ -8,11 +8,11 @@ Defines how a ticket's tech stack changes an agent's success rate, run time, and
 
 ### Requirement: Convention bonus for Laravel and Rails
 
-For tickets with stack laravel or rails and complexity 3 or lower, the capability gap used to look up the base success rate SHALL be increased by 1 for every model. Token usage and run time SHALL NOT change.
+For tickets with stack laravel or rails and complexity 3 or lower, the capability gap used to look up the base success rate SHALL be increased by 10 for every model. Token usage and run time SHALL NOT change.
 
 #### Scenario: Cheap model on conventional ticket
 
-- **WHEN** Gemini Flash (capability 2) is estimated for a complexity 3 rails ticket without review, client restrictions, or big-codebase flag
+- **WHEN** Gemini Flash (capability 20) is estimated for a complexity 3 rails ticket without review, client restrictions, or big-codebase flag
 - **THEN** the shown success rate is 80% instead of 50%
 
 #### Scenario: Bonus does not apply to complex tickets
@@ -23,21 +23,22 @@ For tickets with stack laravel or rails and complexity 3 or lower, the capabilit
 ---
 ### Requirement: Rust compile time and borrow checker
 
-For tickets with stack rust, agent run hours SHALL be multiplied by 1.2, and for models with capability below 4 the capability gap SHALL be decreased by 1.
+For tickets with stack rust, agent run hours SHALL be multiplied by 1.2, and for models with capability below 40 the capability gap SHALL be decreased by 10.
 
 #### Scenario: Low-capability model on Rust
 
-- **WHEN** GLM Air (capability 3) is estimated for a complexity 2 rust ticket without review
+- **WHEN** GLM Air (capability 30) is estimated for a complexity 2 rust ticket without review
 - **THEN** the shown success rate is 80% instead of 95% and the shown hours are 1.2 times the fe-ticket hours
 
 ##### Example: Rust effect by capability
 
 | Model capability | Ticket complexity | Base gap | Effective gap | Success |
 | ---------------- | ----------------- | -------- | ------------- | ------- |
-| 2 | 2 | 0 | -1 | 50% |
-| 3 | 2 | 1 | 0 | 80% |
-| 4 | 3 | 1 | 1 | 95% |
-| 5 | 5 | 0 | 0 | 80% |
+| 20 | 2 | 0 | -10 | 50% |
+| 30 | 2 | 10 | 0 | 80% |
+| 40 | 3 | 10 | 10 | 95% |
+| 45 | 4 | 5 | 5 | 87.5% |
+| 50 | 5 | 0 | 0 | 80% |
 
 ---
 ### Requirement: App simulator time and store review
@@ -96,7 +97,7 @@ Every ticket card SHALL show its stack name. When the selected ticket's stack ha
 #### Scenario: Rust hint in dispatch panel
 
 - **WHEN** the player selects a rust ticket
-- **THEN** the dispatch panel shows a hint naming the slower compile loop and the borrow-checker penalty for models below capability 4
+- **THEN** the dispatch panel shows a hint naming the slower compile loop and the borrow-checker penalty for models below capability 40
 
 #### Scenario: DevOps and SRE hints
 
@@ -107,18 +108,6 @@ Every ticket card SHALL show its stack name. When the selected ticket's stack ha
 
 - **WHEN** the player selects a fe ticket
 - **THEN** no stack hint line is shown
-
-
-<!-- @trace
-source: gh-18-01-work-roles-sre-devops
-updated: 2026-10-10
-code:
-  - public/js/data.js
-  - public/js/calc.js
-  - public/js/actions.js
-  - public/js/state.js
-  - public/js/modals.js
--->
 
 ---
 ### Requirement: DevOps pipeline time

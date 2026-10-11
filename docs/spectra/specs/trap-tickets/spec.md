@@ -33,7 +33,7 @@ Every stack SHALL provide at least 4 telltale trap titles. A trap SHALL take a t
 ---
 ### Requirement: Architecture evaluation
 
-The dispatch panel SHALL offer an evaluation action on non-incident tickets that are neither evaluated, revealed, merge-conflict tickets nor research tickets. Evaluation SHALL charge 40k × model verbosity tokens through the selected billing method and SHALL spend 0.5h × model speed of player time. On a trap it SHALL reveal the true complexity with probability min(0.95, 0.35 + 0.15 × model capability). A completed evaluation SHALL mark the ticket as evaluated and show a 已評估 chip whether or not it found a trap. If subscription or seat quota runs out during evaluation, it SHALL stop without a reveal, log 額度不夠，評估沒做完, and leave the ticket not evaluated. Because the agent reads the code, an evaluation of a sensitive ticket billed to a personal subscription or personal API SHALL roll the same security audit as a dispatch (probability 0.6 for Chinese vendors, 0.35 otherwise, trust −12), and an evaluation that overdraws the company API budget SHALL apply the same overdraft penalty as a dispatch immediately.
+The dispatch panel SHALL offer an evaluation action on non-incident tickets that are neither evaluated, revealed, merge-conflict tickets nor research tickets. Evaluation SHALL charge 40k × model verbosity tokens through the selected billing method and SHALL spend 0.5h × model speed of player time. On a trap it SHALL reveal the true complexity with probability min(0.95, 0.35 + 0.15 × model capability ÷ 10). A completed evaluation SHALL mark the ticket as evaluated and show a 已評估 chip whether or not it found a trap. If subscription or seat quota runs out during evaluation, it SHALL stop without a reveal, log 額度不夠，評估沒做完, and leave the ticket not evaluated. Because the agent reads the code, an evaluation of a sensitive ticket billed to a personal subscription or personal API SHALL roll the same security audit as a dispatch (probability 0.6 for Chinese vendors, 0.35 otherwise, trust −12), and an evaluation that overdraws the company API budget SHALL apply the same overdraft penalty as a dispatch immediately.
 
 #### Scenario: Evaluation cost
 
@@ -44,10 +44,12 @@ The dispatch panel SHALL offer an evaluation action on non-incident tickets that
 
 | Model capability | Reveal probability on a trap |
 | ---------------- | ---------------------------- |
-| 2 | 0.65 |
-| 3 | 0.80 |
-| 4 | 0.95 |
-| 5 | 0.95 |
+| 20 | 0.65 |
+| 25 | 0.725 |
+| 30 | 0.80 |
+| 40 | 0.95 |
+| 45 | 0.95 |
+| 50 | 0.95 |
 
 #### Scenario: Evaluating a sensitive ticket
 
@@ -72,17 +74,22 @@ The dispatch panel SHALL offer an evaluation action on non-incident tickets that
 ---
 ### Requirement: Working on an unrevealed trap
 
-When an unrevealed trap is dispatched, the run SHALL be rolled against the true complexity and true token base. If the model capability is at least the true complexity, the run SHALL use the true-complexity tokens, hours and success rate, and the ticket SHALL be revealed when the run settles. If the model capability is below the true complexity, the run SHALL spend 0.4 × the true-complexity tokens and hours, fail with the note 做到一半發現牽扯整個架構，先停下來, reveal the ticket, and increase its tries; self-review SHALL NOT prevent this. Hand-writing an unrevealed trap SHALL spend the shown-complexity hand-writing hours and then reveal the ticket with the note 手寫到一半發現要動架構, leaving it in the queue.
+When an unrevealed trap is dispatched, the run SHALL be rolled against the true complexity and true token base. If the model capability is at least the true complexity × 10, the run SHALL use the true-complexity tokens, hours and success rate, and the ticket SHALL be revealed when the run settles. If the model capability is below the true complexity × 10, the run SHALL spend 0.4 × the true-complexity tokens and hours, fail with the note 做到一半發現牽扯整個架構，先停下來, reveal the ticket, and increase its tries; self-review SHALL NOT prevent this. Hand-writing an unrevealed trap SHALL spend the shown-complexity hand-writing hours and then reveal the ticket with the note 手寫到一半發現要動架構, leaving it in the queue.
 
 #### Scenario: Weak model stops on a trap
 
-- **WHEN** an unrevealed trap with shown complexity 1 and true complexity 4 is dispatched to DeepSeek Chat (capability 3)
+- **WHEN** an unrevealed trap with shown complexity 1 and true complexity 4 is dispatched to DeepSeek Chat (capability 30)
 - **THEN** the run fails with 做到一半發現牽扯整個架構，先停下來, the ticket is revealed with complexity 4, and the charged tokens are 0.4 × the true-complexity estimate
 
 #### Scenario: Strong model pushes through
 
-- **WHEN** the same trap is dispatched to Claude Code Sonnet (capability 4) and the run succeeds
+- **WHEN** the same trap is dispatched to Claude Code Sonnet (capability 40) and the run succeeds
 - **THEN** the ticket completes, the charged tokens follow the true complexity 4 estimate, and the log includes 原來牽扯到架構，硬做完了
+
+#### Scenario: In-between capability still stops on a harder trap
+
+- **WHEN** an unrevealed trap with true complexity 5 is dispatched to a model with capability 45
+- **THEN** the run stops partway like a weak model, because 45 is below 50
 
 #### Scenario: Hand-writing a trap
 
