@@ -615,7 +615,7 @@ export const DICT={
   'rules.stack.rust':'Rust: models below skill {w} count as one level harder (borrow checker); run time ×{x}.',
   'rules.stack.app':'App: run time ×{x}; {store} of tickets of complexity 2+ need App Store review, and even after the agent finishes there is a {reject} rejection chance ({fast} with release automation) that self-review cannot prevent.',
   'rules.stack.devops':'DevOps: waits on CI and terraform, run time ×{x}.',
-  'rules.stack.hard':'Rust, App and DevOps tickets get 1 extra day and KPI ×{x}.',
+  'rules.stack.hard':'Rust, App and DevOps tickets get 1 extra day; in serial mode they also get KPI ×{x} (not in parallel mode).',
   'rules.stack.sre':'SRE: more incidents; see "Tickets & traps".',
   'rules.h.presets':'Presets and hand-writing',
   'rules.presets':'Save three presets {list} (vendor, model, payment, review, effort, SDD); each ticket card has one "One-click" button per preset that uses exactly that preset, and an unusable preset\'s button is disabled with the reason; batch dispatch uses the first usable one in the order {order}.',

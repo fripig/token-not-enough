@@ -1,5 +1,5 @@
-import {CAP_SCALE,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
-import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardStack,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks,issueTitle} from './state.js';
+import {CAP_SCALE,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
+import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardKpi,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks,issueTitle} from './state.js';
 import {REVIEW,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetBlock,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
 import {render,setTab} from './view.js';
 import {showDay,showEnd} from './modals.js';
@@ -238,7 +238,7 @@ export function rescope(){
   is.rescoped=true;
   track('rescope',{cx:is.cx,stack:is.stack,outcome:S.trust>=RESCOPE_TRUST?'approved':'refused'});
   if(S.trust>=RESCOPE_TRUST){
-    S.trust-=RESCOPE.ok; is.kpi=Math.round(KPI[is.cx]*(hardStack(is.stack)?HARD_KPI:1)); is.due+=RESCOPE.days;
+    S.trust-=RESCOPE.ok; is.kpi=Math.round(KPI[is.cx]*hardKpi(is.stack)); is.due+=RESCOPE.days;
     log('ok',t('log.rescopeOk',{title:issueTitle(is),kpi:is.kpi,d:is.due,n:RESCOPE.ok}));
   } else { S.trust=Math.max(0,S.trust-RESCOPE.no); log('warn',t('log.rescopeNo',{title:issueTitle(is),n:RESCOPE.no})); }
   render();

@@ -116,6 +116,9 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 45. 「新增複雜度 6 的工單 第 11 天起從原本的複雜度 5 分一部分出去 少量」（#50，從 #46 拆出來；Fable 能力 60 對所有複雜度 5 的單都已經到頂）
    → 第 11 天起，抽到複雜度 5 的非事故單有 25%（`SIX_RATE`）變成複雜度 6；KPI 34、token 基準 1,200k；可以是研究單（30%），研究後拆成 3＋4；單線、平行都出（都是使用者從選項裡選的）。#51 的找主管退單先上線，做不到的複雜度 6 可以退。事故單仍是 4，陷阱真實複雜度仍是 4–5。設計紀錄在 Spectra change `gh-46-03-complexity-six-tickets`（#50）。
 
+46. #53（從 #45 拆出來）：Rust、App、DevOps 的 KPI ×1.3 是補單線模式比較慢，平行模式強玩法本來就做得完，變成純加分，強玩法拿 S 的比例 Rust 85%、App 82%、DevOps 84%，Laravel、Rails 14%。
+   → 平行模式拿掉 KPI ×1.3（單線保留，期限 +1 天兩種模式都保留），不選 ×1.15、不分線設定；平行 S 門檻照 #45 的定義（強玩法中位數）重量，10,700 → 9,500。外包報酬跟著工單 KPI 走，找主管重新評估照目前的模式算；第 1 天的工單在開局確認前就產生，確認時模式改了就重算 KPI 與外包報酬（不抽亂數）。預設自動玩家平行 Rust 掉到約 −33%、超出 ±25% 的目標，使用者接受，當成派弱模型做 Rust 的代價（都是使用者從選項裡選的）。設計紀錄在 Spectra change `gh-53-01-parallel-hard-stack-kpi`（#53）。
+
 介面預設語言是繁體中文（台灣用語），所有介面文字都放在字典（見「多語系」），程式碼裡註解以外不能有中文。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
 ## 遊戲規則與數值
@@ -214,12 +217,13 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
 | 技術線 | 成功率 | 執行時間 | 其他 |
 |---|---|---|---|
 | laravel、rails | 複雜度 ≤3 時能力差 +10（框架慣例） | — | — |
-| rust | 能力 <40（`WEAK_CAP`）的模型能力差 −10（borrow checker） | ×1.2 | 期限 +1 天、KPI ×1.3 |
-| app | — | ×1.15 | 期限 +1 天、KPI ×1.3；複雜度 ≥2 的工單 40% 需上架審核，agent 成功後仍有 20% 被退件（有上架自動化 10%），自我審核救不回來 |
+| rust | 能力 <40（`WEAK_CAP`）的模型能力差 −10（borrow checker） | ×1.2 | 期限 +1 天；單線模式 KPI ×1.3 |
+| app | — | ×1.15 | 期限 +1 天；單線模式 KPI ×1.3；複雜度 ≥2 的工單 40% 需上架審核，agent 成功後仍有 20% 被退件（有上架自動化 10%），自我審核救不回來 |
 | sre | — | — | 選了 SRE 時每張新工單多擲一次事故（見「工單」） |
-| devops | — | ×1.25（等 CI 與 terraform） | 期限 +1 天、KPI ×1.3 |
+| devops | — | ×1.25（等 CI 與 terraform） | 期限 +1 天；單線模式 KPI ×1.3 |
 | fe | — | — | — |
 
+- 難線 KPI 補償只在單線模式（`hardKpi()`，#53）：平行模式的 Rust、App、DevOps 工單、找主管重新評估、外包報酬都不乘 ×1.3，期限 +1 天兩種模式都給。開局確認時模式改了，`modeKpi()` 照確認的模式重算佇列裡第 1 天工單的 KPI 與外包報酬；模擬器在產生第 1 天工單前先設模式。
 - token 用量不受技術線影響。派工台顯示的成功率已含技術線效果（需上架審核的工單 ×0.8），並在下方顯示技術線提示（`stackHint`）。
 - 工作內容按鈕的難度標示（`STACKS[k].level`）：Laravel、Rails ★，App、SRE、DevOps ★★，Rust ★★★。雙選不另外標組合難度。
 
@@ -263,7 +267,7 @@ SRE、DevOps 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；�
 - 曝光（`reveal`）：`shownCx` 記原估，`cx`／`base` 換成真實值，卡片顯示「牽一髮動全身・原估 N」。之後的預估與技術線效果都用真實複雜度。
 - 跑著的陷阱看不出真實時間：job 另存 `shownHrs`（派工台照顯示的複雜度估的時數 × 跟 `hrs` 同一個隨機倍率，不多擲亂數；一般工單等於 `hrs`），派工紀錄的「預計」、背景 agent 列的完成時間與進度條都用它，超過了還沒跑完就顯示「超過預估，還在跑」；實際執行時間照真實值。舊存檔的 job 沒有 `shownHrs` 時用 `hrs`。這是 `gh-32-01-abort-agent` 的 `/spectra-review` 抓到的：原本顯示真實時數，複雜度 1 的陷阱派出去就顯示好幾倍的預計時間，加上可以中止，就變成比評估架構便宜的驗陷阱方式；使用者選了隱藏真實時間。
 - 評估架構（`evaluate`）：非事故、未評估、未曝光的工單可用。花 `EVAL_TK × M.verb`（40k × token 用量倍率）token，走 `charge` 扣款，加上 `0.5h × M.speed` 工時（平行模式會推進時鐘）。識破率 `min(0.95, 0.35 + 0.15 × cap ÷ 10)`。沒識破和一般工單一樣顯示「已評估」。額度不夠時中斷、不算已評估。評估時 agent 一樣會讀程式碼，所以機敏工單走個人訂閱或個人 API 時，和派工一樣要擲資安稽核（`auditRoll`）；刷公司 API 造成的透支也當下處罰（`checkOverdraft`）。
-- 找主管重新評估（`rescope`）：曝光後每張一次。信任 ≥ `RESCOPE_TRUST`（50）：信任 −5、KPI 改成 `KPI[真實複雜度]`（含技術線 ×1.3）、期限 +2 天（不設上限，#44 前截到第 20 天）；否則信任 −3、其他不變。
+- 找主管重新評估（`rescope`）：曝光後每張一次。信任 ≥ `RESCOPE_TRUST`（50）：信任 −5、KPI 改成 `KPI[真實複雜度]`（單線模式含技術線 ×1.3，#53）、期限 +2 天（不設上限，#44 前截到第 20 天）；否則信任 −3、其他不變。
 - 陷阱曝光時不重算「大型 codebase」與「需上架審核」標記（這兩個是用顯示的複雜度產生的），所以曝光的陷阱不會有大型 codebase 加減成，App 線的陷阱也不會被上架退件。這是刻意的：陷阱已經夠痛，平衡數字也是照這個行為量的。
 - 結算多兩行：踩到陷阱（`S.st.trapHit`，派工或手寫曝光）、事先識破（`S.st.trapFound`，評估曝光）。
 
@@ -488,7 +492,7 @@ SDD Lv2 平衡實測（2026-10-10，`SIM_N=100`，每格 300 局，`SIM_SEED=101
 - 開局彈窗有「不接外包／接外包」（`data-out`），不佔主技術線名額，預設不接，跨 `fresh()` 保留，不是布林值就退回不接；週一調整不顯示。開局只切這個開關時不重抽公司工單，只加上或拿掉第 1 天的外包單。
 - 開了之後第 1 天和之後每天額外 0–2 張外包單（`addGigs`）。外包單（`out:true`）的技術線從 laravel、rails、rust、app、fe 平均抽，沒選的非前端技術線一樣算不熟；不會是事故、不機敏，可能是陷阱；案主是「外包案主」（沒有禁令），全公司禁中國雲端也不管它，卡片不顯示「禁中國雲端」。複雜度、期限、Rust／App 補償、上架審核照一般規則。
 - 只能自己付：公司 API 和公司席位（任何一家）停用並顯示「外包不能用公司資源」（`GIG_NOTE`），一鍵派工、批次派工會略過刷公司錢的方案；`dispatch()`、`evaluate()` 遇到這種付費方式直接不動作。
-- 報酬 = KPI × `GIG_PAY`（250；複雜度 1–5 依序 NT$750／1,500／2,500／4,000／6,000，Rust、App、DevOps 再 ×1.3）。完成（agent 或自己手寫，都走 `reward`）時錢進個人錢包、記入 `S.st.outIncome`，不加 KPI、不動信任。逾期賠報酬的 `GIG_LATE`（30%，四捨五入），不扣 KPI 與信任，不算進一般逾期張數；錢包不夠時照扣、可以變成負數。
+- 報酬 = KPI × `GIG_PAY`（250；複雜度 1–5 依序 NT$750／1,500／2,500／4,000／6,000，單線模式下 Rust、App、DevOps 再 ×1.3，平行模式不乘，#53）。完成（agent 或自己手寫，都走 `reward`）時錢進個人錢包、記入 `S.st.outIncome`，不加 KPI、不動信任。逾期賠報酬的 `GIG_LATE`（30%，四捨五入），不扣 KPI 與信任，不算進一般逾期張數；錢包不夠時照扣、可以變成負數。
 - 合併衝突留下的「解決衝突」單仍是外包單，報酬不變。工程投資照常生效。不能找主管重新評估。
 - 卡片顯示「外包」標籤，KPI 位置改顯示報酬。結算的個人花費（你自己掏的錢）= 訂閱費 + 個人 API + 外包違約金 + 研討會報名費，不扣外包收入、不會是負數，只顯示、不算分；開外包時多五行：外包收入、外包違約金、個人淨收支（外包收入 − 你自己掏的錢，帶正負號，例如 +NT$51,614）、外包完成、外包逾期（#44 前個人花費扣掉外包收入，外包賺得多會變成負數）。
 
@@ -625,9 +629,9 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 ### 結算（`showEnd`、`monthScore`）
 總分（`monthScore()`）= KPI × 10 + 信任 × 4 − 稽核次數 × 80。錢不算分（`gh-26-01-money-off-score`，#26）：個人花費（你自己掏的錢）= 訂閱費 + 個人 API + 外包違約金 + 研討會報名費（不扣外包收入，#44），和月底錢包餘額一起列在結算單上，只用來判定稱號；開外包時另列個人淨收支 = 外包收入 − 個人花費（`monthScore()` 的 `net`）。原本總分多一項 (8000 − 個人花費) ÷ 8（下限 −12000 ÷ 8，`SPEND_FLOOR` NT$20,000），讓玩家不敢花錢：自費的研討會一個月內賺不回 KPI，外包收入又直接加分、只能靠低報酬控制強度。
 
-評等門檻兩種模式各一組（`GRADES.serial`、`GRADES.parallel`，S、A、B、C，低於 C 是 D）：單線 3,800／2,400／1,400／500，平行 10,700／5,280／4,000／2,720（`gh-45-01-kpi-balance`，#45）。
+評等門檻兩種模式各一組（`GRADES.serial`、`GRADES.parallel`，S、A、B、C，低於 C 是 D）：單線 3,800／2,400／1,400／500，平行 9,500／5,280／4,000／2,720（`gh-45-01-kpi-balance`，#45；平行 S 在 `gh-53-01-parallel-hard-stack-kpi` 從 10,700 改成 9,500，#53）。
 
-- 平行 S 是強玩法的中位數：`SIM_SLOTS=6 SIM_INVEST=2 SIM_CONF=1 SIM_SUB=pro200`（6 槽、投資全買、去研討會、訂 Pro 200 全派 Codex Sol）在 gh-46-02 之後的中位數，種子 101 是 10,700、202 是 10,703。它派的是能力 40 的 Codex Sol，不是 #45 回報那局的 Opus。平行 A–D 照舊（以前是單線 × 1.6）。
+- 平行 S 是強玩法的中位數：`SIM_SLOTS=6 SIM_INVEST=2 SIM_CONF=1 SIM_SUB=pro200`（6 槽、投資全買、去研討會、訂 Pro 200 全派 Codex Sol）六條工作內容合計 1,800 局的中位數，取整到百。#45 在 gh-46-02 之後量到種子 101 是 10,700、202 是 10,703；#53 拿掉平行模式的難線 KPI ×1.3 後重量（2026-10-11，加入複雜度 6 之後的程式，改動前是 10,811／10,768）是 9,525／9,558，所以改成 9,500。它派的是能力 40 的 Codex Sol，不是 #45 回報那局的 Opus。平行 A–D 照舊（以前是單線 × 1.6）。
 - 單線門檻用比例對齊：gh-46-02 之前（ff72868）的預設自動玩家在舊門檻各評等的比例，在 gh-46-02 之後的分數上找相同比例的分數，取整到百。
 - 合併 gh-46-02、#51（退單）之後重量（2026-10-11，`SIM_N=100 SIM_SEED=101`，每模式 1,800 局）：
 
@@ -639,7 +643,15 @@ API 降價 30%、廠商當機一天、公司預算凍結 −30%、訂閱額度�
 | 單線，gh-46-02 之前（舊門檻） | 1.1% | 13.7% | 28.3% | 30.4% | 26.4% |
 | 單線，預設自動玩家＋`SIM_ABANDON=1` | 1.8% | 26.6% | 42.9% | 23.6% | 6.2% |
 
-- 強玩法拿 S 依工作內容差很多：Laravel、Rails 14%，SRE 23%，Rust 85%、App 82%、DevOps 84%（Rust、App、DevOps 的 KPI ×1.3 在平行模式變成純加分），另開 #53。
+- #45 量到強玩法拿 S 依工作內容差很多：Laravel、Rails 14%，SRE 23%，Rust 85%、App 82%、DevOps 84%（Rust、App、DevOps 的 KPI ×1.3 在平行模式變成純加分），另開 #53。
+- #53 平行模式拿掉 ×1.3、S 改 9,500 之後重量（2026-10-11，`SIM_N=100`，每格 300 局，種子 101／202）。強玩法平行相對 Laravel：Rails −0.2%／+1.4%、Rust −1.7%／−0.4%、App −4.6%／−2.8%、SRE +2.6%／+3.3%、DevOps −2.4%／−0.9%（改動前種子 101：Rust +22.7%、App +19.1%、DevOps +21.8%）。強玩法拿 S（300 局）：
+
+| 種子 | Laravel | Rails | Rust | App | SRE | DevOps | 合計 |
+|---|---|---|---|---|---|---|---|
+| 101 | 169 | 158 | 145 | 109 | 198 | 136 | 50.8% |
+| 202 | 161 | 177 | 157 | 121 | 189 | 145 | 52.8% |
+
+  預設自動玩家平行相對 Laravel：Rust −32.9%／−34.4%、App −16.6%／−17.6%、DevOps −10.9%／−16.9%（改動前種子 101：−13.8%、+6.1%、+12.7%），Rust 超出 ±25% 的目標，使用者接受（它幾乎都派能力 30 的 DeepSeek Chat，Rust 被 borrow checker 扣分，平行模式不再用 KPI 補）。預設自動玩家平行評等：S 0%／0.1%、A 52.6%／53.7%、B 30.6%／29.8%、C 12.6%／12.1%、D 4.3%／4.3%（改動前種子 101：A 72.8%、B 19.4%、C 6.0%、D 1.7%），掉的幾乎都在 Rust、App、DevOps，A–D 門檻沒調。單線兩種玩法的平均分跟改動前逐格相同。
 - 會退單時單線分數高很多（`SIM_ABANDON=1` 拿 D 從 27% 降到 6%），使用者選擇單線門檻照不退單的玩法訂：會用退單的玩家評等比較好是合理的回報，退單在單線是不是太強算 #51 的平衡問題。
 
 以下是 #45 之前的門檻紀錄：評等門檻 S/A/B/C/D 4300/3300/2500/1700（平行模式 ×1.6：6880/5280/4000/2720）。草稿是舊門檻 4600/3800/3000/2200 各減 500（改動前預設自動玩家的個人花費約 NT$3,400–4,200，花費項約 +475～+575 分），目標是預設自動玩家每個模式各評等的比例跟改動前差 5 個百分點以內（`SIM_N=100`，每格 300 局，`SIM_SEED=101`、`202`）。在 af2b04b 上草稿就達標（最多平行 S +4.0），合併含研究單的 `main`（5717748）後平行 S 多 5.4～6.2 點；S 試了 4,200（最多 +4.4）和 4,300（各評等都在 ±2.9 內），採用 4,300。採用後對照改動前（模擬器修好錢包見底的派法後重量）：平行 S 69.3% → 70.7%、A 17.3% → 19.3%、B 8.4% → 6.8%、C 3.2% → 2.1%、D 1.7% → 1.2%（種子 202：S 69.8% → 70.3%、A 16.7% → 20.6%）；單線各評等差都在 ±3.4 內。量門檻時用 scratchpad 的小腳本在載入模擬器前改 `GRADES` 陣列，同一個種子下輸出跟 `tools/sim.js` 逐字相同。
@@ -742,7 +754,7 @@ Pro 500 每一格都比 Pro 200 差（平行 12k 時 −5.2%～−8.3%、20k 時
 |---|---|
 | `main.js` | 入口：`app` 上的事件委派（用 `data-*` 屬性分派）、開局，載入時呼叫一次 `boot()`：`firstIssues`、`start`、`boot` |
 | `data.js` | 資料與工具函式，沒有狀態（顯示欄位是讀字典的 getter）：`GAME_VERSION`、`CAP_SCALE`、`WEAK_CAP`、`P_TOP`、`POOL_KEYS`、`poolOf`、`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP`、`SDD_NAME`、`SDD_EG`、`sddDesc`、`INV_KEYS`、`HOOK_PR`、`SCAN_AUDIT`、`FASTLANE_REJECT`、`MONITOR_LATE`、`MONITOR_KPI`、`HW`、`HW_KEYS`、`PC_SPEED`、`HW_REQ_HRS`、`HW_SETUP_HRS`、`HW_IDLE`；規則係數 `CATCH`、`REVEAL`、`BIG`、`RETRY`、`MANUAL_HRS`、`UNFAMILIAR_HRS`、`STACK_HRS`、`STORE_RATE`、`INC_KPI`、`HARD_KPI`、`LATE_KPI`、`CONFLICT`、`CI_CONFLICT`、`PR_HRS`、`PR_REVIEWED`、`EVAL_HRS`、`MCP_EVAL_HRS`、`RESCOPE`、`RESEARCH_DIRECT_TK`、`RESEARCH_TK`、`RESEARCH_HRS`、`RESEARCH_SELF_HRS`、`RESEARCH_SPLIT`（`SEAT.review` 是席位審核天數）、`lv`、`SKILLS_CX`、`CONF_CATS`、`CONF`、`CONF_KEYS`、`CONF_LV2`、`CONF_LAST_DAY`、`CONF_MANUAL`、`AI_P`、`AI_MAX` |
-| `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件、存檔：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`SAVE_KEY`、`SAVE_VER`、`saveGame`、`clearSave`、`readSave`、`loadGame`、`daySnap`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`RESEARCH_RATE`、`setResearchRate`、`SIX_RATE`、`SIX_DAY`、`setSixRate`、`hardStack`、`unfamiliar`、`makeIssue`、`issueTitle`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs`、`START`（起始錢包、公司預算、信任、每日工時）、`confStacks`、`confCat`、`confCount` |
+| `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件、存檔：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`SAVE_KEY`、`SAVE_VER`、`saveGame`、`clearSave`、`readSave`、`loadGame`、`daySnap`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`RESEARCH_RATE`、`setResearchRate`、`SIX_RATE`、`SIX_DAY`、`setSixRate`、`hardStack`、`hardKpi`、`unfamiliar`、`makeIssue`、`issueTitle`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`modeKpi`、`addGigs`、`START`（起始錢包、公司預算、信任、每日工時）、`confStacks`、`confCat`、`confCount` |
 | `calc.js` | 計算（`est(is, v, mid, rv, ef, sd)` 會套推理強度與 SDD 等級）：`pStep`（成功率錨點內插，起點 `P_TOP` 在 `data.js`）、`bigGap`（大型 codebase 的能力差距）、`sddLevel`、`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`hasHw`、`manualBlocked`、`hwBlock`、`localSpeed`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`prefBill`、`log`、`P_STEP`（成功率階梯） |
 | `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`TRAP_NOTE`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`RV_ID`、`SDD_ID`、`jobChoice`、`billOk`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`CANCEL_MIN`、`cancelFrac`、`cancelJob`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`ABANDON_TRUST`、`canAbandon`、`abandon`、`researchCost`、`selfResearchHrs`、`researchBlock`、`splitResearch`、`research`、`invCount`、`investBlock`、`invest`、`hwReqBlock`、`requestHw`、`useHw`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`intakeIssue`、`daySum`、`sumDelta`、`daySummary`、`dayStartLine`、`endDay`、`who`、`ev`、`AUDIT_ODDS`、`AUDIT_TRUST`、`OVERDRAFT_TRUST`、`CORP_DAY_LIMIT`、`CORP_DAY_TRUST`、`LATE_TRUST`、`INC_LATE_TRUST`、`EVENT_RATE`、`OVERNIGHT_HRS`、`PACE_KPI`、`PRAISE_TRUST`、`DOUBT_TRUST`、`invLevel`、`invMax`、`invCost`、`invLock`、`confBlock`、`registerConf`、`attendConf` |
 | `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`cancelArm`、`armCancel`、`cancelBtn`、`quickBtn`、`sddRow`、`invPanel`、`tab`、`setTab`、`tabPanel`（派工台／工程投資分頁）、`hwRow`、`qbox`、`logLines`（執行紀錄與「剛剛」共用的紀錄行）、`DP_RECENT`、`presetIs`、`dispatchPanel`、`confRow`、`langSwitch`、`capBar`（能力條）、`dayDock`（畫面底部的動作列：等待、調整訂閱、下班）、`abandonArm`、`armAbandon`、`abandonBtn`（退單的兩段式按鈕） |
@@ -772,7 +784,7 @@ Pro 500 每一格都比 Pro 200 差（平行 12k 時 −5.2%～−8.3%、20k 時
 
 - 平行模式下「嚴格審核＋便宜的中國模型」明顯偏強。可以考慮讓嚴格審核佔用工作槽，或加重時間成本。
 - `tools/sim.js` 的自動玩家很粗糙，不理會稽核和信任，所以模擬結果裡信任常常歸零。它只適合拿來確認不會壞、看大致趨勢；需要時可以改寫成更聰明的策略。
-- 全部工程投資都買時（`SIM_INVEST=2`），平行模式 Rust、App 約 +21%～+27%，超過 +3%～+15%，使用者接受。拿 S 的比例當時約 98%；#45 把平行 S 改成強玩法的中位數（10,700）之後，強玩法約一半拿 S，Rust／App／DevOps 比 Laravel／Rails 容易拿很多（#53）。
+- 全部工程投資都買時（`SIM_INVEST=2`），平行模式 Rust、App 約 +21%～+27%，超過 +3%～+15%，使用者接受。拿 S 的比例當時約 98%；#45 把平行 S 改成強玩法的中位數（10,700）之後，強玩法約一半拿 S，Rust／App／DevOps 比 Laravel／Rails 容易拿很多；#53 拿掉平行模式的難線 KPI ×1.3、S 改成 9,500 後，各工作內容拿 S 在 36%–66% 之間（App 最低、SRE 最高）。
 - 多團隊席位只量了上限（見「時間與資源」的席位實測）：平行模式 −4.3%～+6.0%，在目標內；單線模式 +14.6%～+50.0%。第 2、3 個席位對這個自動玩家幾乎沒有額外效果，重度使用 Opus 的玩家還沒量。照真實規則（要顧信任）的增幅也沒量，因為自動玩家不顧信任。
 - 單線模式下 Rust、App 公司明顯較難（見上方平衡實測），目前用難度星等交代；如果要拉近，可以考慮單線模式下這兩家每天少一張工單。
 - 訂 OpenAI Pro 200 全派 Codex Sol 的自動玩家，平行模式比預設（Max 5×、DeepSeek 優先）高 +11%～+25%（見「結算」的下限實測），錢不算分後平行 +15%～+29%、單線 +20%～+101%，Rust 最多。沒有拆開量原因；推測和團隊席位實測一樣，是把能用就派的 DeepSeek Chat（能力 30）換成能力 40 的模型、失敗變少，而 Pro 200 每日 8M 的額度夠這個自動玩家整天用。如果要拉近，可以考慮降低 Pro 200 的額度（真實世界已從約 20 倍砍到 10 倍 Plus）。

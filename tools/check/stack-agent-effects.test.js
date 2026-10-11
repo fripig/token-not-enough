@@ -1,10 +1,11 @@
 // stack-agent-effects 的規則檢查：docs/spectra/specs/stack-agent-effects/spec.md
-import {ok,near,section,newRun,ticket} from './lib.js';
+import {ok,near,section,newRun,ticket,clickMo} from './lib.js';
 import {store} from '../fake-dom.js';
 import {BASE,KPI,VENDORS} from '../../public/js/data.js';
-import {S,makeIssue,sel} from '../../public/js/state.js';
+import {S,hardStack,makeGig,makeIssue,sel} from '../../public/js/state.js';
 import {est,manualHrs,stackHint} from '../../public/js/calc.js';
-import {makeJob,settle} from '../../public/js/actions.js';
+import {makeJob,rescope,settle} from '../../public/js/actions.js';
+import {showSetup} from '../../public/js/modals.js';
 
 section("2.1 慣例加成與 Rust 效果（spec 範例）",()=>{
   /* 2.1 慣例加成與 Rust 效果（spec 範例） */
@@ -51,6 +52,44 @@ section("5.1 Rust／App 補償：KPI ×1.3、期限 +1 天（上限第 20 天）
   ok(late19.filter(i=>i.stack==='app').some(i=>i.cx<=2&&i.due===22),'第 19 天 app 工單偏移 2 天加 1 → 第 22 天到期');
   newRun('app'); S.day=5;
   ok([...Array(300)].map(()=>makeIssue(true)).every(i=>i.due===5&&i.kpi===33),'App 事故單當天到期、KPI 33');
+});
+
+section("gh-53 平行模式沒有難線 KPI 補償（期限 +1 天照給）",()=>{
+  /* gh-53：KPI ×1.3 只在單線模式；平行模式的工單、找主管重新評估、外包報酬都不乘 */
+  for(const [st,cx,inc,exp] of [['laravel',3,false,10],['rust',3,false,10],['app',2,false,6],['app',4,true,26],['fe',4,false,16],['devops',3,false,10],['devops',4,true,26],['sre',3,false,10],['sre',4,true,26]]){
+    newRun(st==='fe'?'laravel':st,'parallel'); S.day=1;
+    const got=[...Array(4000)].map(()=>makeIssue(inc)).filter(i=>i.stack===st&&i.cx===cx);
+    ok(got.length>0&&got.every(i=>i.kpi===exp),`平行 KPI：${st} 複雜度 ${cx}${inc?' 事故':''} → ${exp}`,[...new Set(got.map(i=>i.kpi))].join(','));
+  }
+  newRun('rust','parallel'); S.day=4;
+  const rustP=[...Array(3000)].map(()=>makeIssue(false)).filter(i=>i.stack==='rust'&&i.cx===3);
+  ok(rustP.length&&rustP.every(i=>i.kpi===10)&&rustP.some(i=>i.due===8)&&rustP.every(i=>i.due>=7&&i.due<=10),'平行：第 4 天複雜度 3 rust 工單 KPI 10、期限照樣多一天（偏移 3 → 第 8 天）');
+  for(const [mode,ka] of [['parallel',16],['serial',21]]){
+    newRun('laravel',mode); S.trust=70; const rs=ticket('rust',4,{trap:true,revealed:true,shownCx:1,trueCx:4,kpi:4,due:6,rescoped:false});
+    S.issues=[rs]; sel.issue=rs.id; rescope();
+    ok(rs.kpi===ka,`${mode}：rust 真實複雜度 4 找主管重新評估 → KPI ${ka}`,rs.kpi);
+  }
+  for(const [mode,kpi,pay] of [['parallel',6,1500],['serial',8,2000]]){
+    newRun('laravel',mode); S.day=1;
+    const g=[...Array(6000)].map(makeGig).filter(i=>i.stack==='rust'&&i.cx===2&&!i.trap);
+    ok(g.length>0&&g.every(i=>i.kpi===kpi&&i.pay===pay),`${mode}：複雜度 2 rust 外包單 KPI ${kpi}、報酬 NT$${pay}`,[...new Set(g.map(i=>i.kpi+'/'+i.pay))].join(','));
+  }
+});
+
+section("gh-53 開局切換模式：第 1 天工單的 KPI 照確認的模式",()=>{
+  /* gh-53：第 1 天工單在開局確認前就產生，換模式時要照新模式重算，不換工作內容、不抽亂數 */
+  for(const [from,to,mul] of [['serial','parallel',1],['parallel','serial',1.3]]){
+    newRun('rust',from); S.day=1; S.outsource=true;
+    S.issues=[...[...Array(40)].map(()=>makeIssue(false)),...[...Array(40)].map(makeGig)];
+    const before=S.issues.map(i=>[i.id,i.title,i.cx,i.due].join('|'));
+    showSetup(false); clickMo({mode:to});
+    const R1=Math.random; let drew=0; Math.random=()=>{drew++;return R1();};
+    try{ clickMo({act:'confirm'}); } finally{ Math.random=R1; }
+    const hard=S.issues.filter(i=>hardStack(i.stack));
+    ok(S.mode===to&&hard.length>0&&S.issues.every(i=>i.kpi===Math.round(KPI[i.cx]*(hardStack(i.stack)?mul:1))),`${from} → ${to}：佇列工單 KPI 照 ${to} 重算`,[...new Set(hard.map(i=>i.stack+i.cx+':'+i.kpi))].slice(0,8).join(','));
+    ok(S.issues.filter(i=>i.out).every(i=>i.pay===i.kpi*250)&&S.issues.some(i=>i.out&&hardStack(i.stack)),`${from} → ${to}：外包單報酬 = 重算後的 KPI × 250`);
+    ok(drew===0&&S.issues.map(i=>[i.id,i.title,i.cx,i.due].join('|')).join()===before.join(),`${from} → ${to}：標題、複雜度、期限不變，沒有抽亂數`,drew);
+  }
 });
 
 section("派工台提示（Stack effect visibility）",()=>{

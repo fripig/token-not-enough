@@ -94,6 +94,8 @@ export const SIX_DAY=11;
 export const setSixRate=r=>{SIX_RATE=r;};
 /* Rust、App、DevOps 比較慢：期限多一天、KPI ×1.3 作為補償 */
 export const hardStack=st=>st==='rust'||st==='app'||st==='devops';
+/* 難線的 KPI 補償只在單線模式給（平行模式做得完，×1.3 會變成純加分，#53）；期限 +1 天兩種模式都給 */
+export const hardKpi=st=>hardStack(st)&&S.mode!=='parallel'?HARD_KPI:1;
 export const unfamiliar=is=>!S.companies.includes(is.stack)&&is.stack!=='fe'&&!confStacks().has(is.stack);  // 去過涵蓋它的技術線場就算熟
 export function makeIssue(inc,st){
   let cx;
@@ -109,10 +111,10 @@ export function makeIssue(inc,st){
     store:stack==='app'&&cx>=2&&Math.random()<STORE_RATE,
     sens:Math.random()<(inc?.55:.25),big:cx>=3&&Math.random()<.45,
     client:inc?CLIENTS[0]:pickClient(),
-    due:due+(!inc&&hardStack(stack)?1:0),kpi:Math.round(KPI[cx]*(inc?(S.inv.monitor?MONITOR_KPI:INC_KPI):1)*(hardStack(stack)?HARD_KPI:1)),tries:0};
+    due:due+(!inc&&hardStack(stack)?1:0),kpi:Math.round(KPI[cx]*(inc?(S.inv.monitor?MONITOR_KPI:INC_KPI):1)*hardKpi(stack)),tries:0};
   /* 複雜度 6 在研究單之前擲（6 也可能是研究單）；沿用已抽的 token 倍率與標題位置，比例是 0 時不擲 */
   if(SIX_RATE>0&&!inc&&cx===5&&S.day>=SIX_DAY&&Math.random()<SIX_RATE){ const p6=STACKS[stack].pool['6'], i6=i%p6.length, b6=base*BASE[6]/BASE[5];
-    Object.assign(is,{cx:6,base:b6,trueCx:6,trueBase:b6,kpi:Math.round(KPI[6]*(hardStack(stack)?HARD_KPI:1)),title:p6[i6],src:{k:stack,g:'6',i:i6}}); }
+    Object.assign(is,{cx:6,base:b6,trueCx:6,trueBase:b6,kpi:Math.round(KPI[6]*hardKpi(stack)),title:p6[i6],src:{k:stack,g:'6',i:i6}}); }
   /* 研究單在所有既有亂數之後才擲；比例是 0 時不擲，亂數序列和沒有研究單時一樣 */
   if(RESEARCH_RATE>0&&!inc&&cx>=4&&Math.random()<RESEARCH_RATE){ const rp=STACKS[stack].pool.research, ri=rnd(rp.length), e=rp[ri]; Object.assign(is,{research:true,title:e.t,parts:[...e.parts],src:{k:stack,g:'research',i:ri}}); }
   return is;
@@ -131,6 +133,10 @@ export const GIG_CLIENT={id:'gig',get name(){return t('client.gig');},ban:null};
 export function makeGig(){
   const is=makeIssue(false,pick(GIG_STACKS));
   return Object.assign(is,{out:true,sens:false,client:GIG_CLIENT,pay:is.kpi*GIG_PAY});
+}
+/* 開局確認時模式改了：第 1 天的工單照確認的模式重算 KPI 與外包報酬（第 1 天沒有事故、複雜度 6、投資，不抽亂數） */
+export function modeKpi(){
+  for(const is of S.issues){ is.kpi=Math.round(KPI[is.cx]*hardKpi(is.stack)); if(is.out) is.pay=is.kpi*GIG_PAY; }
 }
 /* 開了外包時每天多 0–2 張，回傳張數 */
 export function addGigs(){

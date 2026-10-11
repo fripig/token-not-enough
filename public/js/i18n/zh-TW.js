@@ -615,7 +615,7 @@ export const DICT={
   'rules.stack.rust':'Rust：能力低於 {w} 的模型視同難一級（borrow checker）；執行時間 ×{x}。',
   'rules.stack.app':'App：執行時間 ×{x}；複雜度 2 以上有 {store} 要過 App Store 審核，agent 做完仍有 {reject} 被退件（有上架自動化 {fast}），自我審核救不回來。',
   'rules.stack.devops':'DevOps：要等 CI 與 terraform，執行時間 ×{x}。',
-  'rules.stack.hard':'Rust、App、DevOps 的工單期限多 1 天、KPI ×{x}。',
+  'rules.stack.hard':'Rust、App、DevOps 的工單期限多 1 天；單線模式另有 KPI ×{x}（平行模式沒有）。',
   'rules.stack.sre':'SRE：事故單比較多，見「工單與陷阱」。',
   'rules.h.presets':'派工方案與手寫',
   'rules.presets':'存三組方案 {list}（廠商、模型、付費、審核、推理強度、SDD），工單卡片的「一鍵派工」每組一顆按鈕，按哪顆用哪組，不能用的那顆停用並寫原因；批次派工照 {order} 用第一個能用的方案。',

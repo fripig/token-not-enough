@@ -100,8 +100,9 @@ function sim(){
     const runs=COMBOS?['laravel',...COMPANIES.flatMap((a,i)=>COMPANIES.slice(i+1).map(b=>a+'+'+b))]:COMPANIES;
     for(const company of runs){
       for(let g=0;g<N*3;g++){
-        start(); S.companies=company.split('+'); S.outsource=OUT; S.advanced=EFF; firstIssues();
-        S.mode=mode; if(mode==='parallel')S.slots=SLOTS;
+        /* 先設模式再產生第 1 天工單：難線 KPI ×1.3 只在單線（gh-53） */
+        start(); S.companies=company.split('+'); S.outsource=OUT; S.advanced=EFF;
+        S.mode=mode; if(mode==='parallel')S.slots=SLOTS; firstIssues();
         if(SUB){ S.subs.openai=SUB; S.wallet-=SUB_PRICE; S.st.subFee+=SUB_PRICE; }
         else{ S.subs.anthropic='max5'; S.wallet-=3300; S.st.subFee+=3300; }
         let guard=0;

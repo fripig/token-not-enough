@@ -32,6 +32,7 @@ section("rules-reference（gh-20-01-rules-modal）",()=>{
   ok(Ru.rulesTab('tickets').includes('報酬 = KPI × 250')&&Ru.rulesTab('tickets').includes('可能變成負數'),'rules-reference：工單分頁寫外包報酬與違約金可扣成負數');
   press({rtab:'invest'}); press({act:'close'}); ok(els.ov.hidden,'rules-reference：從標頭打開，關閉後隱藏彈窗');
   Ru.showRules(); ok(selTab()==='invest','rules-reference：同一次開頁記住上次的分頁');
+  ok(Ru.rulesTab('dispatch').includes('Rust、App、DevOps 的工單期限多 1 天；單線模式另有 KPI ×1.3（平行模式沒有）'),'rules-reference：派工分頁寫難線 KPI ×1.3 只在單線模式（gh-53）');
   ok(Ru.rulesTab('nope')===Ru.rulesTab('basic'),'rules-reference：未知分頁退回基本');
   ok(Ru.rulesTab('basic').includes('天數 × 7')&&Ru.rulesTab('basic').includes('第 6 天前'),'rules-reference：基本分頁說明主管事件的 KPI 門檻與第一週只提醒');
   press({rtab:'nope'}); ok(selTab()==='basic','rules-reference：點到未知分頁 id 時選中基本');
@@ -41,7 +42,7 @@ section("rules-reference（gh-20-01-rules-modal）",()=>{
   {
   const plain=id=>Ru.rulesTab(id).replace(/ data-h="[^"]*"/g,''); // 窄螢幕卡片用的欄名屬性不影響比對
   const sc=plain('score'), bi=plain('billing'), iv=plain('invest'), D=dataModule;
-  ok(M.GRADES.serial.join()==='3800,2400,1400,500'&&M.GRADES.parallel.join()==='10700,5280,4000,2720'&&M.PAR_GRADE===undefined&&[...M.GRADES.serial,...M.GRADES.parallel].every(t=>sc.includes(`<td>${t}</td>`))&&/<td>S<\/td><td>3800<\/td><td>10700<\/td>/.test(sc),'rules-reference：結算分頁從 GRADES 列出單線與平行模式各自的評等門檻');
+  ok(M.GRADES.serial.join()==='3800,2400,1400,500'&&M.GRADES.parallel.join()==='9500,5280,4000,2720'&&M.PAR_GRADE===undefined&&[...M.GRADES.serial,...M.GRADES.parallel].every(t=>sc.includes(`<td>${t}</td>`))&&/<td>S<\/td><td>3800<\/td><td>9500<\/td>/.test(sc),'rules-reference：結算分頁從 GRADES 列出單線與平行模式各自的評等門檻');
   ok(['kpi','trust','audit'].every(k=>sc.includes(`× ${M.SCORE[k]}`)),'rules-reference：結算分頁的總分權重來自 SCORE');
   ok(plain('tickets').includes(`評估時間 ×${D.MCP_EVAL_HRS}`),'rules-reference：MCP 評估時間倍率來自常數');
   ok(plain('tickets').includes(`<td>6</td><td>1.2M</td><td>${KPI[6]}</td>`)&&plain('tickets').includes(`第 ${St.SIX_DAY} 天起，抽到複雜度 5 的非事故工單有 ${Ru.pct(St.SIX_RATE)} 變成複雜度 6`),'rules-reference：複雜度表有第 6 列、第 11 天起 25% 來自常數',plain('tickets').slice(0,600));
