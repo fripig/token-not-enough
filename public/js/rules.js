@@ -1,6 +1,6 @@
 import {CAP_SCALE,WEAK_CAP,RESEARCH_DIRECT_TK,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,APIV,BIG,BILL_LABEL,CATCH,CI_CONFLICT,CLIENTS,CONFLICT,EFFORT,EVAL_HRS,FASTLANE_REJECT,HARD_KPI,HOOK_PR,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INC_KPI,INVEST,INV_KEYS,KPI,BASE,LATE_KPI,MANUAL_HRS,MCP_EVAL_HRS,MCP_REVEAL,MONITOR_KPI,MONITOR_LATE,PN,PR_HRS,PR_REVIEWED,RESCOPE,RETRY,REVEAL,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_TRAP_STOP,SEAT,STACK_HRS,STORE_RATE,UNFAMILIAR_HRS,VENDORS,kt,nt,AI_MAX,AI_P,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL,MD_P,SKILLS_CX,TEST_CATCH,STACKS} from './data.js';
 import {GIG_LATE,GIG_PAY,RESEARCH_RATE,START,TRAP_RATE} from './state.js';
-import {P_STEP,REVIEW,STORE_REJECT,pStep} from './calc.js';
+import {P_STEP,P_TOP,REVIEW,STORE_REJECT,pStep} from './calc.js';
 import {CANCEL_MIN,AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_TRUST,DOUBT_TRUST,EVAL_TK,EVENT_RATE,INC_LATE_TRUST,INC_RAMP,INC_RATE,LATE_TRUST,OVERDRAFT_TRUST,OVERNIGHT_HRS,PACE_KPI,PRAISE_TRUST,RESCOPE_TRUST,REVIEW_LOAD,SLOT_CHOICES,TRAP_STOP} from './actions.js';
 import {GRADES,PAR_GRADE,SCORE} from './modals.js';
 import {mo,ov} from './view.js';
@@ -22,8 +22,8 @@ const tag=k=>rtag(t(`rules.tag.${k}`));
 export function rulesTab(id){
   const ls=t('sep.list');
   switch(RULE_TABS.some(x=>x.id===id)?id:'basic'){
-  case 'dispatch': return rsec(r('h.p'),`${rtable([r('th.capGap',{d:CAP_SCALE}),r('th.p')],[[r('gap.up',{n:CAP_SCALE}),pct(P_STEP[0])],['0',pct(P_STEP[1])],[`−${CAP_SCALE}`,pct(P_STEP[2])],[`−${2*CAP_SCALE}`,pct(P_STEP[3])],[r('gap.down',{n:3*CAP_SCALE}),pct(P_STEP[4])]])}
-    ${rlist([r('gap.interp',{g:`${CAP_SCALE/2}`,p:pct(pStep(CAP_SCALE/2))}),r('big',{p:pct(BIG.p),tk:BIG.tk,w:WEAK_CAP}),
+  case 'dispatch': return rsec(r('h.p'),`${rtable([r('th.capGap',{d:CAP_SCALE}),r('th.p')],P_STEP.map((p,i)=>{const g=P_TOP-i*CAP_SCALE;return [i===0?r('gap.up',{n:g}):i===P_STEP.length-1?r('gap.down',{n:-g}):g>0?`+${g}`:g<0?`−${-g}`:'0',pct(p)];}))}
+    ${rlist([r('gap.interp',{g:`${CAP_SCALE/2}`,p:pct(pStep(CAP_SCALE/2))}),r('failCut',{p:pct(P_STEP[2]),md:pct(MD_P[2]),x:pct(1-(1-P_STEP[2])*(1-MD_P[2]))}),r('big',{g:BIG.gap,tk:BIG.tk,w:WEAK_CAP}),
       r('retry',{tk:RETRY.tk,hrs:RETRY.hrs}),
       `${tag('adv')}${r('effortSee')}`])}`)
     +rsec(r('h.review'),`${rtable([r('th.level'),'token',r('th.time'),r('th.catch')],REVIEW.map((rv,i)=>[rv.name,`×${rv.tk}`,`×${rv.hrs}`,i===0?'0':r('catchFormula',{base:CATCH.base,per:CATCH.per,d:CAP_SCALE,strict:i===2?` + ${CATCH.strict}`:'',max:pct(CATCH.max)})]))}

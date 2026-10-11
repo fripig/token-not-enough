@@ -11,10 +11,10 @@ section("dispatch-outcome：成功率表",()=>{
   /* dispatch-outcome：成功率表 */
   {
   newRun('laravel');
-  for(const [v,m,cx,big,p] of [['anthropic','sonnet',2,false,.95],['anthropic','sonnet',4,false,.8],['google','flash',3,false,.5],['google','flash',4,false,.25],['google','flash',5,false,.1],['google','pro',4,true,.88],['deepseek','chat',3,true,.72],['anthropic','opus',3,true,.95],['anthropic','opus',5,false,.8],['anthropic','fable',5,false,.95]])
+  for(const [v,m,cx,big,p] of [['anthropic','sonnet',2,false,.95],['anthropic','sonnet',4,false,.75],['google','flash',3,false,.5],['google','flash',4,false,.25],['google','flash',5,false,.1],['google','pro',4,true,.815],['deepseek','chat',3,true,.625],['anthropic','opus',3,true,.95],['anthropic','opus',5,false,.75],['anthropic','fable',5,false,.88]])
     ok(near(est(ticket('fe',cx,{big}),v,m,0).p,p),`dispatch-outcome：${m} × 複雜度 ${cx}${big?'・大型':''} → ${p*100}%`,est(ticket('fe',cx,{big}),v,m,0).p);
-  ok(near(est(ticket('fe',5),'local','oss',0).p,.1)&&near(est(ticket('fe',5,{big:true}),'google','flash',0).p,.18)&&near(est(ticket('fe',5,{big:true}),'local','oss',0).p,.05),'dispatch-outcome：成功率下限 5%');
-  S.inv.md.fe=true; S.inv.sdd=true; ok(near(est(ticket('fe',2),'anthropic','sonnet',0).p,.97),'dispatch-outcome：成功率上限 97%'); S.inv.md={}; S.inv.sdd=false;
+  ok(near(est(ticket('fe',5),'local','oss',0).p,.1)&&near(est(ticket('fe',5,{big:true}),'google','flash',0).p,.175)&&near(est(ticket('fe',5,{big:true}),'local','oss',0).p,.1),'dispatch-outcome：大型 codebase 是能力差距 ±5，差距低於 −30 仍是 10%');
+  S.inv.md.fe=2; S.inv.sdd=2; S.inv.ai=3; ok(near(est(ticket('fe',3),'anthropic','fable',0).p,1-.05*.85*.85*.95**3),'dispatch-outcome：投資把失敗打折，最高也在 97% 以下',est(ticket('fe',3),'anthropic','fable',0).p); S.inv.md={}; S.inv.sdd=0; S.inv.ai=0;
   /* token 預估 */
   newRun('laravel'); S.hours=8; const t2=ticket('fe',2); S.issues=[t2]; sel.issue=t2.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'api',rv:0});
   ok(near(est(t2,'anthropic','sonnet',0).tk,153),'dispatch-outcome：Sonnet 估複雜度 2 為 153k');
@@ -39,7 +39,7 @@ section("dispatch-outcome：成功率表",()=>{
   ok(S.log[0].msg.includes('測試沒過，改壞了')&&near(S.st.tk.anthropic,80)&&near(S.st.byBill.corp,80),'dispatch-outcome：失敗紀錄與 token 照算');
   /* 顯示 */
   const panel=(st,cx,v,m,b,rv=0,extra={},mode='serial')=>{newRun('laravel',mode); S.hours=8; const t=ticket(st,cx,extra); S.issues=[t]; sel.issue=t.id; Object.assign(sel,{v,m,b,rv}); render(); return els.app.innerHTML;};
-  ok(panel('fe',3,'deepseek','chat','api',0,{big:true}).includes('class="meh">72%'),'dispatch-outcome：72% 是黃色');
+  ok(panel('fe',3,'deepseek','chat','api',0,{big:true}).includes('class="meh">63%'),'dispatch-outcome：62.5% 顯示 63%、是黃色');
   ok(panel('fe',2,'anthropic','sonnet','corp').includes('class="good">95%'),'dispatch-outcome：95% 是綠色');
   ok(panel('fe',4,'google','flash','corp').includes('class="bad">25%'),'dispatch-outcome：25% 是紅色');
   ok(!panel('fe',2,'anthropic','sonnet','corp').includes('（原')&&panel('fe',2,'anthropic','sonnet','corp',1).includes('成功率（原 95%）'),'dispatch-outcome：有審核才顯示原始成功率');
@@ -57,6 +57,17 @@ section("dispatch-outcome：成功率表",()=>{
 });
 
 section("dispatch-outcome：能力差距不是 10 的倍數時線性內插",()=>{
-  for(const [gap,exp] of [[30,.95],[10,.95],[5,.875],[0,.8],[-5,.65],[-15,.375],[-25,.175],[-30,.1],[-40,.1]])
+  for(const [gap,exp] of [[30,.95],[20,.95],[15,.915],[10,.88],[5,.815],[0,.75],[-5,.625],[-15,.375],[-25,.175],[-30,.1],[-40,.1]])
     ok(near(pStep(gap),exp),`dispatch-outcome：能力差 ${gap} → ${exp*100}%`,pStep(gap));
+});
+
+section("dispatch-outcome：投資全買時強模型仍拉得開",()=>{
+  /* #45 那局的配置：laravel CLAUDE.md Lv2、SDD Lv2、提升 agent 能力 Lv3、單元測試 Lv2、自審 */
+  newRun('laravel'); Object.assign(S.inv,{md:{laravel:2},sdd:2,ai:3,tests:2});
+  const pe=(m,cx)=>est(ticket('laravel',cx),'anthropic',m,1,1,2).pe;
+  for(const [m,cx,p,c] of [['opus',5,.8451,.4],['fable',5,.9257,.5],['sonnet',2,.9636,.7]]){const e=est(ticket('laravel',cx),'anthropic',m,1,1,2); ok(near(e.p,p,.0005)&&near(e.c,c),`dispatch-outcome：投資全買 ${m} × 複雜度 ${cx} 原始 ${(p*100).toFixed(1)}%、抓錯 ${c*100}%`,[e.p,e.c].join());}
+  const opus=pe('opus',5), fable=pe('fable',5), easy=pe('sonnet',2);
+  ok(opus>=.85&&opus<=.92&&near(opus,.9071,.0005),'dispatch-outcome：Opus 複雜度 5 顯示 85%–92%（90.7%）',opus);
+  ok(fable-opus>=.05&&near(fable,.9628,.0005),'dispatch-outcome：Fable 比 Opus 高 5 個百分點以上（96.3%）',fable);
+  ok(easy>=.95&&near(easy,.9891,.0005),'dispatch-outcome：簡單的單（差距 +30）仍有 95% 以上（98.9%）',easy);
 });

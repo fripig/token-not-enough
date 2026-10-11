@@ -386,7 +386,7 @@ export function invHint(is){
   if(S.inv.scan&&is.sens) out.push(t('hint.scan',{x:SCAN_AUDIT[lv(S.inv.scan)]}));
   if(S.inv.fastlane&&is.store) out.push(t('hint.fastlane',{p:Math.round(FASTLANE_REJECT*100)}));
   if(S.inv.monitor&&is.inc) out.push(t('hint.monitor',{n:MONITOR_LATE}));
-  if(S.inv.ai) out.push(t('hint.ai',{n:lv(S.inv.ai),p:Math.round(AI_P*lv(S.inv.ai)*100)}));
+  if(S.inv.ai) out.push(t('hint.ai',{n:lv(S.inv.ai),p:Math.round((1-(1-AI_P)**lv(S.inv.ai))*100)}));
   if(S.inv.mcp) out.push(t('hint.mcp',{p:Math.round(MCP_REVEAL*100)}));
   if(S.hw.pc&&sel.v==='local') out.push(t('hint.pc',{x:PC_SPEED}));
   return out.length?t('hint.invest',{list:out.join(t('sep.semi'))}):'';

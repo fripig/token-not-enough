@@ -106,6 +106,7 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 
 42. 「目前 model 能力有直接定義成功率嗎」、「我也想拉高上限 所以可能要順便把整體成功率往下調一點」（#46，Fable 能力 6 已經對所有工單 95%，再強的模型沒有差別）
    → 拆成三個 change：`gh-46-01-model-capability-scale` 先把能力改成 ×10 整數（20–60）、成功率在錨點之間線性內插，現有模型數值完全不變；`gh-46-02-success-curve` 再拉長成功率曲線（差距 +20 才 95%）、把投資與大型 codebase 加成改成「減少失敗」，用模擬器量；`gh-46-03-complexity-six-tickets` 新增複雜度 6 的工單。-01 使用者選了：推理強度維持 ±10（細分之後再說）、能力條改成點數加數字（●●●●◐ 45）、門檻類規則（Rust、大型 codebase、陷阱硬做）維持一刀切。五組固定種子模擬（`SIM_N=100 SIM_SEED=101` 加上不開、`SIM_INVEST=1`、`SIM_EFFORT=1`、`SIM_HW=1`、`SIM_INVEST=1 SIM_CONF=1`）改動前後輸出逐字相同。設計紀錄在 Spectra change `gh-46-01-model-capability-scale`（#46）。
+   → -02 使用者選了：抓錯率改看能力差距（模型做不到的單也抓不到自己的錯）、一次做對的機率保留 97% 上限、大型 codebase 改成能力差距 ±5、驗收看派工台顯示的成功率（#45 那局的配置下 Opus 複雜度 5 在 85%–92%、Fable 高 5 點以上、簡單的單 ≥95%）。討論時另開 #48（用更高等級模型審核）。分數掉多少只量、照實記錄，評等門檻交給 #45。設計紀錄在 Spectra change `gh-46-02-success-curve`（#46）。
 
 介面預設語言是繁體中文（台灣用語），所有介面文字都放在字典（見「多語系」），程式碼裡註解以外不能有中文。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
@@ -292,7 +293,28 @@ SRE、DevOps 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；�
 目標是平行模式 agent 研究和沒研究單差在 −5%～+5%，而且多數格子比直接派工好。初版（直接派工 ×2.5、agent 研究 80k／1h、自己研究 3h）在平行模式 agent 研究對直接派工是 −3.3%～+2.0%、多數是負的，自己研究對沒研究單 −9%～−12%：預設自動玩家幾乎都派 DeepSeek Chat（每 1k NT$0.03），token ×2.5 只多幾十塊，研究卻要多花工時。種子 101 量了三種變體：只改 ×4（agent 對直接派工 −0.0%～+3.8%，自己研究仍 −10% 左右）、只讓研究變便宜（−1.2%～+2.0%）、兩個都改（+0.1%～+3.6%），使用者選了兩個都改。單線模式不設目標，照實記錄。
 
 ### 成功率（`est`）
-能力差 = `cap − cx × CAP_SCALE`（再加技術線的能力差修正），用 `pStep()` 查錨點 +10 → 95%、0 → 80%、−10 → 50%、−20 → 25%、−30 → 10%（`P_STEP`），中間線性內插、兩端截平，例如差 +5 是 87.5%、−15 是 37.5%。現有模型的差距都是 10 的倍數，結果跟改成 ×10 之前的五階表一樣。大型 codebase 對 ctx 模型 +8%、對能力 <40 的非 ctx 模型 −8%。失敗後重做的 token 與時間會打折。
+能力差 = `cap − cx × CAP_SCALE`，再加技術線的能力差修正（`stackGap`）與大型 codebase（`bigGap`：ctx 模型 +5、能力 <40 的非 ctx 模型 −5，`BIG.gap`），用 `pStep()` 查錨點 +20 → 95%、+10 → 88%、0 → 75%、−10 → 50%、−20 → 25%、−30 → 10%（`P_STEP`，從 `P_TOP` = +20 開始），中間線性內插、兩端截平，例如差 +5 是 81.5%、−15 是 37.5%。投資加成是把剩下的失敗打折（`1 − (1 − p) × (1 − MD_P) × (1 − SDD_P) × (1 − AI_P)^級`，SDD 只在複雜度 ≥3），再 clamp 到 5%–97%；所以實際上最高約 96.9%（差距 +20 以上、三項全買），97% 碰不到。失敗後重做的 token 與時間會打折。
+
+`gh-46-02-success-curve`（#46）之前是錨點 +10 → 95%、0 → 80%…，投資直接加百分點，大型 codebase ±8%；#45 回報投資全買、自審時 Opus 與 Fable 對複雜度 5 都顯示 99.85%。改成現在的寫法後（同一個配置）：Opus 90.7%、Fable 96.3%、Sonnet 做複雜度 2 的 Laravel 單 98.9%。
+
+改動前後實測（2026-10-11，`SIM_N=100 SIM_SEED=101`，每格 300 局，同一個種子比；評等比例是同一模式六條工作內容合計 1,800 局）：
+
+| 模式 × 工作內容 | 預設 | `SIM_INVEST=1` |
+|---|---|---|
+| 平行 Laravel | 7,852 → 6,398（−18.5%） | 8,558 → 7,492（−12.5%） |
+| 平行 Rails | 7,887 → 6,280（−20.4%） | 8,535 → 7,382（−13.5%） |
+| 平行 Rust | 8,149 → 5,395（−33.8%） | 9,310 → 7,188（−22.8%） |
+| 平行 App | 8,524 → 6,709（−21.3%） | 9,562 → 7,893（−17.5%） |
+| 平行 SRE | 7,757 → 5,574（−28.1%） | 8,695 → 6,964（−19.9%） |
+| 平行 DevOps | 8,594 → 6,811（−20.7%） | 9,660 → 8,169（−15.4%） |
+| 單線 Laravel | 2,595 → 1,570（−39.5%） | 2,435 → 1,657（−32.0%） |
+| 單線 Rails | 2,670 → 1,607（−39.8%） | 2,454 → 1,609（−34.4%） |
+| 單線 Rust | 1,730 → 458（−73.5%） | 1,846 → 678（−63.3%） |
+| 單線 App | 2,205 → 1,113（−49.5%） | 1,831 → 1,109（−39.4%） |
+| 單線 SRE | 2,263 → 1,152（−49.1%） | 2,043 → 1,036（−49.3%） |
+| 單線 DevOps | 2,077 → 1,175（−43.4%） | 1,785 → 950（−46.8%） |
+
+評等比例：平行預設 S 77.3% → 31.8%、A 16.9% → 44.9%、B 4.2% → 17.1%、C 1.3% → 5.0%、D 0.2% → 1.3%；平行 `SIM_INVEST=1` S 94.2% → 68.9%、A 5.5% → 27.6%；單線預設 D 26.4% → 67.4%；單線 `SIM_INVEST=1` D 33.2% → 69.3%。預設自動玩家幾乎都派 DeepSeek Chat（能力 30），差距比以前低一格，又沒有自審撐著，所以掉最多；Rust 再被 borrow checker 扣一格。平行模式 Rust 相對 Laravel 從 +3.8% 變成 −15.7%（目標 ±25% 內）。這個 change 不調數值，評等門檻與 KPI 交給 #45（`gh-45-01-kpi-balance`）照這組數字處理。
 
 ### 付費方式（`bills`、`settle`）
 - 個人訂閱／公司席位：扣額度，額度不夠時 agent 停在一半（失敗）。
@@ -343,7 +365,7 @@ SRE、DevOps 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；�
 
 | 投資 | 工時 | 公司預算 | 效果 |
 |---|---|---|---|
-| 寫 CLAUDE.md（每條技術線各一次，含前端） | 3h | NT$300 | 該技術線 token ×0.85（`MD_TK`）、成功率 +0.06（`MD_P`） |
+| 寫 CLAUDE.md（每條技術線各一次，含前端） | 3h | NT$300 | 該技術線 token ×0.85（`MD_TK`）、失敗少 6%（`MD_P`，見「成功率」） |
 | 單元測試 | 4h | NT$400 | 自我審核抓錯率 +0.10（`TEST_CATCH`，上限 0.95） |
 | CI 流水線 | 3h | NT$300 | 平行模式合併衝突機率減半 |
 | pre-commit／lint hook | 2h | NT$200 | 平行模式審 PR 時間 ×0.5（`HOOK_PR`），和自我審核的減半疊加；單線模式沒有審 PR 時間 |
@@ -352,10 +374,10 @@ SRE、DevOps 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；�
 | 監控告警 | 3h | NT$400 | 之後產生的事故單期限延到隔天（第 20 天的事故單第 21 天到期、不會逾期），KPI 的事故加成 ×1.6 → ×1.2（`MONITOR_KPI`）；已在佇列的事故單不變。事故單逾期扣信任 8 → 4（`MONITOR_LATE`，逾期當下判斷，買之前進來的也算） |
 | 做 skills | 3h | NT$400 | 解鎖「批次派工」：依佇列順序把顯示複雜度 ≤2 的工單一鍵派出，沒有可用方案的略過 |
 | 接 MCP 文件 | 3h | NT$400 | 評估架構識破率 +0.2（`MCP_REVEAL`，上限 0.95）、評估時間減半 |
-| 導入 SDD（Lv1 markdown，例如 Superpowers） | 6h | NT$500 | 套用 Lv1 的派工 token ×1.1（`SDD_TK[1]`）；真實複雜度 ≥3 成功率 +0.08（`SDD_P[1]`）；能力不夠的隱藏陷阱只燒 0.15（`SDD_TRAP_STOP[1]`），紀錄寫「寫規格時就發現」。不影響評估架構、研究、手寫 |
-| 導入 SDD Lv2（框架：Spectra／OpenSpec／Spec Kit） | 1h | NT$200 | 不用研討會。套用 Lv2 的派工 token ×1.2、≥3 成功率 +0.15、陷阱只燒 0.05，紀錄寫「跑框架流程時就發現」 |
+| 導入 SDD（Lv1 markdown，例如 Superpowers） | 6h | NT$500 | 套用 Lv1 的派工 token ×1.1（`SDD_TK[1]`）；真實複雜度 ≥3 失敗少 8%（`SDD_P[1]`）；能力不夠的隱藏陷阱只燒 0.15（`SDD_TRAP_STOP[1]`），紀錄寫「寫規格時就發現」。不影響評估架構、研究、手寫 |
+| 導入 SDD Lv2（框架：Spectra／OpenSpec／Spec Kit） | 1h | NT$200 | 不用研討會。套用 Lv2 的派工 token ×1.2、≥3 失敗少 15%、陷阱只燒 0.05，紀錄寫「跑框架流程時就發現」 |
 
-成功率加成在 clamp 到 0.05–0.97 之前加上。CLAUDE.md、單元測試、secret scanning、做 skills、導入 SDD 有 Lv2，投資狀態存等級數字（0 沒買、1、2；`lv()` 把舊存檔的 `true` 讀成 1），數值按等級查表，規則見下方「國內研討會」。面板順序照 `INV_KEYS`。派工台會用一行提示列出對這張工單生效的投資（CI、hook 只在平行模式，secret scanning 只在機敏單，fastlane 只在需上架審核的單，監控告警只在事故單）。補測試在 `gh-08-01-more-investments` 拆成單元測試（沿用 `S.inv.tests`）與 CI 流水線（`S.inv.ci`）。結算多一行「工程投資 N 項」。
+成功率加成是把剩下的失敗打折（`gh-46-02-success-curve` 之前是直接加百分點），在 clamp 到 0.05–0.97 之前算。CLAUDE.md、單元測試、secret scanning、做 skills、導入 SDD 有 Lv2，投資狀態存等級數字（0 沒買、1、2；`lv()` 把舊存檔的 `true` 讀成 1），數值按等級查表，規則見下方「國內研討會」。面板順序照 `INV_KEYS`。派工台會用一行提示列出對這張工單生效的投資（CI、hook 只在平行模式，secret scanning 只在機敏單，fastlane 只在需上架審核的單，監控告警只在事故單）。補測試在 `gh-08-01-more-investments` 拆成單元測試（沿用 `S.inv.tests`）與 CI 流水線（`S.inv.ci`）。結算多一行「工程投資 N 項」。
 
 SDD 是每張單選的（`gh-33-01-sdd-levels`，#33）：買了之後派工台自我審核下面（進階模式在推理強度下面）多一個「開發流程」區塊，SDD 一排 不用／markdown（Lv1）／框架（Lv2），只列已買的等級。`sel.sdd` 存選的等級（0–2），套用的等級是 `sddLevel()` = min(選的, 已買的)；`fresh()` 每局重設成 2，不碰這排就跟原本一樣「買了就每張都用」。選不用時沒有任何 SDD 效果，陷阱照燒 0.4（`TRAP_STOP`）。job 的 `sdd` 存套用的等級（舊存檔是布林，`lv()` 讀）；派工紀錄在審核等級後面寫「・SDD markdown／框架」；派工台的 SDD 按鈕、投資紀錄、規則 modal 都寫出各級的實際工具（`SDD_EG`：Lv1 例如 Superpowers、Lv2 Spectra／OpenSpec／Spec Kit）；舊存檔沒有 `sel.sdd` 時 `loadGame` 補成 2，`SAVE_VER` 沒加。
 
@@ -419,8 +441,8 @@ SDD Lv2 平衡實測（2026-10-10，`SIM_N=100`，每格 300 局，`SIM_SEED=101
 - 報名：第 1–15 天（`CONF_LAST_DAY`）的平日，從錢包扣報名費、記入 `S.st.confFee`（算進「你自己掏的錢」；錢不算分，只影響稱號），不花工時、不看信任、本地 GPU 忙也能報。同時只能有一張報名（`S.conf.req`），每場只能去一次（`S.conf.went`），一個月最多 3 場。真實日期不管。
 - 出席：換到週一（第 6、11、16 天）時，在席位與採購審核之後、隨機事件之前把報名移進 `S.conf.went`，早上報告與紀錄寫「週末參加了 <名稱>：…」與開放了什麼；不改任何數值、不送 GA。
 - 技術線場：涵蓋的技術線自己手寫 ×0.8（`CONF_MANUAL`），沒選的也不再算不熟（`unfamiliar`）。其他類別沒有立即效果。
-- Lv2（要先買 Lv1，各 1h、公司 NT$200）：技術線場開放涵蓋技術線的 CLAUDE.md Lv2（成功率 +6% → +15%，`MD_P`）；綜合場開放單元測試 Lv2（抓錯率 +10% → +20%，`TEST_CATCH`）；資安場開放 secret scanning Lv2（稽核機率 ×0.5 → ×0.25，`SCAN_AUDIT`）；AI 場開放做 skills Lv2（批次派工複雜度 ≤2 → ≤3，`SKILLS_CX`）。同類第二場只多算場數。
-- 提升 agent 能力（`INVEST.ai`，在 `INV_KEYS` 最後）：去過 N 場才能買第 N 級，每級 1h、公司 NT$200，所有派工成功率 +8%（`AI_P`，最多 `AI_MAX` 3 級）；不影響評估架構與手寫。
+- Lv2（要先買 Lv1，各 1h、公司 NT$200）：技術線場開放涵蓋技術線的 CLAUDE.md Lv2（失敗少 6% → 15%，`MD_P`）；綜合場開放單元測試 Lv2（抓錯率 +10% → +20%，`TEST_CATCH`）；資安場開放 secret scanning Lv2（稽核機率 ×0.5 → ×0.25，`SCAN_AUDIT`）；AI 場開放做 skills Lv2（批次派工複雜度 ≤2 → ≤3，`SKILLS_CX`）。同類第二場只多算場數。
+- 提升 agent 能力（`INVEST.ai`，在 `INV_KEYS` 最後）：去過 N 場才能買第 N 級，每級 1h、公司 NT$200，所有派工失敗少 5%（`AI_P`，`gh-46-02-success-curve` 前是成功率 +8%；最多 `AI_MAX` 3 級）；不影響評估架構與手寫。
 - 結算多兩行：研討會 N 場、研討會報名費（有報名過才顯示）。投資面板的「已做 N 項」每一級算一項。
 - 存檔多 `S.conf`、`S.inv.ai`、`S.st.confFee`；舊存檔由 `loadGame` 補預設值並把投資的 `true`／`false` 轉成等級，`SAVE_VER` 沒加。
 
@@ -564,8 +586,10 @@ SDD Lv2 平衡實測（2026-10-10，`SIM_N=100`，每格 300 局，`SIM_SEED=101
 | 等級 | token | 時間 | 抓錯率 |
 |---|---|---|---|
 | 不審核 | ×1.0 | ×1.0 | 0 |
-| 自審 | ×1.3 | ×1.2 | `0.45 + 0.08 × cap ÷ 10`（寫成除以 `CAP_SCALE`，不改係數，浮點結果才跟原本逐位相同） |
+| 自審 | ×1.3 | ×1.2 | `0.2 + 0.1 × 能力差距 ÷ 10`（`CATCH`，能力差距跟成功率同一個，含技術線與大型 codebase 修正），下限 0 |
 | 嚴格審核 | ×1.6 | ×1.35 | 自審 +0.2，上限 0.95 |
+
+抓錯率看能力差距（`gh-46-02-success-curve`，之前是 `0.45 + 0.08 × 能力 ÷ 10`，跟工單無關）：模型做不到的單，也比較抓不到自己的錯。例如差距 0（Sonnet 做複雜度 4）自審 20%、嚴格 40%；差距 +20 自審 40%、嚴格 60%；差距 −20 自審 0%。單元測試再加 0.1／0.2。
 
 - 是否失敗、是否被抓到在 `makeJob` 派工當下就擲骰決定。
 - 抓到：多花 25% token、工單直接成功、`S.st.caught++`。
@@ -688,7 +712,7 @@ Pro 500 每一格都比 Pro 200 差（平行 12k 時 −5.2%～−8.3%、20k 時
 | `main.js` | 入口：`app` 上的事件委派（用 `data-*` 屬性分派）、開局，載入時呼叫一次 `boot()`：`firstIssues`、`start`、`boot` |
 | `data.js` | 資料與工具函式，沒有狀態（顯示欄位是讀字典的 getter）：`GAME_VERSION`、`CAP_SCALE`、`WEAK_CAP`、`POOL_KEYS`、`poolOf`、`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP`、`SDD_NAME`、`SDD_EG`、`sddDesc`、`INV_KEYS`、`HOOK_PR`、`SCAN_AUDIT`、`FASTLANE_REJECT`、`MONITOR_LATE`、`MONITOR_KPI`、`HW`、`HW_KEYS`、`PC_SPEED`、`HW_REQ_HRS`、`HW_SETUP_HRS`、`HW_IDLE`；規則係數 `CATCH`、`REVEAL`、`BIG`、`RETRY`、`MANUAL_HRS`、`UNFAMILIAR_HRS`、`STACK_HRS`、`STORE_RATE`、`INC_KPI`、`HARD_KPI`、`LATE_KPI`、`CONFLICT`、`CI_CONFLICT`、`PR_HRS`、`PR_REVIEWED`、`EVAL_HRS`、`MCP_EVAL_HRS`、`RESCOPE`、`RESEARCH_DIRECT_TK`、`RESEARCH_TK`、`RESEARCH_HRS`、`RESEARCH_SELF_HRS`、`RESEARCH_SPLIT`（`SEAT.review` 是席位審核天數）、`lv`、`SKILLS_CX`、`CONF_CATS`、`CONF`、`CONF_KEYS`、`CONF_LV2`、`CONF_LAST_DAY`、`CONF_MANUAL`、`AI_P`、`AI_MAX` |
 | `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件、存檔：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`SAVE_KEY`、`SAVE_VER`、`saveGame`、`clearSave`、`readSave`、`loadGame`、`daySnap`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`RESEARCH_RATE`、`setResearchRate`、`hardStack`、`unfamiliar`、`makeIssue`、`issueTitle`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs`、`START`（起始錢包、公司預算、信任、每日工時）、`confStacks`、`confCat`、`confCount` |
-| `calc.js` | 計算（`est(is, v, mid, rv, ef, sd)` 會套推理強度與 SDD 等級）：`pStep`（成功率錨點內插）、`sddLevel`、`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`hasHw`、`manualBlocked`、`hwBlock`、`localSpeed`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`prefBill`、`log`、`P_STEP`（成功率階梯） |
+| `calc.js` | 計算（`est(is, v, mid, rv, ef, sd)` 會套推理強度與 SDD 等級）：`pStep`、`P_TOP`（成功率錨點內插）、`bigGap`（大型 codebase 的能力差距）、`sddLevel`、`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`hasHw`、`manualBlocked`、`hwBlock`、`localSpeed`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`prefBill`、`log`、`P_STEP`（成功率階梯） |
 | `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`TRAP_NOTE`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`RV_ID`、`SDD_ID`、`jobChoice`、`billOk`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`CANCEL_MIN`、`cancelFrac`、`cancelJob`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`researchCost`、`selfResearchHrs`、`researchBlock`、`splitResearch`、`research`、`invCount`、`investBlock`、`invest`、`hwReqBlock`、`requestHw`、`useHw`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`intakeIssue`、`daySum`、`sumDelta`、`daySummary`、`dayStartLine`、`endDay`、`who`、`ev`、`AUDIT_ODDS`、`AUDIT_TRUST`、`OVERDRAFT_TRUST`、`CORP_DAY_LIMIT`、`CORP_DAY_TRUST`、`LATE_TRUST`、`INC_LATE_TRUST`、`EVENT_RATE`、`OVERNIGHT_HRS`、`PACE_KPI`、`PRAISE_TRUST`、`DOUBT_TRUST`、`invLevel`、`invMax`、`invCost`、`invLock`、`confBlock`、`registerConf`、`attendConf` |
 | `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`cancelArm`、`armCancel`、`cancelBtn`、`quickBtn`、`sddRow`、`invPanel`、`tab`、`setTab`、`tabPanel`（派工台／工程投資分頁）、`hwRow`、`qbox`、`logLines`（執行紀錄與「剛剛」共用的紀錄行）、`DP_RECENT`、`presetIs`、`dispatchPanel`、`confRow`、`langSwitch`、`capBar`（能力條）、`dayDock`（畫面底部的動作列：等待、調整訂閱、下班） |
 | `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showResume`、`showBadSave`、`planShort`、`monthScore`、`showEnd`、`SCORE`、`GRADES`、`PAR_GRADE` |

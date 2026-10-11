@@ -37,10 +37,10 @@ section("reasoning-effort：推理強度對模型的影響",()=>{
   ok(EFFORT.map(f=>[f.cap,f.tk,f.hrs].join('/')).join()==='-10/0.7/0.8,0/1/1,10/1.5/1.4','EFFORT 倍率');
   newRun('laravel'); S.advanced=true; const t44=ticket('laravel',4);
   const [eL,eM,eH]=[0,1,2].map(f=>est(t44,'anthropic','sonnet',0,f));
-  ok(near(eL.p,.5)&&near(eM.p,.8)&&near(eH.p,.95),'Sonnet 對複雜度 4 Laravel 單：低 50%、中 80%、高 95%',[eL.p,eM.p,eH.p].join());
+  ok(near(eL.p,.5)&&near(eM.p,.75)&&near(eH.p,.88),'Sonnet 對複雜度 4 Laravel 單：低 50%、中 75%、高 88%',[eL.p,eM.p,eH.p].join());
   ok(near(eL.tk/eM.tk,.7)&&near(eH.tk/eM.tk,1.5),'token 是中強度的 0.7／1.5 倍',[eL.tk/eM.tk,eH.tk/eM.tk].join());
   ok(near(eL.hrs/eM.hrs,.8)&&near(eH.hrs/eM.hrs,1.4),'時數是中強度的 0.8／1.4 倍（高強度變慢）',[eL.hrs/eM.hrs,eH.hrs/eM.hrs].join());
-  ok(near(est(t44,'anthropic','sonnet',1,2).c,catchRate(1,sh))&&est(t44,'anthropic','sonnet',1,2).c>est(t44,'anthropic','sonnet',1,1).c,'自我審核抓錯率用調整後的能力');
+  ok(near(est(t44,'anthropic','sonnet',1,2).c,catchRate(1,sh.cap-t44.cx*10))&&near(est(t44,'anthropic','sonnet',1,2).c,.3)&&est(t44,'anthropic','sonnet',1,2).c>est(t44,'anthropic','sonnet',1,1).c,'自我審核抓錯率用調整後的能力');
   S.advanced=false; const g2=est(t44,'anthropic','sonnet',0,2);
   ok(near(g2.p,eM.p)&&near(g2.tk,eM.tk)&&near(g2.hrs,eM.hrs)&&g2.M===son,'一般模式忽略推理強度');
   /* 高強度硬做陷阱 */

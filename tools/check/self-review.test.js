@@ -13,12 +13,17 @@ section("self-review：審核等級與抓錯率",()=>{
   {
   newRun('laravel');
   ok(JSON.stringify(C.REVIEW.map(r=>[r.name,r.tk,r.hrs]))===JSON.stringify([['不審核',1,1],['自審',1.3,1.2],['嚴格審核',1.6,1.35]]),'self-review：三種審核的 token 與時間倍率');
-  for(const [v,m,c1,c2] of [['google','flash',.61,.81],['deepseek','chat',.69,.89],['anthropic','sonnet',.77,.95],['anthropic','opus',.85,.95],['anthropic','fable',.93,.95]])
-    ok(near(catchRate(1,model(v,m)),c1)&&near(catchRate(2,model(v,m)),c2)&&catchRate(0,model(v,m))===0,`self-review：${m} 抓錯率 ${c1*100}%／${c2*100}%`);
+  /* 抓錯率看能力差距（能力 − 複雜度 × 10），跟成功率同一個差距 */
+  for(const [v,m,cx,c1,c2] of [['google','flash',5,0,.1],['google','flash',4,0,.2],['deepseek','chat',4,.1,.3],['anthropic','sonnet',4,.2,.4],['anthropic','fable',5,.3,.5],['anthropic','sonnet',2,.4,.6],['anthropic','opus',2,.5,.7]]){
+    const c=rv=>est(ticket('fe',cx),v,m,rv).c;
+    ok(near(c(1),c1)&&near(c(2),c2)&&c(0)===0,`self-review：${m} × 複雜度 ${cx} 抓錯率 ${Math.round(c1*100)}%／${Math.round(c2*100)}%`,[c(1),c(2)].join());
+  }
   const tr=ticket('fe',4); S.hours=8; S.issues=[tr]; sel.issue=tr.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:1}); render();
-  ok(els.app.innerHTML.includes('token ×1.3・抓錯 77%')&&els.app.innerHTML.includes('token ×1.6・抓錯 95%')&&els.app.innerHTML.includes('改壞就整單重做'),'self-review：審核按鈕顯示倍率與抓錯率');
-  ok(els.app.innerHTML.includes('class="good">95%')&&els.app.innerHTML.includes('成功率（原 80%）'),'self-review：Sonnet 自審複雜度 4 顯示 95%（原 80%）');
-  ok(near(est(tr,'anthropic','sonnet',1).pe,.8+.2*.77),'self-review：顯示的成功率 = p + (1 − p) × 抓錯率');
+  ok(els.app.innerHTML.includes('token ×1.3・抓錯 20%')&&els.app.innerHTML.includes('token ×1.6・抓錯 40%')&&els.app.innerHTML.includes('改壞就整單重做'),'self-review：審核按鈕顯示倍率與抓錯率');
+  ok(/class="\w+">80%/.test(els.app.innerHTML)&&els.app.innerHTML.includes('成功率（原 75%）'),'self-review：Sonnet 自審複雜度 4 顯示 80%（原 75%）');
+  ok(near(est(tr,'anthropic','sonnet',1).pe,.75+.25*.2),'self-review：顯示的成功率 = p + (1 − p) × 抓錯率');
+  const t2=ticket('fe',2); S.issues=[t2]; sel.issue=t2.id; render();
+  ok(els.app.innerHTML.includes('token ×1.3・抓錯 40%'),'self-review：同一個模型做簡單的單，自審按鈕顯示抓錯 40%');
   pristine.fresh(); ok(pristine.sel.rv===1,'self-review：第一次開局預設自審');
   sel.rv=2; fresh(); ok(sel.rv===2,'self-review：審核等級跨局保留'); sel.rv=1;
   /* 抓到錯誤 */
@@ -38,7 +43,7 @@ section("self-review：審核等級與抓錯率",()=>{
   }
 });
 
-section("self-review：能力 45 的抓錯率",()=>{
+section("self-review：能力差距不是 10 的倍數的抓錯率",()=>{
   newRun('laravel');
-  ok(near(catchRate(1,{cap:45}),.81)&&near(catchRate(2,{cap:45}),.95),'self-review：能力 45 自審 81%、嚴格審核 95%',[catchRate(1,{cap:45}),catchRate(2,{cap:45})].join());
+  ok(near(catchRate(1,5),.25)&&near(catchRate(2,5),.45),'self-review：差距 +5（能力 45 做複雜度 4）自審 25%、嚴格審核 45%',[catchRate(1,5),catchRate(2,5)].join());
 });

@@ -10,14 +10,14 @@ section("2.1 慣例加成與 Rust 效果（spec 範例）",()=>{
   /* 2.1 慣例加成與 Rust 效果（spec 範例） */
   newRun('laravel');
   const pOf=(v,m,is)=>est(is,v,m,0);
-  ok(near(pOf('google','flash',ticket('rails',3)).p,.8),'Gemini Flash × 複雜度 3 rails → 80%',pOf('google','flash',ticket('rails',3)).p);
+  ok(near(pOf('google','flash',ticket('rails',3)).p,.75),'Gemini Flash × 複雜度 3 rails → 75%',pOf('google','flash',ticket('rails',3)).p);
   ok(near(pOf('google','flash',ticket('laravel',4)).p,pOf('google','flash',ticket('fe',4)).p),'複雜度 4 laravel 沒有慣例加成');
   const air=pOf('zhipu','air',ticket('rust',2)), airFe=pOf('zhipu','air',ticket('fe',2));
-  ok(near(air.p,.8),'GLM Air × 複雜度 2 rust → 80%',air.p);
+  ok(near(air.p,.75)&&near(airFe.p,.88),'GLM Air × 複雜度 2 rust → 75%（前端單 88%）',[air.p,airFe.p].join());
   ok(near(air.hrs,airFe.hrs*1.2),'rust 執行時間 ×1.2');
   ok(near(air.tk,airFe.tk),'技術線不影響 token 預估');
   const capModel={20:['google','flash'],30:['zhipu','air'],40:['anthropic','sonnet'],50:['anthropic','opus']};
-  for(const [cap,cx,exp] of [[20,2,.5],[30,2,.8],[40,3,.95],[50,5,.8]]){
+  for(const [cap,cx,exp] of [[20,2,.5],[30,2,.75],[40,3,.88],[50,5,.75]]){
     const [v,m]=capModel[cap]; ok(near(pOf(v,m,ticket('rust',cx)).p,exp),`Rust 表：能力 ${cap} × 複雜度 ${cx} → ${exp*100}%`);
   }
   ok(near(pOf('anthropic','sonnet',ticket('app',3)).hrs,pOf('anthropic','sonnet',ticket('fe',3)).hrs*1.15),'app 執行時間 ×1.15');
@@ -91,6 +91,6 @@ section("2.2 App 上架審核",()=>{
 section("Rust：能力 45 不算弱模型",()=>{
   newRun('laravel');
   const ms=VENDORS.anthropic.models; ms.push({id:'mid45',name:'Mid45',cap:45,price:.5,w:1,speed:1,verb:1});
-  try{ const p=est(ticket('rust',4),'anthropic','mid45',0).p; ok(near(p,.875),'Rust 表：能力 45 × 複雜度 4 → 87.5%（沒有 borrow checker 扣分）',p); }
+  try{ const p=est(ticket('rust',4),'anthropic','mid45',0).p; ok(near(p,.815),'Rust 表：能力 45 × 複雜度 4 → 81.5%（沒有 borrow checker 扣分）',p); }
   finally{ ms.pop(); }
 });

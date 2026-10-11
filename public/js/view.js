@@ -1,6 +1,6 @@
 import {CAP_SCALE,RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
 import {S,issueTitle,sel,unfamiliar} from './state.js';
-import {REVIEW,sddLevel,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetBlock,quotaLeft,stackHint} from './calc.js';
+import {REVIEW,sddLevel,bills,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetBlock,quotaLeft,stackHint} from './calc.js';
 import {INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
 import {LANGS,LANG_SWITCH,lang,t} from './i18n.js';
 
@@ -197,7 +197,7 @@ export function dispatchPanel(){
   <p class="dptune">${t('ui.dp.tune')}</p>
   <div class="sec"><label>${t('ui.dp.pick')}</label>${rows}</div>
   <div class="sec"><label>${t('ui.dp.bill')}</label><div class="seg">${segs}</div>${S.seats.length&&!S.seats.includes(sel.v)?`<p class="hint">${t('ui.dp.seatHint',{seats:S.seats.map(v=>VENDORS[v].name).join(ls),agents:S.seats.map(v=>VENDORS[v].agent).join(ls)})}</p>`:''}</div>
-  <div class="sec"><label>${t('ui.dp.review')}</label><div class="seg">${REVIEW.map((r,i)=>`<button class="sb ${sel.rv===i?'sel':''}" data-rv="${i}">${r.name}<small>${i?t('ui.dp.reviewDesc',{tk:r.tk,p:Math.round(catchRate(i,M)*100)}):t('ui.dp.reviewNone')}</small></button>`).join('')}</div></div>
+  <div class="sec"><label>${t('ui.dp.review')}</label><div class="seg">${REVIEW.map((r,i)=>`<button class="sb ${sel.rv===i?'sel':''}" data-rv="${i}">${r.name}<small>${i?t('ui.dp.reviewDesc',{tk:r.tk,p:Math.round(est(is,sel.v,sel.m,i).c*100)}):t('ui.dp.reviewNone')}</small></button>`).join('')}</div></div>
   ${S.advanced?`<div class="sec"><label>${t('ui.dp.effort')}</label><div class="seg">${EFFORT.map((f,i)=>`<button class="sb ${sel.ef===i?'sel':''}" data-ef="${i}">${f.name}<small>${f.cap?t('ui.dp.effortDesc',{sign:f.cap>0?'+':'−',n:Math.abs(f.cap),tk:f.tk,hrs:f.hrs}):t('ui.dp.effortMid')}</small></button>`).join('')}</div></div>`:''}
   ${sddRow()}
   <div class="sec"><label>${t('ui.dp.savePresets')}</label><div class="seg">${PN.map((n,i)=>`<button class="sb" data-save="${i}">${t('ui.dp.save',{p:n})}<small>${t('ui.dp.saveSub')}</small></button>`).join('')}</div></div>`;

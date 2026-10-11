@@ -44,21 +44,22 @@ section("CLAUDE.md 效果",()=>{
   const e0=est(l4,'anthropic','sonnet',0), f0=est(fe4,'anthropic','sonnet',0);
   invest('md','laravel');
   const e1=est(l4,'anthropic','sonnet',0), f1=est(fe4,'anthropic','sonnet',0);
-  ok(near(e1.tk,e0.tk*.85)&&near(e0.p,.8)&&near(e1.p,.86),'Laravel CLAUDE.md：token ×0.85、成功率 0.80 → 0.86',`${e0.p} ${e1.p}`);
+  ok(near(e1.tk,e0.tk*.85)&&near(e0.p,.75)&&near(e1.p,.765),'Laravel CLAUDE.md：token ×0.85、成功率 0.75 → 0.765（失敗少 6%）',`${e0.p} ${e1.p}`);
   ok(near(f1.tk,f0.tk)&&near(f1.p,f0.p),'Laravel CLAUDE.md 不影響 fe 工單');
-  sel.issue=l4.id; S.issues=[l4]; render(); ok(els.app.innerHTML.includes('Laravel 有 CLAUDE.md：token ×0.85、成功率 +6%'),'派工台提示生效的投資（數字四捨五入）');
+  sel.issue=l4.id; S.issues=[l4]; render(); ok(els.app.innerHTML.includes('Laravel 有 CLAUDE.md：token ×0.85、失敗少 6%'),'派工台提示生效的投資（數字四捨五入）');
 });
 
 section("單元測試與 CI 流水線效果",()=>{
   /* 單元測試與 CI 流水線效果 */
   newRun('laravel','parallel'); S.inv.tests=true;
-  ok(near(catchRate(1,model('anthropic','sonnet')),.87)&&catchRate(0,model('anthropic','sonnet'))===0,'單元測試：Sonnet 自審抓錯率 0.77 → 0.87，不審核仍是 0');
-  ok(near(catchRate(2,model('anthropic','opus')),.95),'抓錯率上限 0.95');
+  const sc=rv=>est(ticket('fe',4),'anthropic','sonnet',rv).c;
+  ok(near(sc(1),.3)&&sc(0)===0,'單元測試：Sonnet 自審複雜度 4 抓錯率 0.2 → 0.3，不審核仍是 0',sc(1));
+  ok(near(catchRate(2,60),.95)&&catchRate(1,-40)===0,'抓錯率上限 0.95、下限 0');
   const mk=left=>({v:'anthropic',b:'api',M:model('anthropic','sonnet'),issue:ticket('fe',1),left,hrs:5});
   S.jobs=[mk(5),mk(5)];
   ok(near(conflictRate(),.2),'只買單元測試：另外 2 個在跑時合併衝突仍是 0.2',conflictRate());
   S.inv.tests=false; S.inv.ci=true;
-  ok(near(conflictRate(),.1)&&near(catchRate(1,model('anthropic','sonnet')),.77),'只買 CI 流水線：合併衝突 0.2 → 0.1，抓錯率不變',conflictRate());
+  ok(near(conflictRate(),.1)&&near(sc(1),.2),'只買 CI 流水線：合併衝突 0.2 → 0.1，抓錯率不變',conflictRate());
   S.jobs=[];
 });
 
@@ -159,7 +160,7 @@ section("導入 SDD 效果",()=>{
   newRun('laravel'); const c2=ticket('fe',2), c4=ticket('fe',4);
   const s0=est(c2,'anthropic','sonnet',0), ec0=evalCost(son); S.inv.sdd=true; const s1=est(c2,'anthropic','sonnet',0);
   ok(near(s1.tk,s0.tk*1.1)&&near(s1.p,s0.p),'SDD：複雜度 2 token ×1.1、成功率不變');
-  ok(near(est(c4,'anthropic','sonnet',0).p,.88),'SDD：複雜度 4 fe × Sonnet → 0.88');
+  ok(near(est(c4,'anthropic','sonnet',0).p,.77),'SDD：複雜度 4 fe × Sonnet → 0.77（失敗少 8%）');
   ok(near(evalCost(son).tk,ec0.tk)&&near(evalCost(son).hrs,ec0.hrs),'SDD 不影響評估架構');
   const sddTrap=ticket('fe',1,{trap:true,trueCx:5,trueBase:BASE[5],revealed:false,evaluated:false});
   S.issues=[sddTrap]; sel.issue=sddTrap.id; Object.assign(sel,{v:'deepseek',m:'chat',b:'api',rv:0});
@@ -169,9 +170,9 @@ section("導入 SDD 效果",()=>{
 
   /* SDD 兩級：套用的等級 = min(選的, 已買的) */
   {  newRun('laravel'); const fe4=ticket('fe',4), fe2=ticket('fe',2), b4=est(fe4,'anthropic','sonnet',0,1,2), b2=est(fe2,'anthropic','sonnet',0,1,2);
-  ok(C.sddLevel(2)===0&&near(b4.p,.80),'SDD 沒買：選 2 也套 0 級，複雜度 4 fe × Sonnet 0.80');
+  ok(C.sddLevel(2)===0&&near(b4.p,.75),'SDD 沒買：選 2 也套 0 級，複雜度 4 fe × Sonnet 0.75');
   S.inv.sdd=2;
-  ok([[0,.80,1],[1,.88,1.1],[2,.95,1.2]].every(([L,p,k])=>{const e=est(fe4,'anthropic','sonnet',0,1,L);return near(e.p,p)&&near(e.tk,b4.tk*k);}),'SDD 各級：複雜度 4 fe × Sonnet 成功率 0.80／0.88／0.95、token ×1／1.1／1.2');
+  ok([[0,.75,1],[1,.77,1.1],[2,.7875,1.2]].every(([L,p,k])=>{const e=est(fe4,'anthropic','sonnet',0,1,L);return near(e.p,p)&&near(e.tk,b4.tk*k);}),'SDD 各級：複雜度 4 fe × Sonnet 成功率 0.75／0.77／0.7875、token ×1／1.1／1.2');
   ok(near(est(fe2,'anthropic','sonnet',0,1,2).tk,b2.tk*1.2)&&near(est(fe2,'anthropic','sonnet',0,1,2).p,b2.p),'SDD Lv2：複雜度 2 token ×1.2、成功率不變');
   S.inv.sdd=1; ok(C.sddLevel(2)===1&&C.sddLevel(0)===0&&C.sddLevel(undefined)===1,'SDD 只買 Lv1：選 2 套 1、選 0 套 0、沒選當 2');
   S.inv.sdd=2; ok(near(evalCost(son).tk,ec0.tk)&&near(evalCost(son).hrs,ec0.hrs),'SDD Lv2 不影響評估架構');
@@ -248,7 +249,7 @@ section("派工台的 SDD 選項與派工方案（gh-33-01-sdd-levels）",()=>{
   S.inv.sdd=1; h=panel();
   ok(h.includes('開發流程')&&/data-sdd="0"/.test(h)&&/class="sb sel" data-sdd="1"/.test(h)&&!h.includes('data-sdd="2"'),'買了 Lv1：不用、markdown，亮 markdown');
   S.inv.sdd=2; h=panel(); ok(/class="sb sel" data-sdd="2"/.test(h)&&h.includes('框架（Lv2）'),'買了 Lv2：三個按鈕，亮框架');
-  ok(/data-sdd="2">框架（Lv2）<small>Spectra／OpenSpec／Spec Kit・token ×1\.2・≥3 成功率 \+15%・陷阱燒 5%/.test(h)&&/data-sdd="1">markdown（Lv1）<small>例如 Superpowers・/.test(h)&&/data-sdd="0">不用<small>陷阱燒 40%/.test(h),'SDD 按鈕寫出實際工具、token、成功率、陷阱燒的比例');
+  ok(/data-sdd="2">框架（Lv2）<small>Spectra／OpenSpec／Spec Kit・token ×1\.2・≥3 失敗少 15%・陷阱燒 5%/.test(h)&&/data-sdd="1">markdown（Lv1）<small>例如 Superpowers・/.test(h)&&/data-sdd="0">不用<small>陷阱燒 40%/.test(h),'SDD 按鈕寫出實際工具、token、失敗少幾成、陷阱燒的比例');
   S.inv.sdd=1; const off0=est(t2,'anthropic','sonnet',0,1,0);
   clickApp({sdd:'0'}); h=panel();
   ok(sel.sdd===0&&/class="sb sel" data-sdd="0"/.test(h)&&!/SDD markdown：/.test(h),'點不用：亮不用，提示不寫 SDD');
@@ -317,7 +318,7 @@ section("國內研討會（gh-22-01-domestic-conference）",()=>{
   const rd=St.readSave(); ok(rd&&!rd.bad,'domestic-conference：舊存檔（布林投資）沒有被丟掉');
   St.loadGame(rd);
   ok(S.inv.tests===1&&S.inv.md.laravel===1&&S.inv.ci===0&&S.inv.ai===0&&S.st.confFee===0&&S.conf.req===null&&S.conf.went.length===0,'domestic-conference：舊存檔的投資轉成等級、補上研討會欄位',JSON.stringify([S.inv,S.conf]));
-  ok(near(catchRate(1,model('anthropic','sonnet')),.87),'domestic-conference：讀檔後單元測試 Lv1 的自審抓錯率 0.87');
+  ok(near(est(ticket('fe',4),'anthropic','sonnet',1).c,.3),'domestic-conference：讀檔後單元測試 Lv1 的自審抓錯率 0.3（Sonnet 複雜度 4）');
   resetStore();
   /* 報名 */
   const D=dataModule, gaEv=[], g0=globalThis.gtag; globalThis.gtag=(k,name,p)=>gaEv.push({name,p});
@@ -366,9 +367,9 @@ section("國內研討會（gh-22-01-domestic-conference）",()=>{
   ok(S.inv.md.rust===2&&gaEv.map(e=>e.p.investment+'/'+e.p.stack).join()==='md/rust,md2/rust','domestic-conference：CLAUDE.md Lv1、Lv2 的 GA',JSON.stringify(gaEv.map(e=>e.p)));
   /* Lv2 效果 */
   {newRun('laravel'); const t4=ticket('laravel',4), e0=est(t4,'anthropic','sonnet',0); S.inv.md.laravel=2; const e2=est(t4,'anthropic','sonnet',0);
-   ok(near(e2.p,.95)&&near(e2.tk,e0.tk*.85),'domestic-conference：CLAUDE.md Lv2 成功率 0.95、token ×0.85',[e2.p,e2.tk/e0.tk].join());}
-  newRun('laravel'); S.inv.tests=2; ok(near(catchRate(1,model('anthropic','sonnet')),.95),'domestic-conference：單元測試 Lv2 自審抓錯率到上限 0.95');
-  ok(near(catchRate(1,model('google','flash')),.81),'domestic-conference：單元測試 Lv2 讓 Gemini Flash 自審抓錯率 0.81');
+   ok(near(e2.p,.7875)&&near(e2.tk,e0.tk*.85),'domestic-conference：CLAUDE.md Lv2 成功率 0.7875（失敗少 15%）、token ×0.85',[e2.p,e2.tk/e0.tk].join());}
+  newRun('laravel'); S.inv.tests=2; ok(near(est(ticket('fe',4),'anthropic','sonnet',1).c,.4),'domestic-conference：單元測試 Lv2 讓 Sonnet 複雜度 4 自審抓錯率 0.4');
+  ok(near(est(ticket('fe',4),'google','flash',1).c,.2),'domestic-conference：單元測試 Lv2 讓 Gemini Flash 複雜度 4 自審抓錯率 0.2');
   for(const [l,a,d] of [[1,.175,.30],[2,.0875,.15]]){newRun('laravel'); S.inv.scan=l; ok(near(auditOdds('anthropic'),a)&&near(auditOdds('deepseek'),d),`domestic-conference：secret scanning Lv${l} 稽核機率 ${a}／${d}`);}
   newRun('laravel','parallel'); S.inv.skills=2; S.hours=8; S.slots=4; S.presets=presetsOf(DEFAULT_PRESETS);
   {const b2=[1,3,4,2].map(cx=>ticket('fe',cx,{due:5})); S.issues=[...b2]; batch();
@@ -377,7 +378,7 @@ section("國內研討會（gh-22-01-domestic-conference）",()=>{
   S.inv.skills=2; render(); ok(els.app.innerHTML.includes('批次派工（複雜度 ≤3）'),'domestic-conference：skills Lv2 批次派工按鈕寫 ≤3');
   /* 提升 agent 能力 */
   newRun('laravel'); S.conf.went=['coscup','hitcon']; S.inv.ai=2;
-  ok(near(est(ticket('fe',4),'anthropic','sonnet',0).p,.96),'domestic-conference：agent 能力 Lv2，複雜度 4 前端單 Sonnet 成功率 0.96');
+  ok(near(est(ticket('fe',4),'anthropic','sonnet',0).p,1-.25*.95*.95),'domestic-conference：agent 能力 Lv2，複雜度 4 前端單 Sonnet 成功率 0.774375（失敗少 5% 兩次）');
   newRun('laravel'); S.conf.went=['coscup']; S.hours=8; gaEv.length=0;
   ok(invest('ai')&&S.inv.ai===1&&gaEv.at(-1).p.investment==='ai1'&&A.investBlock('ai')==='需要去過 2 場研討會'&&!invest('ai')&&S.inv.ai===1,'domestic-conference：去過 1 場只能買到 Lv1');
   {newRun('laravel'); const son=model('anthropic','sonnet'), t=ticket('rust',2), r0=revealRate(son), m0=manualHrs(t); S.inv.ai=3;
@@ -408,11 +409,11 @@ section("國內研討會（gh-22-01-domestic-conference）",()=>{
   newRun('laravel'); S.day=2; render(); gaEv.length=0; els.app.on.click({target:{closest:()=>({dataset:{conf:'taiwanai'}})}});
   ok(S.conf.req==='taiwanai'&&els.app.innerHTML.includes('已報名・週末出席')&&els.app.innerHTML.includes('這週已報名其他場'),'domestic-conference：點研討會按鈕報名，其他場顯示已報名其他場');
   newRun('laravel'); S.inv.md.laravel=2; S.inv.ai=1; {const t=ticket('laravel',3); S.issues=[t]; sel.issue=t.id; render();
-   ok(els.app.innerHTML.includes('成功率 +15%')&&els.app.innerHTML.includes('提升 agent 能力 Lv1：成功率 +8%'),'domestic-conference：派工台提示 Lv2 數值與 agent 能力');}
+   ok(els.app.innerHTML.includes('CLAUDE.md：token ×0.85、失敗少 15%')&&els.app.innerHTML.includes('提升 agent 能力 Lv1：失敗少 5%'),'domestic-conference：派工台提示 Lv2 數值與 agent 能力');}
   /* 規則 modal */
   {const h=Ru.rulesTab('invest'), D2=dataModule;
-   ok(D2.CONF_KEYS.every(k=>h.includes(D2.CONF[k].name)&&h.includes(`NT$${D2.CONF[k].fee.toLocaleString('en-US')}`))&&h.includes('×0.8')&&h.includes('+8%')&&h.includes('單元測試 Lv2')&&h.includes('×0.25')&&h.includes('≤3')&&h.includes('+15%')&&h.includes('+20%'),'rules-reference：投資與電腦列出十場研討會、手寫 0.8、Lv2 與 agent 能力 8%');
-   ok(/導入 SDD Lv2<\/td><td[^>]*>1h<\/td><td[^>]*>NT\$200<\/td><td[^>]*>[^<]*Spectra／OpenSpec／Spec Kit[^<]*token ×1\.2[^<]*\+15%[^<]*5%/.test(h)&&/導入 SDD<\/td><td[^>]*>6h<\/td><td[^>]*>NT\$500<\/td><td[^>]*>[^<]*markdown[^<]*token ×1\.1[^<]*\+8%/.test(h)&&h.includes('導入 SDD Lv2 不用研討會'),'rules-reference：投資與電腦列出 SDD 兩級、Lv2 1h NT$200 不用研討會',h.match(/導入 SDD[^]*?<\/tr>/g)?.join(' | '));
+   ok(D2.CONF_KEYS.every(k=>h.includes(D2.CONF[k].name)&&h.includes(`NT$${D2.CONF[k].fee.toLocaleString('en-US')}`))&&h.includes('×0.8')&&h.includes('每級所有派工失敗少 5%')&&h.includes('單元測試 Lv2')&&h.includes('×0.25')&&h.includes('≤3')&&h.includes('CLAUDE.md 失敗少 15%')&&h.includes('+20%'),'rules-reference：投資與電腦列出十場研討會、手寫 0.8、Lv2 與 agent 能力每級失敗少 5%');
+   ok(/導入 SDD Lv2<\/td><td[^>]*>1h<\/td><td[^>]*>NT\$200<\/td><td[^>]*>[^<]*Spectra／OpenSpec／Spec Kit[^<]*token ×1\.2[^<]*失敗少 15%[^<]*5%/.test(h)&&/導入 SDD<\/td><td[^>]*>6h<\/td><td[^>]*>NT\$500<\/td><td[^>]*>[^<]*markdown[^<]*token ×1\.1[^<]*失敗少 8%/.test(h)&&h.includes('導入 SDD Lv2 不用研討會'),'rules-reference：投資與電腦列出 SDD 兩級、Lv2 1h NT$200 不用研討會',h.match(/導入 SDD[^]*?<\/tr>/g)?.join(' | '));
    const hd=Ru.rulesTab('dispatch'), ht=Ru.rulesTab('tickets');
    ok(hd.includes('開發流程')&&hd.includes('每張單選 SDD')&&hd.includes('已買的最高級'),'rules-reference：派工與成功率寫出每張單選 SDD 與方案降級');
    ok(ht.includes('40%')&&ht.includes('markdown 只燒 15%')&&ht.includes('框架 只燒 5%'),'rules-reference：工單與陷阱寫出 SDD 各級陷阱燒的比例');

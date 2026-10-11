@@ -140,13 +140,13 @@ export const CONF={
 };
 export const CONF_KEYS=Object.keys(CONF);
 export const CONF_LV2={sec:'scan',ai:'skills',gen:'tests'};             // 技術線場開放 CLAUDE.md Lv2，其他類別開放這幾項
-export const CONF_LAST_DAY=15, CONF_MANUAL=.8, AI_P=.08, AI_MAX=3;  // 第 15 天後不能報名、技術線場手寫倍率、agent 能力每級成功率與最高級
+export const CONF_LAST_DAY=15, CONF_MANUAL=.8, AI_P=.05, AI_MAX=3;  // 第 15 天後不能報名、技術線場手寫倍率、agent 能力每級失敗少幾成與最高級
 /* 投資等級：舊存檔與舊寫法的 true 算 1 級 */
 export const lv=x=>x===true?1:(x|0);
 /* 規則係數（規則 modal 也讀這些） */
-export const CATCH={base:.45,per:.08,strict:.2,max:.95};          // 自我審核抓錯率 = base + per × 能力 ÷ CAP_SCALE（嚴格 +strict）
+export const CATCH={base:.2,per:.1,strict:.2,max:.95};            // 自我審核抓錯率 = base + per × 能力差距 ÷ CAP_SCALE（嚴格 +strict），下限 0
 export const REVEAL={base:.35,per:.15,max:.95};                     // 評估架構識破率
-export const BIG={p:.08,tk:.7};                                     // 大型 codebase：成功率 ±p、ctx 模型 token ×tk
+export const BIG={gap:5,tk:.7};                                     // 大型 codebase：能力差距 ±gap、ctx 模型 token ×tk
 export const RETRY={tk:.7,hrs:.8};                                  // 失敗後重做的 token 與時間折扣
 export const MANUAL_HRS=2.2, UNFAMILIAR_HRS=2;                      // 手寫每單位複雜度的時數、不熟的倍率
 export const STACK_HRS={rust:1.2,app:1.15,devops:1.25};             // 技術線執行時間倍率
