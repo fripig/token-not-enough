@@ -50,6 +50,7 @@ Changes can be parked（暫存）— temporarily moved out of `docs/spectra/chan
 - 更新內文：每到一個階段都用 `gh issue edit <號碼> --body ...` 更新內文，並用 `gh issue comment` 留一句這次做了什麼。階段包括 proposal／design／specs／tasks 寫完、analyze 與 validate 結果、park、apply 開始、每完成一批任務、verify、commit、push。卡住時也要更新，寫明卡在哪裡。
 - 找卡：`gh issue list --label spectra --state all --search "[change] <name> in:title"`。
 - 收尾：archive 之後換成 `已完成`，再 `gh issue close <號碼>`。
+- 關卡前檢查有沒有要搬出來的 change：讀這張卡的內文與留言，找出提到的後續（同卡的 `-02` 之類、「另開」「拆到」「之後再做」），逐一對照 `docs/spectra/changes/`（含 `archive/`）與其他 issue。還沒建、也沒有別的卡追蹤的，先用 AskUserQuestion 問使用者：開新 issue 追蹤（推薦）、留在這張卡不關，或放棄（在卡上留言記下）。開新卡時在原卡留言寫新卡號與 change 名稱，再關原卡。
 
 # Token 撐到月底 專案交接
 
