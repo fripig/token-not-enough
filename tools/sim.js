@@ -31,7 +31,7 @@ import {els} from './fake-dom.js';
 import './sim-seed.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {firstIssues,start} from '../public/js/main.js';
-import {COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model,CONF,CONF_KEYS,CONF_LAST_DAY} from '../public/js/data.js';
+import {CAP_SCALE,COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model,CONF,CONF_KEYS,CONF_LAST_DAY} from '../public/js/data.js';
 import {START,S,sel,setResearchRate,setTrapRate} from '../public/js/state.js';
 import {est,hwBlock,localBusy,quotaLeft} from '../public/js/calc.js';
 import {PAR,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
@@ -137,7 +137,7 @@ function sim(){
               if(subOk){ sel.v='openai'; sel.m='std'; }
               else{ sel.v=seatV||(dsOk?'deepseek':hm?'local':alt[0]); sel.m=seatV?SEAT_MODEL[seatV]:dsOk?'chat':hm||alt[1]; }
               dispatchPanel();
-              if(EFF){const gap=model(sel.v,sel.m).cap-free[0].cx; sel.ef=gap<=-1?2:gap>=2?0:1;}
+              if(EFF){const gap=model(sel.v,sel.m).cap-free[0].cx*CAP_SCALE; sel.ef=gap<=-CAP_SCALE?2:gap>=2*CAP_SCALE?0:1;}
               if(subOk)sel.b='sub'; else if(hm)sel.b='local'; else if(seatV)sel.b='seat'; else if(dsOk||free[0].out||LUNA)sel.b='api'; else sel.b=quotaLeft('sub','anthropic')>300?'sub':'corp';
               if(sel.b==='corp'&&S.corp<=0) sel.b='api';
               /* 錢包見底時個人 API 不能用：改走 Anthropic 訂閱或公司 API（外包單不能用公司），都不行就派本地 Gemma */

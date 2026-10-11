@@ -1,4 +1,4 @@
-import {RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
+import {CAP_SCALE,RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
 import {S,issueTitle,sel,unfamiliar} from './state.js';
 import {REVIEW,sddLevel,bills,catchRate,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetBlock,quotaLeft,stackHint} from './calc.js';
 import {INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
@@ -138,6 +138,11 @@ export function qbox(name,sub,dl,dc,wl,wc){
 export const logLines=a=>a.map(l=>`<p class="${l.cls}">${l.msg}</p>`).join('');
 /* 派工台沒選工單時顯示最新幾筆紀錄，派完單看得到剛剛發生什麼 */
 export const DP_RECENT=3;
+/* 能力條：每 10 一顆實心點，多 5 畫半顆，補空心點到 5 格，後面寫數字（能力 45 → ●●●●◐ 45） */
+export function capBar(cap){
+  const full=Math.floor(cap/CAP_SCALE), half=cap%CAP_SCALE>=CAP_SCALE/2?1:0;
+  return `${'●'.repeat(full)}${'◐'.repeat(half)}${'○'.repeat(Math.max(0,5-full-half))} ${cap}`;
+}
 /* 目前選擇跟方案一樣時，載入方案按鈕亮起來；強度只在進階模式比 */
 export const presetIs=p=>p.v===sel.v&&p.m===sel.m&&p.b===sel.b&&p.rv===sel.rv&&(!S.advanced||p.ef===sel.ef)&&sddLevel(p.sdd)===sddLevel();
 export function dispatchPanel(){
@@ -150,7 +155,7 @@ export function dispatchPanel(){
   const rows=Object.keys(VENDORS).map(v=>{
     const V=VENDORS[v], down=S.outage===v;
     return `<div class="vrow" style="--vc:${vc(v)}"><div class="vn"><b>${V.name}</b><span>${down?t('ui.q.down'):V.agent}</span>${V.cn?`<span class="cn">${t('ui.dp.cnVendor')}</span>`:''}</div>
-      <div class="mods">${V.models.map(M=>{const why=cnBlock(is,v,M)||hwBlock(M);return `<button class="mb ${sel.v===v&&sel.m===M.id?'sel':''}" data-v="${v}" data-m="${M.id}" ${down||why?'disabled':''}><b>${M.name}</b><span>${t('ui.dp.cap')} ${'●'.repeat(M.cap)}${'○'.repeat(Math.max(0,5-M.cap))}</span><span class="${why?'why':''}">${why||(M.price?`$${M.price}/k`:t('ui.dp.free'))}${!why&&M.cn?`${sp}${t('ui.dp.cnWeights')}`:''}</span></button>`;}).join('')}</div></div>`;
+      <div class="mods">${V.models.map(M=>{const why=cnBlock(is,v,M)||hwBlock(M);return `<button class="mb ${sel.v===v&&sel.m===M.id?'sel':''}" data-v="${v}" data-m="${M.id}" ${down||why?'disabled':''}><b>${M.name}</b><span>${t('ui.dp.cap')} ${capBar(M.cap)}</span><span class="${why?'why':''}">${why||(M.price?`$${M.price}/k`:t('ui.dp.free'))}${!why&&M.cn?`${sp}${t('ui.dp.cnWeights')}`:''}</span></button>`;}).join('')}</div></div>`;
   }).join('');
   const e=est(is,sel.v,sel.m), M=e.M, cl=costLine(sel.b,M,sel.v,e);
   const segs=bl.map(b=>`<button class="sb ${sel.b===b.id?'sel':''}" data-b="${b.id}" ${b.ok?'':'disabled'}>${b.label}<small>${b.note}</small></button>`).join('');

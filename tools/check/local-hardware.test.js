@@ -58,7 +58,7 @@ section("local-hardware（gh-17-01-local-hardware）：採購電腦",()=>{
   Object.assign(sel,{v:'local',m:'gemma4',b:'local'}); const n0=S.st.tk.local, iss0=S.issues.length; dispatch(); evaluate();
   ok(S.issues.length===iss0&&S.st.tk.local===n0&&!lt.evaluated&&near(S.hours,8),'local-hardware：沒解鎖的模型派工、評估都不動作');
   S.hw.spark=S.hw.mac=true; const gv=ticket('laravel',2,{client:CLIENTS[3]}); S.issues=[gv]; sel.issue=gv.id; Object.assign(sel,{v:'local',m:'gemma4',b:'local'}); render();
-  {const h=els.app.innerHTML; ok(/data-m="gemma4" ><b>Gemma 4 31B<\/b><span>能力 ●●●●○<\/span><span class="">免費/.test(h)&&/data-m="qcnext" disabled>.*?中國權重禁用/.test(h)&&/data-m="glm53" disabled>.*?中國權重禁用/.test(h),'local-hardware：政府標案可用 Gemma 4 31B，Qwen3-Coder-Next 與 GLM-5.3 中國權重禁用');}
+  {const h=els.app.innerHTML; ok(/data-m="gemma4" ><b>Gemma 4 31B<\/b><span>能力 ●●●●○ 40<\/span><span class="">免費/.test(h)&&/data-m="qcnext" disabled>.*?中國權重禁用/.test(h)&&/data-m="glm53" disabled>.*?中國權重禁用/.test(h),'local-hardware：政府標案可用 Gemma 4 31B，Qwen3-Coder-Next 與 GLM-5.3 中國權重禁用');}
   {newRun('laravel'); const t=ticket('laravel',2), tg=ticket('laravel',2,{client:CLIENTS[3]});
   ok(presetBlock(t,{v:'local',m:'gemma4',b:'local',rv:0,ef:1})==='需要 NVIDIA DGX Spark','dispatch-presets：沒有 Spark 時 local/gemma4 → 需要 NVIDIA DGX Spark');
   S.hw.mac=true; ok(presetBlock(tg,{v:'local',m:'glm53',b:'local',rv:0,ef:1})==='中國權重禁用','dispatch-presets：政府標案有 Mac 時 local/glm53 → 中國權重禁用');

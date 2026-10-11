@@ -1,4 +1,4 @@
-import {RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
+import {CAP_SCALE,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,HARD_KPI,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
 import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardStack,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks,issueTitle} from './state.js';
 import {REVIEW,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetBlock,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
 import {render,setTab} from './view.js';
@@ -19,7 +19,7 @@ export const trueView=is=>hiddenTrap(is)?{...is,cx:is.trueCx,base:is.trueBase}:i
 export function reveal(is){ if(!hiddenTrap(is)) return; is.shownCx=is.cx; is.cx=is.trueCx; is.base=is.trueBase; is.revealed=true; }
 export function makeJob(is){
   const hidden=hiddenTrap(is), e=est(trueView(is),sel.v,sel.m);
-  const sdd=sddLevel(), stop=hidden&&e.M.cap<is.trueCx, f=stop?(sdd?SDD_TRAP_STOP[sdd]:TRAP_STOP):1;
+  const sdd=sddLevel(), stop=hidden&&e.M.cap<is.trueCx*CAP_SCALE, f=stop?(sdd?SDD_TRAP_STOP[sdd]:TRAP_STOP):1;
   const ok=!stop&&Math.random()<e.p, tk=e.tk*f*R(.7,1.3), n=R(.8,1.2);
   /* shownHrs：畫面與紀錄看到的預估，陷阱曝光前照顯示的複雜度算，才不會從時間看出陷阱；實際跑 hrs */
   return {issue:is,v:sel.v,m:sel.m,ef:efOf(sel.ef),b:sel.b,M:e.M,rv:sel.rv,tk,hrs:e.hrs*f*n,shownHrs:(hidden?est(is,sel.v,sel.m).hrs:e.hrs*f)*n,ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd,research:!!is.research};
@@ -200,7 +200,7 @@ export function manual(){
 export const EVAL_TK=40;
 export const canEvaluate=is=>!is.inc&&!is.merge&&!is.research&&!is.evaluated&&!is.revealed;
 export const evalCost=(M,v=sel.v)=>({tk:EVAL_TK*M.verb,hrs:EVAL_HRS*M.speed*localSpeed(v)*(S.inv.mcp?MCP_EVAL_HRS:1)});
-export const revealRate=M=>Math.min(REVEAL.max,REVEAL.base+REVEAL.per*M.cap+(S.inv.mcp?MCP_REVEAL:0));
+export const revealRate=M=>Math.min(REVEAL.max,REVEAL.base+REVEAL.per*M.cap/CAP_SCALE+(S.inv.mcp?MCP_REVEAL:0));
 export function evaluate(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is||!canEvaluate(is)||!billOk(is)) return;
   const M=model(sel.v,sel.m), {tk,hrs}=evalCost(M,sel.v), cx=is.cx; if(hwBlock(M)) return;

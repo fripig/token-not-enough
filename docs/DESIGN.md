@@ -45,7 +45,7 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 11. 「目前玩得有點痛苦 能有何機制能增加趣味但是又符合遊戲精神呢」（痛點：每張單都要重選一輪、整局只有越來越緊）、「投入ＳＤＤ也放上去」
    → 派工方案（一鍵派工）＋工程投資（CLAUDE.md、補測試、skills、MCP 文件、SDD）。設計紀錄在 Spectra change `dispatch-presets-and-investments`。
 13. 「新增可選的進階模式 可以選擇更細的model」、「推里強度也會導致工作變慢」
-   → 開局可勾選「進階模式」，派工台多一個推理強度（低／中／高）旋鈕，模型清單不變；高強度能力 +1 但 token 變多、工作變慢。最高分不分開。設計紀錄在 Spectra change `reasoning-effort`。
+   → 開局可勾選「進階模式」，派工台多一個推理強度（低／中／高）旋鈕，模型清單不變；高強度能力 +1（#46 之後的刻度是 +10）但 token 變多、工作變慢。最高分不分開。設計紀錄在 Spectra change `reasoning-effort`。
 14. 「公司團隊席位應該可以多申請 如果信任度夠高可以申請第二個第三個」
    → 每家廠商最多一個、最多三個席位，門檻 55／65／75，一次只審一個。設計紀錄在 Spectra change `gh-06-01-multi-team-seats`；平衡量測另開 #7。
 15. 「工程投資可以細化或者增加項目」、「有事故時信任度降低的程度要減小」
@@ -104,11 +104,16 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
 41. #44 回報（平行 6 槽、Laravel＋DevOps、接外包玩完一整局）：第 20 天下班 5 張公司單、4 張外包單算逾期，其中好幾張是第 18–20 天才進來、本來第 21 天以後才到期的單；結算的「你自己掏的錢」顯示約 −NT$51,864。
    → 到期日不再截到第 20 天（一般單、Rust／App／DevOps 的 +1 天、監控告警事故單、找主管重新評估的 +2 天），卡片照寫真實到期日，第 20 天下班只有到期日 ≤ 20 的單算逾期；「你自己掏的錢」只算支出，接外包時另列「個人淨收支」＝外包收入 − 支出，自費稱號看支出（都是使用者從選項裡選的）。discuss 時發現拿掉上限後第 20 天還在跑、工單第 20 天以後才到期的 agent 不會被扣款，使用者選了照玩家中止扣款（紀錄寫「⏹ 月底收工」、GA `cancelled`、算進公司單日上限）。設計紀錄在 Spectra change `gh-44-01-month-end-late-and-self-pay`（#44）。
 
+42. 「目前 model 能力有直接定義成功率嗎」、「我也想拉高上限 所以可能要順便把整體成功率往下調一點」（#46，Fable 能力 6 已經對所有工單 95%，再強的模型沒有差別）
+   → 拆成三個 change：`gh-46-01-model-capability-scale` 先把能力改成 ×10 整數（20–60）、成功率在錨點之間線性內插，現有模型數值完全不變；`gh-46-02-success-curve` 再拉長成功率曲線（差距 +20 才 95%）、把投資與大型 codebase 加成改成「減少失敗」，用模擬器量；`gh-46-03-complexity-six-tickets` 新增複雜度 6 的工單。-01 使用者選了：推理強度維持 ±10（細分之後再說）、能力條改成點數加數字（●●●●◐ 45）、門檻類規則（Rust、大型 codebase、陷阱硬做）維持一刀切。五組固定種子模擬（`SIM_N=100 SIM_SEED=101` 加上不開、`SIM_INVEST=1`、`SIM_EFFORT=1`、`SIM_HW=1`、`SIM_INVEST=1 SIM_CONF=1`）改動前後輸出逐字相同。設計紀錄在 Spectra change `gh-46-01-model-capability-scale`（#46）。
+
 介面預設語言是繁體中文（台灣用語），所有介面文字都放在字典（見「多語系」），程式碼裡註解以外不能有中文。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
 ## 遊戲規則與數值
 
 所有價格、額度、能力值都是遊戲平衡用的虛構數字，不是各家真實方案；頁面底部有聲明，保留它。
+
+能力在 2026-10-11（#46）改成 ×10 的刻度。這一天之前的平衡實測與需求紀錄寫的能力是舊刻度（舊的 3 就是現在的 30、「能力 <4」就是現在的「<40」），數字本身沒有因為換刻度而改變。
 
 2026-10-09 拿掉平行 token 加成之前量的平衡表（技術線、陷阱、雙選、外包、推理強度、工程投資、席位、合併衝突）都是在有 token 加成時量的；拿掉後平行模式平均分差在 ±2% 內，舊表照留、沒有重測。
 
@@ -120,19 +125,19 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
 - 起始：個人錢包 NT$8,000、公司 API 預算 NT$12,000、主管信任 70、KPI 0。
 
 ### 廠商與模型（`VENDORS`）
-每個模型有 `cap` 能力 1–5、`price` 每 1k token 的 NT$、`w` 吃訂閱額度的權重、`speed` 每單位複雜度的小時數、`verb` token 用量倍率；`ctx:true` 對「大型 codebase」工單有加成；`cn:true` 標記中國開源權重。
+每個模型有 `cap` 能力（×10 的整數，目前 20–60，之後的新模型可以填 45、55 這種中間值；跟工單複雜度比時複雜度 × `CAP_SCALE` 10，#46）、`price` 每 1k token 的 NT$、`w` 吃訂閱額度的權重、`speed` 每單位複雜度的小時數、`verb` token 用量倍率；`ctx:true` 對「大型 codebase」工單有加成；`cn:true` 標記中國開源權重。
 
 | 廠商 key | 名稱 / agent | 公司可走 API | 中國 | 模型 |
 |---|---|---|---|---|
-| anthropic | Claude Code | 是 | | Haiku 3、Sonnet 4、Opus 5、Fable 6 |
-| openai | Codex CLI | 否 | | Luna 3、Sol 4、Astra 5 |
-| google | Gemini CLI | 是 | | Flash 2、Pro 4（皆 ctx） |
-| deepseek | Claude Code 接 DeepSeek API | 否 | 是 | Chat 3、Reasoner 4，無訂閱 |
-| zhipu | Claude Code＋GLM Coding Plan | 否 | 是 | GLM Air 3、GLM 4 |
-| moonshot | Kimi CLI | 否 | 是 | K2 4 |
-| local | OpenCode＋本地 GPU | — | Qwen、GLM 是 | 基本款：Qwen3.6 35B-A3B 3（cn 權重）、Gemma 4 26B A4B 3（比 Qwen 慢，政府標案可用）、Gemma 4 E4B 2；買電腦解鎖：Qwen3-Coder-Next 4（cn，Spark）、Gemma 4 31B 4（Spark）、GLM-5.3 5（cn，Mac） |
+| anthropic | Claude Code | 是 | | Haiku 30、Sonnet 40、Opus 50、Fable 60 |
+| openai | Codex CLI | 否 | | Luna 30、Sol 40、Astra 50 |
+| google | Gemini CLI | 是 | | Flash 20、Pro 40（皆 ctx） |
+| deepseek | Claude Code 接 DeepSeek API | 否 | 是 | Chat 30、Reasoner 40，無訂閱 |
+| zhipu | Claude Code＋GLM Coding Plan | 否 | 是 | GLM Air 30、GLM 40 |
+| moonshot | Kimi CLI | 否 | 是 | K2 40 |
+| local | OpenCode＋本地 GPU | — | Qwen、GLM 是 | 基本款：Qwen3.6 35B-A3B 30（cn 權重）、Gemma 4 26B A4B 30（比 Qwen 慢，政府標案可用）、Gemma 4 E4B 20；買電腦解鎖：Qwen3-Coder-Next 40（cn，Spark）、Gemma 4 31B 40（Spark）、GLM-5.3 50（cn，Mac） |
 
-- OpenAI 的模型照 GPT-6 家族命名，名稱不帶「GPT-6」，id 沿用 `mini`／`std`／`high`（存檔、派工方案、GA 的 `model` 都送 id）。實際的價格比例 Luna : Sol : Astra 約 1 : 20 : 100（第三方轉述的官方價，每百萬輸入 token $0.10／$2／$10），遊戲裡刻意壓縮：Luna 能力 3，但比 DeepSeek Chat 貴（0.15 對 0.03）、一樣慢（0.7），賣點是沒有案主禁它；Astra 跟 Opus 同型（貴、`w` 3、不特別慢）。原本的最高階模型是照推理模式設的（跟中階同價、慢、token ×1.8），跟進階模式的推理強度重複，改成 Astra 後拿掉。
+- OpenAI 的模型照 GPT-6 家族命名，名稱不帶「GPT-6」，id 沿用 `mini`／`std`／`high`（存檔、派工方案、GA 的 `model` 都送 id）。實際的價格比例 Luna : Sol : Astra 約 1 : 20 : 100（第三方轉述的官方價，每百萬輸入 token $0.10／$2／$10），遊戲裡刻意壓縮：Luna 能力 30，但比 DeepSeek Chat 貴（0.15 對 0.03）、一樣慢（0.7），賣點是沒有案主禁它；Astra 跟 Opus 同型（貴、`w` 3、不特別慢）。原本的最高階模型是照推理模式設的（跟中階同價、慢、token ×1.8），跟進階模式的推理強度重複，改成 Astra 後拿掉。
 
   Luna 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；`SIM_LUNA=1`＝DeepSeek 被禁、又沒用席位時改派 Luna（個人 API）不派 Sonnet，相對同一份程式碼的預設自動玩家）。預設自動玩家只有在 Anthropic 當機、派工台自動改到下一家第一個模型時才會派到 Luna，不會派 Astra，所以預設跑法幾乎量不到這次改動；開 `SIM_LUNA=1` 時遇到 OpenAI 當機則會改派 Haiku。Astra 沒有量。
 
@@ -148,7 +153,7 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
   | 單線 App | +7.9% / +20.7% | +55.3% / +62.0% | −9.0% / −13.9% |
 
   初版讓「被禁就改派 Luna」變成明顯最佳解（又快又便宜），使用者選擇保留能力 3、調慢加價。採用版比派 Sonnet 差一些，是可選但不壓倒的替代；Rust 因為 borrow checker 對能力 <4 扣分而差最多。
-- Anthropic 的模型照 Claude 5 家族：Claude API 的官方價（每百萬輸入 token）Haiku 5.5 $0.10、Sonnet 5.5 $2、Opus 5.5 $4、Fable 5.1 $10，跟 GPT-6 的 Luna、Sol、Astra 同價位。遊戲裡 Haiku 跟 Luna 同一套（能力 3、0.15、速度 0.7，`w` 0.3、token 倍率 0.9 照舊）；Opus 0.9、`w` 2（Sonnet 的 2 倍）；Fable（id `fable`）能力 6、1.8、`w` 4、速度 1.2、token 倍率 0.85，是唯一能力 6 的模型（高強度到 7），複雜度 5 的工單成功率 95%（Opus 80%）。能力條畫實心點到能力值、空心點補到 5 格，所以 Fable 顯示 6 顆實心點。spec 例子原本拿 Haiku 當能力 2 的模型，改用 Gemini Flash。
+- Anthropic 的模型照 Claude 5 家族：Claude API 的官方價（每百萬輸入 token）Haiku 5.5 $0.10、Sonnet 5.5 $2、Opus 5.5 $4、Fable 5.1 $10，跟 GPT-6 的 Luna、Sol、Astra 同價位。遊戲裡 Haiku 跟 Luna 同一套（能力 30、0.15、速度 0.7，`w` 0.3、token 倍率 0.9 照舊）；Opus 0.9、`w` 2（Sonnet 的 2 倍）；Fable（id `fable`）能力 60、1.8、`w` 4、速度 1.2、token 倍率 0.85，是唯一能力 60 的模型（高強度到 70），複雜度 5 的工單成功率 95%（Opus 80%）。能力條（`capBar`）每 10 畫一顆實心點、多 5 畫半顆 ◐、空心點補到 5 格，後面寫數字，所以 Fable 顯示「●●●●●● 60」、能力 45 會顯示「●●●●◐ 45」。spec 例子原本拿 Haiku 當能力 2 的模型，改用 Gemini Flash。
 
   Haiku 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；`SIM_HAIKU=1`＝DeepSeek 被禁、又沒用席位時改派 Haiku 不派 Sonnet，付費方式照 Sonnet 的規則，相對同一份程式碼的預設自動玩家）：
 
@@ -193,8 +198,8 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
 
 | 技術線 | 成功率 | 執行時間 | 其他 |
 |---|---|---|---|
-| laravel、rails | 複雜度 ≤3 時能力差 +1（框架慣例） | — | — |
-| rust | 能力 <4 的模型能力差 −1（borrow checker） | ×1.2 | 期限 +1 天、KPI ×1.3 |
+| laravel、rails | 複雜度 ≤3 時能力差 +10（框架慣例） | — | — |
+| rust | 能力 <40（`WEAK_CAP`）的模型能力差 −10（borrow checker） | ×1.2 | 期限 +1 天、KPI ×1.3 |
 | app | — | ×1.15 | 期限 +1 天、KPI ×1.3；複雜度 ≥2 的工單 40% 需上架審核，agent 成功後仍有 20% 被退件（有上架自動化 10%），自我審核救不回來 |
 | sre | — | — | 選了 SRE 時每張新工單多擲一次事故（見「工單」） |
 | devops | — | ×1.25（等 CI 與 terraform） | 期限 +1 天、KPI ×1.3 |
@@ -238,11 +243,11 @@ SRE、DevOps 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；�
 ### 陷阱題（`TRAP_RATE`、`hiddenTrap`、`trueView`、`reveal`、`evaluate`、`rescope`）
 - 非事故、複雜度顯示 1–2 的工單有 `TRAP_RATE = 0.10` 機率是陷阱，真實複雜度 4（60%）或 5（40%），存在 `trueCx`、`trueBase`。KPI 與期限照顯示的複雜度算。
 - 一半的陷阱用 `STACKS[k].pool.trap` 的暗示標題（「只要改一行」「順便」「應該很快」），另一半用一般標題，卡片上看不出差別。
-- 派工時（`makeJob`）沒曝光的陷阱照真實複雜度擲骰：模型能力 ≥ 真實複雜度就硬做完（token、時間、成功率都按真實值，紀錄「原來牽扯到架構，硬做完了」）；能力不夠就花 `TRAP_STOP = 0.4` 倍的真實 token 與時間後停下來、算失敗、tries +1，自我審核救不了。
+- 派工時（`makeJob`）沒曝光的陷阱照真實複雜度擲骰：模型能力 ≥ 真實複雜度 × 10 就硬做完（一刀切，能力 45 碰到真實複雜度 5 仍會停下）（token、時間、成功率都按真實值，紀錄「原來牽扯到架構，硬做完了」）；能力不夠就花 `TRAP_STOP = 0.4` 倍的真實 token 與時間後停下來、算失敗、tries +1，自我審核救不了。
 - 自己手寫沒曝光的陷阱：花掉顯示複雜度的手寫時數後曝光，工單留在佇列。
 - 曝光（`reveal`）：`shownCx` 記原估，`cx`／`base` 換成真實值，卡片顯示「牽一髮動全身・原估 N」。之後的預估與技術線效果都用真實複雜度。
 - 跑著的陷阱看不出真實時間：job 另存 `shownHrs`（派工台照顯示的複雜度估的時數 × 跟 `hrs` 同一個隨機倍率，不多擲亂數；一般工單等於 `hrs`），派工紀錄的「預計」、背景 agent 列的完成時間與進度條都用它，超過了還沒跑完就顯示「超過預估，還在跑」；實際執行時間照真實值。舊存檔的 job 沒有 `shownHrs` 時用 `hrs`。這是 `gh-32-01-abort-agent` 的 `/spectra-review` 抓到的：原本顯示真實時數，複雜度 1 的陷阱派出去就顯示好幾倍的預計時間，加上可以中止，就變成比評估架構便宜的驗陷阱方式；使用者選了隱藏真實時間。
-- 評估架構（`evaluate`）：非事故、未評估、未曝光的工單可用。花 `EVAL_TK × M.verb`（40k × token 用量倍率）token，走 `charge` 扣款，加上 `0.5h × M.speed` 工時（平行模式會推進時鐘）。識破率 `min(0.95, 0.35 + 0.15 × cap)`。沒識破和一般工單一樣顯示「已評估」。額度不夠時中斷、不算已評估。評估時 agent 一樣會讀程式碼，所以機敏工單走個人訂閱或個人 API 時，和派工一樣要擲資安稽核（`auditRoll`）；刷公司 API 造成的透支也當下處罰（`checkOverdraft`）。
+- 評估架構（`evaluate`）：非事故、未評估、未曝光的工單可用。花 `EVAL_TK × M.verb`（40k × token 用量倍率）token，走 `charge` 扣款，加上 `0.5h × M.speed` 工時（平行模式會推進時鐘）。識破率 `min(0.95, 0.35 + 0.15 × cap ÷ 10)`。沒識破和一般工單一樣顯示「已評估」。額度不夠時中斷、不算已評估。評估時 agent 一樣會讀程式碼，所以機敏工單走個人訂閱或個人 API 時，和派工一樣要擲資安稽核（`auditRoll`）；刷公司 API 造成的透支也當下處罰（`checkOverdraft`）。
 - 找主管重新評估（`rescope`）：曝光後每張一次。信任 ≥ `RESCOPE_TRUST`（50）：信任 −5、KPI 改成 `KPI[真實複雜度]`（含技術線 ×1.3）、期限 +2 天（不設上限，#44 前截到第 20 天）；否則信任 −3、其他不變。
 - 陷阱曝光時不重算「大型 codebase」與「需上架審核」標記（這兩個是用顯示的複雜度產生的），所以曝光的陷阱不會有大型 codebase 加減成，App 線的陷阱也不會被上架退件。這是刻意的：陷阱已經夠痛，平衡數字也是照這個行為量的。
 - 結算多兩行：踩到陷阱（`S.st.trapHit`，派工或手寫曝光）、事先識破（`S.st.trapFound`，評估曝光）。
@@ -287,7 +292,7 @@ SRE、DevOps 實測（2026-10-10，`SIM_N=100`，每格 300 局，跑兩次；�
 目標是平行模式 agent 研究和沒研究單差在 −5%～+5%，而且多數格子比直接派工好。初版（直接派工 ×2.5、agent 研究 80k／1h、自己研究 3h）在平行模式 agent 研究對直接派工是 −3.3%～+2.0%、多數是負的，自己研究對沒研究單 −9%～−12%：預設自動玩家幾乎都派 DeepSeek Chat（每 1k NT$0.03），token ×2.5 只多幾十塊，研究卻要多花工時。種子 101 量了三種變體：只改 ×4（agent 對直接派工 −0.0%～+3.8%，自己研究仍 −10% 左右）、只讓研究變便宜（−1.2%～+2.0%）、兩個都改（+0.1%～+3.6%），使用者選了兩個都改。單線模式不設目標，照實記錄。
 
 ### 成功率（`est`）
-依 `cap - cx`（再加技術線的能力差修正）：≥1 → 95%、0 → 80%、−1 → 50%、−2 → 25%、更低 10%；大型 codebase 對 ctx 模型 +8%、對弱模型 −8%。失敗後重做的 token 與時間會打折。
+能力差 = `cap − cx × CAP_SCALE`（再加技術線的能力差修正），用 `pStep()` 查錨點 +10 → 95%、0 → 80%、−10 → 50%、−20 → 25%、−30 → 10%（`P_STEP`），中間線性內插、兩端截平，例如差 +5 是 87.5%、−15 是 37.5%。現有模型的差距都是 10 的倍數，結果跟改成 ×10 之前的五階表一樣。大型 codebase 對 ctx 模型 +8%、對能力 <40 的非 ctx 模型 −8%。失敗後重做的 token 與時間會打折。
 
 ### 付費方式（`bills`、`settle`）
 - 個人訂閱／公司席位：扣額度，額度不夠時 agent 停在一半（失敗）。
@@ -506,15 +511,15 @@ SDD Lv2 平衡實測（2026-10-10，`SIM_N=100`，每格 300 局，`SIM_SEED=101
 
 | 強度 | 能力 | token | 執行時間 |
 |---|---|---|---|
-| 低 | −1（下限 1） | ×0.7 | ×0.8（變快） |
+| 低 | −10（下限 10） | ×0.7 | ×0.8（變快） |
 | 中 | 原本的模型 | ×1 | ×1 |
-| 高 | +1（不設上限，Opus 會到 6） | ×1.5 | ×1.4（變慢） |
+| 高 | +10（不設上限，Opus 會到 60） | ×1.5 | ×1.4（變慢） |
 
 - 每 1k token 價格與訂閱權重 `w` 不變。強度不是中時，紀錄的模型名稱寫成「Sonnet・高強度」。
 - `est` 裡「能力高於複雜度時 token ×0.85」的折扣看原本模型的能力，所以高強度的 token 剛好是中強度的 1.5 倍。
 - 評估架構（`evalCost`、`revealRate`）與自己手寫不受強度影響。
 
-平衡實測（2026-10-09，`SIM_N=100`，每格 300 局，跑兩次；`SIM_EFFORT=1` 平均分 ÷ 預設平均分，減 1）。自動玩家依選到模型的原始能力減顯示複雜度挑強度：≤ −1 用高、≥ 2 用低，其他用中。
+平衡實測（2026-10-09，`SIM_N=100`，每格 300 局，跑兩次；`SIM_EFFORT=1` 平均分 ÷ 預設平均分，減 1）。自動玩家依選到模型的原始能力減顯示複雜度挑強度：≤ −1 用高、≥ 2 用低，其他用中（#46 之後是 ≤ −10、≥ 20）。
 
 | 公司 | 平行 | 單線 |
 |---|---|---|
@@ -531,8 +536,8 @@ SDD Lv2 平衡實測（2026-10-10，`SIM_N=100`，每格 300 局，`SIM_SEED=101
 | 電腦 | 價格文字 | 信任門檻 | 到貨 | 效果 |
 |---|---|---|---|---|
 | 有顯卡的 PC（RTX 5090） | 約 NT$12 萬 | 55 | 2 天 | 本地模型執行時間 ×0.7（`PC_SPEED`，評估架構也算） |
-| NVIDIA DGX Spark | 約 NT$13 萬 | 60 | 3 天 | 解鎖 Qwen3-Coder-Next（能力 4、速度 1.4、cn）與 Gemma 4 31B（能力 4、速度 2.0、政府標案可用） |
-| Mac Studio（512GB） | 約 NT$30 萬 | 70 | 3 天 | 解鎖 GLM-5.3（能力 5、速度 2.8、cn） |
+| NVIDIA DGX Spark | 約 NT$13 萬 | 60 | 3 天 | 解鎖 Qwen3-Coder-Next（能力 40、速度 1.4、cn）與 Gemma 4 31B（能力 40、速度 2.0、政府標案可用） |
+| Mac Studio（512GB） | 約 NT$30 萬 | 70 | 3 天 | 解鎖 GLM-5.3（能力 50、速度 2.8、cn） |
 
 - 申請花 1h（`HW_REQ_HRS`），同時只能一張（`S.hwReq`），到貨日超過第 20 天不能申請。到貨當天早上（團隊席位審核之後）看當天信任：夠就裝好（`S.hw`），當天少 1h 架設（`HW_SETUP_HRS`，平行模式 10:00 開工）；不夠就退件、不扣分、可再申請。
 - 買了任何一台，本地跑 agent 時還能手寫（`manualBlocked`）；本地 GPU 仍然一次只跑一個 agent。
@@ -559,7 +564,7 @@ SDD Lv2 平衡實測（2026-10-10，`SIM_N=100`，每格 300 局，`SIM_SEED=101
 | 等級 | token | 時間 | 抓錯率 |
 |---|---|---|---|
 | 不審核 | ×1.0 | ×1.0 | 0 |
-| 自審 | ×1.3 | ×1.2 | `0.45 + 0.08 × cap` |
+| 自審 | ×1.3 | ×1.2 | `0.45 + 0.08 × cap ÷ 10`（寫成除以 `CAP_SCALE`，不改係數，浮點結果才跟原本逐位相同） |
 | 嚴格審核 | ×1.6 | ×1.35 | 自審 +0.2，上限 0.95 |
 
 - 是否失敗、是否被抓到在 `makeJob` 派工當下就擲骰決定。
@@ -681,11 +686,11 @@ Pro 500 每一格都比 Pro 200 差（平行 12k 時 −5.2%～−8.3%、20k 時
 | 模組 | 內容 |
 |---|---|
 | `main.js` | 入口：`app` 上的事件委派（用 `data-*` 屬性分派）、開局，載入時呼叫一次 `boot()`：`firstIssues`、`start`、`boot` |
-| `data.js` | 資料與工具函式，沒有狀態（顯示欄位是讀字典的 getter）：`GAME_VERSION`、`POOL_KEYS`、`poolOf`、`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP`、`SDD_NAME`、`SDD_EG`、`sddDesc`、`INV_KEYS`、`HOOK_PR`、`SCAN_AUDIT`、`FASTLANE_REJECT`、`MONITOR_LATE`、`MONITOR_KPI`、`HW`、`HW_KEYS`、`PC_SPEED`、`HW_REQ_HRS`、`HW_SETUP_HRS`、`HW_IDLE`；規則係數 `CATCH`、`REVEAL`、`BIG`、`RETRY`、`MANUAL_HRS`、`UNFAMILIAR_HRS`、`STACK_HRS`、`STORE_RATE`、`INC_KPI`、`HARD_KPI`、`LATE_KPI`、`CONFLICT`、`CI_CONFLICT`、`PR_HRS`、`PR_REVIEWED`、`EVAL_HRS`、`MCP_EVAL_HRS`、`RESCOPE`、`RESEARCH_DIRECT_TK`、`RESEARCH_TK`、`RESEARCH_HRS`、`RESEARCH_SELF_HRS`、`RESEARCH_SPLIT`（`SEAT.review` 是席位審核天數）、`lv`、`SKILLS_CX`、`CONF_CATS`、`CONF`、`CONF_KEYS`、`CONF_LV2`、`CONF_LAST_DAY`、`CONF_MANUAL`、`AI_P`、`AI_MAX` |
+| `data.js` | 資料與工具函式，沒有狀態（顯示欄位是讀字典的 getter）：`GAME_VERSION`、`CAP_SCALE`、`WEAK_CAP`、`POOL_KEYS`、`poolOf`、`VENDORS`、`SUBV`、`APIV`、`objOf`、`CLIENTS`、`pickClient`、`banOf`、`cnBlock`、`SEAT`、`BASE`、`KPI`、`STACKS`、`COMPANIES`、`normCompanies`、`companyName`、`bestKey`、`rnd`、`kt`、`h1`、`vc`、`model`、`EFFORT`、`effModel`、`efOf`、`planOf`、`PN`、`DEFAULT_PRESETS`、`BILL_LABEL`、`validPreset`、`presetsOf`、`INVEST`、`MD_TK`、`MD_P`、`TEST_CATCH`、`MCP_REVEAL`、`SDD_TK`、`SDD_P`、`SDD_TRAP_STOP`、`SDD_NAME`、`SDD_EG`、`sddDesc`、`INV_KEYS`、`HOOK_PR`、`SCAN_AUDIT`、`FASTLANE_REJECT`、`MONITOR_LATE`、`MONITOR_KPI`、`HW`、`HW_KEYS`、`PC_SPEED`、`HW_REQ_HRS`、`HW_SETUP_HRS`、`HW_IDLE`；規則係數 `CATCH`、`REVEAL`、`BIG`、`RETRY`、`MANUAL_HRS`、`UNFAMILIAR_HRS`、`STACK_HRS`、`STORE_RATE`、`INC_KPI`、`HARD_KPI`、`LATE_KPI`、`CONFLICT`、`CI_CONFLICT`、`PR_HRS`、`PR_REVIEWED`、`EVAL_HRS`、`MCP_EVAL_HRS`、`RESCOPE`、`RESEARCH_DIRECT_TK`、`RESEARCH_TK`、`RESEARCH_HRS`、`RESEARCH_SELF_HRS`、`RESEARCH_SPLIT`（`SEAT.review` 是席位審核天數）、`lv`、`SKILLS_CX`、`CONF_CATS`、`CONF`、`CONF_KEYS`、`CONF_LV2`、`CONF_LAST_DAY`、`CONF_MANUAL`、`AI_P`、`AI_MAX` |
 | `state.js` | `S`（全部遊戲狀態，`fresh()` 初始化）、`sel`（派工台目前選擇）、工單編號、陷阱比例、工單產生、GA 事件、存檔：`S`、`sel`、`uid`、`nextId`、`resetIds`、`fresh`、`track`、`SAVE_KEY`、`SAVE_VER`、`saveGame`、`clearSave`、`readSave`、`loadGame`、`daySnap`、`pickStack`、`TRAP_RATE`、`setTrapRate`、`RESEARCH_RATE`、`setResearchRate`、`hardStack`、`unfamiliar`、`makeIssue`、`issueTitle`、`GIG_PAY`、`GIG_LATE`、`GIG_STACKS`、`GIG_CLIENT`、`makeGig`、`addGigs`、`START`（起始錢包、公司預算、信任、每日工時）、`confStacks`、`confCat`、`confCount` |
-| `calc.js` | 計算（`est(is, v, mid, rv, ef, sd)` 會套推理強度與 SDD 等級）：`sddLevel`、`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`hasHw`、`manualBlocked`、`hwBlock`、`localSpeed`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`prefBill`、`log`、`P_STEP`（成功率階梯） |
+| `calc.js` | 計算（`est(is, v, mid, rv, ef, sd)` 會套推理強度與 SDD 等級）：`pStep`（成功率錨點內插）、`sddLevel`、`quotaLeft`、`useQuota`、`REVIEW`、`catchRate`、`conventional`、`STORE_REJECT`、`storeReject`、`stackGap`、`stackHrs`、`stackHint`、`localBusy`、`hasHw`、`manualBlocked`、`hwBlock`、`localSpeed`、`manualHrs`、`est`、`GIG_NOTE`、`gigBlocked`、`bills`（`bills(v, is)`，傳工單才會套外包限制）、`costLine`、`presetBlock`、`presetFor`、`prefBill`、`log`、`P_STEP`（成功率階梯） |
 | `actions.js` | 動作（`settle` 是結算與成敗的地方；`charge` 是派工與評估共用的扣款）：`PAR`、`queueOrder`、`SLOT_CHOICES`、`clock`、`TRAP_STOP`、`TRAP_NOTE`、`hiddenTrap`、`trueView`、`reveal`、`makeJob`、`RV_ID`、`SDD_ID`、`jobChoice`、`billOk`、`dispatch`、`canQuick`、`quick`、`loadPreset`、`savePreset`、`conflictRate`、`REVIEW_LOAD`、`reviewLoad`、`prHrs`、`advance`、`cancelJobs`、`CANCEL_MIN`、`cancelFrac`、`cancelJob`、`charge`、`auditRisk`、`auditOdds`、`auditRoll`、`checkOverdraft`、`reward`、`settle`、`wait`、`manual`、`EVAL_TK`、`canEvaluate`、`evalCost`、`revealRate`、`evaluate`、`RESCOPE_TRUST`、`rescope`、`researchCost`、`selfResearchHrs`、`researchBlock`、`splitResearch`、`research`、`invCount`、`investBlock`、`invest`、`hwReqBlock`、`requestHw`、`useHw`、`batch`、`INV_STACKS`、`invHint`、`EVENTS`、`INC_RATE`、`INC_RAMP`、`incRate`、`intakeIssue`、`daySum`、`sumDelta`、`daySummary`、`dayStartLine`、`endDay`、`who`、`ev`、`AUDIT_ODDS`、`AUDIT_TRUST`、`OVERDRAFT_TRUST`、`CORP_DAY_LIMIT`、`CORP_DAY_TRUST`、`LATE_TRUST`、`INC_LATE_TRUST`、`EVENT_RATE`、`OVERNIGHT_HRS`、`PACE_KPI`、`PRAISE_TRUST`、`DOUBT_TRUST`、`invLevel`、`invMax`、`invCost`、`invLock`、`confBlock`、`registerConf`、`attendConf` |
-| `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`cancelArm`、`armCancel`、`cancelBtn`、`quickBtn`、`sddRow`、`invPanel`、`tab`、`setTab`、`tabPanel`（派工台／工程投資分頁）、`hwRow`、`qbox`、`logLines`（執行紀錄與「剛剛」共用的紀錄行）、`DP_RECENT`、`presetIs`、`dispatchPanel`、`confRow`、`langSwitch`、`dayDock`（畫面底部的動作列：等待、調整訂閱、下班） |
+| `view.js` | 畫面（`render` 整頁重繪成字串）與 DOM 節點 `app`／`ov`／`mo`：`app`、`ov`、`mo`、`render`、`cancelArm`、`armCancel`、`cancelBtn`、`quickBtn`、`sddRow`、`invPanel`、`tab`、`setTab`、`tabPanel`（派工台／工程投資分頁）、`hwRow`、`qbox`、`logLines`（執行紀錄與「剛剛」共用的紀錄行）、`DP_RECENT`、`presetIs`、`dispatchPanel`、`confRow`、`langSwitch`、`capBar`（能力條）、`dayDock`（畫面底部的動作列：等待、調整訂閱、下班） |
 | `modals.js` | 彈窗（`showSetup` 含公司與模式選擇）與開局草稿 `draft`：`draft`、`planPicker`、`planCost`、`toggleCompany`、`showSetup`、`showDay`、`showResume`、`showBadSave`、`planShort`、`monthScore`、`showEnd`、`SCORE`、`GRADES`、`PAR_GRADE` |
 | `rules.js` | 規則 modal（`showRules(back)`，`back` 是關閉後回到原彈窗的函式）與六個分頁的內容（`rulesTab(id)`），數字全部從其他模組的常數插值：`RULE_TABS`、`ruleTab`（只在這個模組改）、`pct`、`rtag`、`rtable`、`rlist`、`rsec`、`rulesTab`、`showRules` |
 

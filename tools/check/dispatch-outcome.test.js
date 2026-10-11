@@ -3,7 +3,7 @@ import {ok,near,section,newRun,ticket,withRand,job} from './lib.js';
 import {els} from '../fake-dom.js';
 import {model} from '../../public/js/data.js';
 import {S,sel} from '../../public/js/state.js';
-import {costLine,est} from '../../public/js/calc.js';
+import {costLine,est,pStep} from '../../public/js/calc.js';
 import {dispatch,makeJob,settle} from '../../public/js/actions.js';
 import {render} from '../../public/js/view.js';
 
@@ -54,4 +54,9 @@ section("dispatch-outcome：成功率表",()=>{
   ok(warn(els.app.innerHTML)==='工作槽都滿了，先等一個 agent 跑完。','dispatch-outcome：工作槽滿先於到期');
   tz.due=S.day+2; S.jobs=[]; render(); ok(warn(els.app.innerHTML)==='今天跑不完，agent 會跑過夜，明早才有結果。','dispatch-outcome：跑過夜警告');
   }
+});
+
+section("dispatch-outcome：能力差距不是 10 的倍數時線性內插",()=>{
+  for(const [gap,exp] of [[30,.95],[10,.95],[5,.875],[0,.8],[-5,.65],[-15,.375],[-25,.175],[-30,.1],[-40,.1]])
+    ok(near(pStep(gap),exp),`dispatch-outcome：能力差 ${gap} → ${exp*100}%`,pStep(gap));
 });

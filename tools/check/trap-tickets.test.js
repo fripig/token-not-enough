@@ -1,7 +1,7 @@
 // trap-tickets 的規則檢查：docs/spectra/specs/trap-tickets/spec.md
 import {ok,near,section,newRun,ticket} from './lib.js';
 import {els} from '../fake-dom.js';
-import {BASE,KPI,STACKS,model,rnd} from '../../public/js/data.js';
+import {BASE,KPI,STACKS,VENDORS,model,rnd} from '../../public/js/data.js';
 import {S,makeIssue,sel} from '../../public/js/state.js';
 import {est,quotaLeft} from '../../public/js/calc.js';
 import {charge,evaluate,makeJob,manual,rescope,reveal,revealRate,settle} from '../../public/js/actions.js';
@@ -70,8 +70,8 @@ section("trap 2.3 評估架構",()=>{
   newRun('laravel'); let ev=ticket('laravel',2); let w1=S.wallet, h1v=S.hours;
   evalWith(ev,'anthropic','sonnet','api',.5);
   ok(near(w1-S.wallet,40*.45)&&near(h1v-S.hours,.4)&&ev.evaluated&&!ev.revealed,'Sonnet 個人 API 評估：扣 40k token（NT$18）、花 0.4h、標記已評估');
-  const capM={2:['google','flash'],3:['deepseek','chat'],4:['anthropic','sonnet'],5:['anthropic','opus']};
-  for(const [cap,rate] of [[2,.65],[3,.8],[4,.95],[5,.95]]){
+  const capM={20:['google','flash'],30:['deepseek','chat'],40:['anthropic','sonnet'],50:['anthropic','opus']};
+  for(const [cap,rate] of [[20,.65],[30,.8],[40,.95],[50,.95]]){
     const [v,m]=capM[cap]; ok(near(revealRate(model(v,m)),rate),`能力 ${cap} 識破率 ${rate}`);
     newRun('laravel'); let a=trapT(); evalWith(a,v,m,'api',rate-.01); ok(a.revealed&&S.st.trapFound===1,`能力 ${cap}：亂數 ${(rate-.01).toFixed(2)} 時識破`);
     newRun('laravel'); a=trapT(); evalWith(a,v,m,'api',rate+.001); ok(!a.revealed&&a.evaluated,`能力 ${cap}：亂數略高於識破率時沒識破`);
@@ -140,4 +140,16 @@ section("trap 3.2 結算計數",()=>{
   /* trap 3.2 結算計數 */
   newRun('laravel'); S.st.trapHit=1; S.st.trapFound=2; S.day=20; showEnd();
   ok(els.mo.innerHTML.includes('<span>踩到陷阱</span><span>1 次</span>')&&els.mo.innerHTML.includes('<span>事先識破</span><span>2 次</span>'),'結算顯示踩到陷阱 1 次、事先識破 2 次');
+});
+
+section("trap：能力不是 10 的倍數",()=>{
+  newRun('laravel');
+  ok(near(revealRate({cap:25}),.725)&&near(revealRate({cap:45}),.95),'能力 25 識破率 0.725、能力 45 識破率到上限 0.95',[revealRate({cap:25}),revealRate({cap:45})].join());
+  /* 能力 45 的模型碰到真實複雜度 5 的陷阱仍然停下來（45 < 50），真實複雜度 4 則硬做完 */
+  const ms=VENDORS.anthropic.models; ms.push({id:'mid45',name:'Mid45',cap:45,price:.5,w:1,speed:1,verb:1});
+  try{
+    Object.assign(sel,{v:'anthropic',m:'mid45',b:'corp',rv:0});
+    const j5=makeJob(trapT({trueCx:5,trueBase:BASE[5]})), j4=makeJob(trapT());
+    ok(j5.stop&&!j4.stop,'能力 45 對真實複雜度 5 的陷阱停下、對 4 硬做完',[j5.stop,j4.stop].join());
+  }finally{ ms.pop(); }
 });

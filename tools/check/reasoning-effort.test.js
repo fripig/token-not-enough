@@ -32,9 +32,9 @@ section("reasoning-effort：推理強度對模型的影響",()=>{
   /* reasoning-effort：推理強度對模型的影響 */
   const son=model('anthropic','sonnet'), hai=model('google','flash'), opu=model('anthropic','opus');
   ok(effModel(son,1)===son,'中強度回傳原本的模型物件');
-  ok(effModel(hai,0).cap===1&&effModel(opu,2).cap===6&&effModel(model('anthropic','fable'),2).cap===7,'Gemini Flash 低強度能力 1、Opus 高強度能力 6、Fable 高強度能力 7');
+  ok(effModel(hai,0).cap===10&&effModel(opu,2).cap===60&&effModel(model('anthropic','fable'),2).cap===70,'Gemini Flash 低強度能力 10、Opus 高強度能力 60、Fable 高強度能力 70');
   const sh=effModel(son,2); ok(sh.price===son.price&&sh.w===son.w&&sh.name==='Sonnet・高強度','高強度不改價格與額度權重，名稱 Sonnet・高強度',sh.name);
-  ok(EFFORT.map(f=>[f.cap,f.tk,f.hrs].join('/')).join()==='-1/0.7/0.8,0/1/1,1/1.5/1.4','EFFORT 倍率');
+  ok(EFFORT.map(f=>[f.cap,f.tk,f.hrs].join('/')).join()==='-10/0.7/0.8,0/1/1,10/1.5/1.4','EFFORT 倍率');
   newRun('laravel'); S.advanced=true; const t44=ticket('laravel',4);
   const [eL,eM,eH]=[0,1,2].map(f=>est(t44,'anthropic','sonnet',0,f));
   ok(near(eL.p,.5)&&near(eM.p,.8)&&near(eH.p,.95),'Sonnet 對複雜度 4 Laravel 單：低 50%、中 80%、高 95%',[eL.p,eM.p,eH.p].join());
@@ -46,7 +46,7 @@ section("reasoning-effort：推理強度對模型的影響",()=>{
   /* 高強度硬做陷阱 */
   newRun('laravel'); S.advanced=true; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0,ef:2});
   const tp=ticket('laravel',1,{trap:true,trueCx:5,trueBase:BASE[5],revealed:false,evaluated:false});
-  let jb=makeJob(tp); ok(!jb.stop&&jb.M.cap===5,'高強度 Sonnet 對真實複雜度 5 的陷阱不會停下');
+  let jb=makeJob(tp); ok(!jb.stop&&jb.M.cap===50,'高強度 Sonnet 對真實複雜度 5 的陷阱不會停下');
   const eT=f=>est(trueView(tp),'anthropic','sonnet',0,f), tv5=trueView(tp);
   ok(tv5.cx===5&&near(eT(2).tk/eT(1).tk,1.5)&&near(eT(2).hrs/eT(1).hrs,1.4)&&near(eT(1).hrs,5*model('anthropic','sonnet').speed),'陷阱照真實複雜度 5 估算，高強度 token ×1.5、時數 ×1.4');
   ok(jb.tk>=eT(2).tk*.7-1e-9&&jb.tk<=eT(2).tk*1.3+1e-9&&jb.hrs>=eT(2).hrs*.8-1e-9&&jb.hrs<=eT(2).hrs*1.2+1e-9,'高強度硬做陷阱的 token 與時數落在高強度估算的隨機範圍內');

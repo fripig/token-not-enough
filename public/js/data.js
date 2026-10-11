@@ -7,26 +7,26 @@ export const GAME_VERSION='dev';
 export const VENDORS={
   anthropic:{name:'Anthropic',agent:'Claude Code',vc:'--anth',corp:true,
     plans:[{id:'none',get name(){return t('plan.none');},price:0},{id:'pro',name:'Pro',price:650,day:450,week:1800},{id:'max5',name:'Max 5×',price:3300,day:2200,week:9000},{id:'max20',name:'Max 20×',price:6500,day:9000,week:36000}],
-    models:[{id:'haiku',name:'Haiku',cap:3,price:.15,w:.3,speed:.7,verb:.9},{id:'sonnet',name:'Sonnet',cap:4,price:.45,w:1,speed:.8,verb:1},{id:'opus',name:'Opus',cap:5,price:.9,w:2,speed:1,verb:.85},{id:'fable',name:'Fable',cap:6,price:1.8,w:4,speed:1.2,verb:.85}]},
+    models:[{id:'haiku',name:'Haiku',cap:30,price:.15,w:.3,speed:.7,verb:.9},{id:'sonnet',name:'Sonnet',cap:40,price:.45,w:1,speed:.8,verb:1},{id:'opus',name:'Opus',cap:50,price:.9,w:2,speed:1,verb:.85},{id:'fable',name:'Fable',cap:60,price:1.8,w:4,speed:1.2,verb:.85}]},
   openai:{name:'OpenAI',agent:'Codex CLI',vc:'--oai',corp:false,
     plans:[{id:'none',get name(){return t('plan.none');},price:0},{id:'plus',name:'Plus',price:650,day:500,week:2000},{id:'pro',name:'Pro 200',price:6500,day:8000,week:30000},{id:'pro500',name:'Pro 500',price:16250,day:12500,week:50000}],
-    models:[{id:'mini',name:'Luna',cap:3,price:.15,w:.3,speed:.7,verb:1},{id:'std',name:'Sol',cap:4,price:.4,w:1,speed:.8,verb:1.05},{id:'high',name:'Astra',cap:5,price:1.6,w:3,speed:1,verb:.95}]},
+    models:[{id:'mini',name:'Luna',cap:30,price:.15,w:.3,speed:.7,verb:1},{id:'std',name:'Sol',cap:40,price:.4,w:1,speed:.8,verb:1.05},{id:'high',name:'Astra',cap:50,price:1.6,w:3,speed:1,verb:.95}]},
   google:{name:'Google',agent:'Gemini CLI',vc:'--goog',corp:true,
     plans:[{id:'none',get name(){return t('plan.none');},price:0},{id:'aipro',name:'AI Pro',price:650,day:700,week:2800},{id:'ultra',name:'Ultra',price:8000,day:10000,week:40000}],
-    models:[{id:'flash',name:'Flash',cap:2,price:.06,w:.25,speed:.4,verb:1.1,ctx:true},{id:'pro',name:'Pro',cap:4,price:.35,w:1,speed:.9,verb:1,ctx:true}]},
+    models:[{id:'flash',name:'Flash',cap:20,price:.06,w:.25,speed:.4,verb:1.1,ctx:true},{id:'pro',name:'Pro',cap:40,price:.35,w:1,speed:.9,verb:1,ctx:true}]},
   deepseek:{name:'DeepSeek',get agent(){return t('agent.deepseek');},vc:'--dsk',corp:false,cn:true,
     plans:[{id:'none',get name(){return t('plan.none');},price:0}],
-    models:[{id:'chat',name:'Chat',cap:3,price:.03,w:1,speed:.7,verb:1.15},{id:'reasoner',name:'Reasoner',cap:4,price:.06,w:1,speed:1.2,verb:1.5}]},
+    models:[{id:'chat',name:'Chat',cap:30,price:.03,w:1,speed:.7,verb:1.15},{id:'reasoner',name:'Reasoner',cap:40,price:.06,w:1,speed:1.2,verb:1.5}]},
   zhipu:{get name(){return t('vendor.zhipu');},get agent(){return t('agent.zhipu');},vc:'--glm',corp:false,cn:true,
     plans:[{id:'none',get name(){return t('plan.none');},price:0},{id:'lite',name:'Lite',price:100,day:1500,week:6000},{id:'pro',name:'Pro',price:500,day:6000,week:24000}],
-    models:[{id:'air',name:'GLM Air',cap:3,price:.04,w:.5,speed:.6,verb:1.1},{id:'glm',name:'GLM',cap:4,price:.1,w:1,speed:.9,verb:1.1}]},
+    models:[{id:'air',name:'GLM Air',cap:30,price:.04,w:.5,speed:.6,verb:1.1},{id:'glm',name:'GLM',cap:40,price:.1,w:1,speed:.9,verb:1.1}]},
   moonshot:{name:'Kimi',agent:'Kimi CLI',vc:'--kimi',corp:false,cn:true,
     plans:[{id:'none',get name(){return t('plan.none');},price:0},{id:'member',get name(){return t('plan.member');},price:300,day:1500,week:6000}],
-    models:[{id:'k2',name:'K2',cap:4,price:.12,w:1,speed:.9,verb:1.2}]},
+    models:[{id:'k2',name:'K2',cap:40,price:.12,w:1,speed:.9,verb:1.2}]},
   local:{get name(){return t('vendor.local');},get agent(){return t('agent.local');},vc:'--local',corp:false,plans:[],
     /* 基本款不用買電腦；id 沿用舊名，存檔、派工方案與 GA 不受影響。hw 標記要先買哪台電腦（見 HW） */
-    models:[{id:'qwen',name:'Qwen3.6 35B-A3B',cap:3,price:0,w:0,speed:1.7,verb:1.3,cn:true},{id:'gemma',name:'Gemma 4 26B A4B',cap:3,price:0,w:0,speed:1.9,verb:1.25},{id:'oss',name:'Gemma 4 E4B',cap:2,price:0,w:0,speed:1.8,verb:1.2},
-      {id:'qcnext',name:'Qwen3-Coder-Next',cap:4,price:0,w:0,speed:1.4,verb:1.2,cn:true,hw:'spark'},{id:'gemma4',name:'Gemma 4 31B',cap:4,price:0,w:0,speed:2,verb:1.2,hw:'spark'},{id:'glm53',name:'GLM-5.3',cap:5,price:0,w:0,speed:2.8,verb:1,cn:true,hw:'mac'}]}
+    models:[{id:'qwen',name:'Qwen3.6 35B-A3B',cap:30,price:0,w:0,speed:1.7,verb:1.3,cn:true},{id:'gemma',name:'Gemma 4 26B A4B',cap:30,price:0,w:0,speed:1.9,verb:1.25},{id:'oss',name:'Gemma 4 E4B',cap:20,price:0,w:0,speed:1.8,verb:1.2},
+      {id:'qcnext',name:'Qwen3-Coder-Next',cap:40,price:0,w:0,speed:1.4,verb:1.2,cn:true,hw:'spark'},{id:'gemma4',name:'Gemma 4 31B',cap:40,price:0,w:0,speed:2,verb:1.2,hw:'spark'},{id:'glm53',name:'GLM-5.3',cap:50,price:0,w:0,speed:2.8,verb:1,cn:true,hw:'mac'}]}
 };
 export const SUBV=Object.keys(VENDORS).filter(v=>VENDORS[v].plans.length>1);
 export const APIV=Object.keys(VENDORS).filter(v=>v!=='local');
@@ -77,12 +77,14 @@ export const nt=n=>(n<0?'-':'')+'NT$'+Math.round(Math.abs(n)).toLocaleString('en
 export const kt=k=>{if(k<1000)return Math.round(k)+'k'; const m=(k/1000).toFixed(1); return (+m>=10?m.replace(/\.0$/,''):m)+'M';}; // 留一位小數；四捨五入後 10M 以上結尾 .0 拿掉
 export const h1=x=>(Math.round(x*10)/10).toFixed(1);
 export const vc=v=>`var(${VENDORS[v].vc})`;
+/* 能力是 ×10 的整數（Sonnet 40），跟工單複雜度比時複雜度 ×CAP_SCALE；能力低於 WEAK_CAP 算弱模型（Rust、大型 codebase） */
+export const CAP_SCALE=10, WEAK_CAP=40;
 export const model=(v,m)=>VENDORS[v].models.find(x=>x.id===m);
 /* 推理強度（進階模式）：套在選到的模型上，越強越貴也越慢；中＝原本的模型 */
-export const EFFORT=[{id:'low',get name(){return t('effort.low');},cap:-1,tk:.7,hrs:.8},{id:'mid',get name(){return t('effort.mid');},cap:0,tk:1,hrs:1},{id:'high',get name(){return t('effort.high');},cap:1,tk:1.5,hrs:1.4}];
+export const EFFORT=[{id:'low',get name(){return t('effort.low');},cap:-10,tk:.7,hrs:.8},{id:'mid',get name(){return t('effort.mid');},cap:0,tk:1,hrs:1},{id:'high',get name(){return t('effort.high');},cap:10,tk:1.5,hrs:1.4}];
 export function effModel(M,ef){
   if(ef===1) return M; const E=EFFORT[ef];
-  return {...M,cap:Math.max(1,M.cap+E.cap),verb:M.verb*E.tk,speed:M.speed*E.hrs,name:t('effort.model',{m:M.name,e:E.name})};
+  return {...M,cap:Math.max(CAP_SCALE,M.cap+E.cap),verb:M.verb*E.tk,speed:M.speed*E.hrs,name:t('effort.model',{m:M.name,e:E.name})};
 }
 export const efOf=ef=>S.advanced&&EFFORT[ef]?ef:1;
 export const planOf=v=>VENDORS[v].plans.find(p=>p.id===S.subs[v])||{id:'none',price:0,day:0,week:0};
@@ -142,7 +144,7 @@ export const CONF_LAST_DAY=15, CONF_MANUAL=.8, AI_P=.08, AI_MAX=3;  // 第 15 �
 /* 投資等級：舊存檔與舊寫法的 true 算 1 級 */
 export const lv=x=>x===true?1:(x|0);
 /* 規則係數（規則 modal 也讀這些） */
-export const CATCH={base:.45,per:.08,strict:.2,max:.95};          // 自我審核抓錯率 = base + per × 能力（嚴格 +strict）
+export const CATCH={base:.45,per:.08,strict:.2,max:.95};          // 自我審核抓錯率 = base + per × 能力 ÷ CAP_SCALE（嚴格 +strict）
 export const REVEAL={base:.35,per:.15,max:.95};                     // 評估架構識破率
 export const BIG={p:.08,tk:.7};                                     // 大型 codebase：成功率 ±p、ctx 模型 token ×tk
 export const RETRY={tk:.7,hrs:.8};                                  // 失敗後重做的 token 與時間折扣

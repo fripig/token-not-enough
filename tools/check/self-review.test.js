@@ -37,3 +37,8 @@ section("self-review：審核等級與抓錯率",()=>{
   ok(!rs.ok&&rs.rejected&&S.issues.includes(ts),'self-review：抓到錯誤後仍可能被 App Store 退件');
   }
 });
+
+section("self-review：能力 45 的抓錯率",()=>{
+  newRun('laravel');
+  ok(near(catchRate(1,{cap:45}),.81)&&near(catchRate(2,{cap:45}),.95),'self-review：能力 45 自審 81%、嚴格審核 95%',[catchRate(1,{cap:45}),catchRate(2,{cap:45})].join());
+});

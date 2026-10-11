@@ -1,4 +1,4 @@
-import {BIG,CATCH,MANUAL_HRS,RESEARCH_DIRECT_TK,RETRY,STACK_HRS,UNFAMILIAR_HRS,FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,cnBlock,effModel,efOf,kt,model,planOf,AI_P,CONF_MANUAL,lv} from './data.js';
+import {BIG,CATCH,MANUAL_HRS,RESEARCH_DIRECT_TK,RETRY,STACK_HRS,UNFAMILIAR_HRS,FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,CAP_SCALE,WEAK_CAP,cnBlock,effModel,efOf,kt,model,planOf,AI_P,CONF_MANUAL,lv} from './data.js';
 import {S,sel,unfamiliar,confStacks} from './state.js';
 import {PAR} from './actions.js';
 import {t} from './i18n.js';
@@ -13,20 +13,20 @@ export function useQuota(kind,v,x){const u=S.used[kind][v];u.d+=x;u.w+=x;}
 
 /* 自我審核：多花 token 與時間，agent 改壞時有機會當場抓到並修正，避免整單重做 */
 export const REVIEW=[{get name(){return t('review.0');},tk:1,hrs:1},{get name(){return t('review.1');},tk:1.3,hrs:1.2},{get name(){return t('review.2');},tk:1.6,hrs:1.35}];
-export const catchRate=(rv,M)=>rv===0?0:Math.min(CATCH.max,CATCH.base+CATCH.per*M.cap+(rv===2?CATCH.strict:0)+TEST_CATCH[lv(S.inv.tests)]);
+export const catchRate=(rv,M)=>rv===0?0:Math.min(CATCH.max,CATCH.base+CATCH.per*M.cap/CAP_SCALE+(rv===2?CATCH.strict:0)+TEST_CATCH[lv(S.inv.tests)]);
 /* 技術線效果：只看技術線本身的特性，不替各家模型設「誰比較會」的分數 */
 export const conventional=is=>(is.stack==='laravel'||is.stack==='rails')&&is.cx<=3; // 框架慣例多
 export const STORE_REJECT=.2;                                                       // App Store 退件機率
 export const storeReject=()=>S.inv.fastlane?FASTLANE_REJECT:STORE_REJECT;          // 有上架自動化時降低
 export function stackGap(is,M){
-  if(conventional(is)) return 1;
-  if(is.stack==='rust'&&M.cap<4) return -1;                            // borrow checker
+  if(conventional(is)) return CAP_SCALE;
+  if(is.stack==='rust'&&M.cap<WEAK_CAP) return -CAP_SCALE;                            // borrow checker
   return 0;
 }
 export const stackHrs=is=>STACK_HRS[is.stack]||1;     // 編譯測試、模擬器、CI 與 terraform
 export function stackHint(is){
   if(conventional(is)) return t('hint.conv',{st:STACKS[is.stack].name});
-  if(is.stack==='rust') return t('hint.rust',{x:stackHrs(is)});
+  if(is.stack==='rust') return t('hint.rust',{x:stackHrs(is),w:WEAK_CAP});
   if(is.stack==='app') return t('hint.app',{x:stackHrs(is),store:is.store?t('hint.appStore',{p:Math.round(storeReject()*100)}):''});
   if(is.stack==='devops') return t('hint.devops',{x:stackHrs(is)});
   if(is.stack==='sre') return t('hint.sre');
@@ -42,16 +42,20 @@ export const hwBlock=M=>M.hw&&!S.hw[M.hw]?t('why.needHw',{name:HW[M.hw].name}):'
 export const localSpeed=v=>v==='local'&&S.hw.pc?PC_SPEED:1;
 export const manualHrs=is=>is.cx*MANUAL_HRS*(is.tries?RETRY.hrs:1)*(unfamiliar(is)?UNFAMILIAR_HRS:1)*(confStacks().has(is.stack)?CONF_MANUAL:1);
 /* 進階模式的推理強度套在模型上；能力超過工單的 token 折扣看原本的模型 */
-/* 成功率階梯：能力差 ≥1、0、−1、−2、更低 */
+/* 成功率錨點：能力差 +10、0、−10、−20、−30（能力 ×10 的刻度），中間線性內插、兩端截平 */
 export const P_STEP=[.95,.8,.5,.25,.1];
+export function pStep(gap){
+  const x=Math.min(P_STEP.length-1,Math.max(0,(CAP_SCALE-gap)/CAP_SCALE)), i=Math.floor(x);
+  return i>=P_STEP.length-1?P_STEP[i]:P_STEP[i]+(P_STEP[i+1]-P_STEP[i])*(x-i);
+}
 /* SDD 套用的等級：選的等級（沒選當 2）和已買的等級取小的 */
 export const sddLevel=(req=sel.sdd)=>Math.min(req??2,lv(S.inv.sdd));
 export function est(is,v,mid,rv=sel.rv,ef=sel.ef,sd=sel.sdd){
-  const M0=model(v,mid), M=effModel(M0,efOf(ef)), raw=M.cap-is.cx, diff=raw+stackGap(is,M);
+  const M0=model(v,mid), M=effModel(M0,efOf(ef)), raw=M.cap-is.cx*CAP_SCALE, diff=raw+stackGap(is,M);
   const md=lv(S.inv.md[is.stack]), sdd=sddLevel(sd);
-  const tk=is.base*M.verb*(is.big&&M.ctx?BIG.tk:1)*(M0.cap-is.cx>=1?.85:1)*REVIEW[rv].tk*(md?MD_TK:1)*SDD_TK[sdd]*(is.research?RESEARCH_DIRECT_TK:1);
-  let p=P_STEP[Math.min(4,Math.max(0,1-diff))];
-  if(is.big&&M.ctx)p+=BIG.p; if(is.big&&!M.ctx&&M.cap<4)p-=BIG.p;
+  const tk=is.base*M.verb*(is.big&&M.ctx?BIG.tk:1)*(M0.cap-is.cx*CAP_SCALE>=CAP_SCALE?.85:1)*REVIEW[rv].tk*(md?MD_TK:1)*SDD_TK[sdd]*(is.research?RESEARCH_DIRECT_TK:1);
+  let p=pStep(diff);
+  if(is.big&&M.ctx)p+=BIG.p; if(is.big&&!M.ctx&&M.cap<WEAK_CAP)p-=BIG.p;
   p+=MD_P[md]; if(is.cx>=3)p+=SDD_P[sdd]; p+=AI_P*lv(S.inv.ai);
   p=Math.max(.05,Math.min(.97,p));
   const c=catchRate(rv,M);
