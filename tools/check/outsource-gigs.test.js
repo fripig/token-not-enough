@@ -133,13 +133,20 @@ section("outsource-gigs：報酬、違約金、合併衝突、結算",()=>{
   newRun('laravel'); S.outsource=false; S.hours=0; S.wallet=100; const ng=gig('laravel',2,{due:S.day}); S.issues=[ng];
   Math.random=()=>.99; endDay(); Math.random=realRand;
   ok(S.wallet===-350&&!C.bills('anthropic',ticket('fe',1)).find(b=>b.id==='api').ok,'外包逾期違約金可以把錢包扣成負數（NT$100 → −NT$350），之後個人 API 停用',S.wallet);
+  newRun('laravel'); S.outsource=false; S.hours=0; S.day=20; S.trust=70; const fg=gig('laravel',2,{due:21}); S.issues=[fg];
+  const fw=S.wallet; Math.random=()=>.99; endDay(); Math.random=realRand;
+  ok(S.wallet===fw&&S.st.outPenalty===0&&S.st.outLate===0&&!S.log.some(l=>l.msg.includes('外包逾期')),'第 20 天下班：第 21 天到期的外包單不賠違約金、不算外包逾期',`${fw-S.wallet} ${S.st.outLate}`);
   newRun('laravel'); const tg=gig('laravel',1,{trap:true,revealed:true,shownCx:1,cx:4,trueCx:4}); S.issues=[tg]; sel.issue=tg.id; S.trust=70;
   ok(!dispatchPanel().includes('找主管重新評估'),'曝光的外包陷阱沒有找主管重新評估按鈕');
   rescope(); ok(S.trust===70&&!tg.rescoped,'外包單呼叫 rescope 不會有效果');
   newRun('laravel'); S.outsource=true; S.day=20;
   S.kpi=300; S.trust=50; Object.assign(S.st,{subFee:3300,api:1000,outIncome:7500,outPenalty:450,outDone:4,outLate:1}); showEnd(); let rc=els.mo.innerHTML;
-  ok(rc.includes('<span>你自己掏的錢</span><span>-NT$2,750</span>')&&rc.includes('<span>總分</span><span>3,200</span>'),'結算：你自己掏的錢 -NT$2,750，總分照 KPI 與信任算 3,200');
+  ok(rc.includes('<span>你自己掏的錢</span><span>NT$4,750</span>')&&rc.includes('<span>個人淨收支</span><span>+NT$2,750</span>')&&rc.includes('<span>總分</span><span>3,200</span>'),'結算：你自己掏的錢 NT$4,750（只算支出）、個人淨收支 +NT$2,750，總分照 KPI 與信任算 3,200');
   ok(rc.includes('<span>外包收入</span><span>NT$7,500</span>')&&rc.includes('<span>外包違約金</span><span>NT$450</span>')&&rc.includes('<span>外包完成</span><span>4 張</span>')&&rc.includes('<span>外包逾期</span><span>1 張</span>'),'結算列出四行外包資訊');
-  newRun('laravel'); S.outsource=false; S.day=20; showEnd(); ok(!els.mo.innerHTML.includes('外包收入'),'沒開外包時結算不顯示外包資訊');
+  for(const [spend,inc,net] of [[16386,68000,'+NT$51,614'],[4000,2000,'-NT$2,000'],[1500,1500,'±NT$0']]){
+    newRun('laravel'); S.outsource=true; S.day=20; Object.assign(S.st,{subFee:spend,api:0,outPenalty:0,confFee:0,outIncome:inc}); showEnd(); const h=els.mo.innerHTML;
+    ok(h.includes(`<span>你自己掏的錢</span><span>NT$${spend.toLocaleString('en-US')}</span>`)&&h.includes(`<span>個人淨收支</span><span>${net}</span>`),`結算：支出 NT$${spend}、外包收入 NT$${inc} → 個人淨收支 ${net}`);
+  }
+  newRun('laravel'); S.outsource=false; S.day=20; showEnd(); ok(!els.mo.innerHTML.includes('外包收入')&&!els.mo.innerHTML.includes('個人淨收支'),'沒開外包時結算不顯示外包資訊與個人淨收支');
   }
 });

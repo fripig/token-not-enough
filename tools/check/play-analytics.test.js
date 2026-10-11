@@ -97,6 +97,8 @@ section("派工與結果事件（gh-14-01-choice-analytics）",()=>{
   S.subs.anthropic='pro'; S.used.sub.anthropic.d=450; ok(res(job({b:'sub'}),{fail:true,cancel:true}).outcome==='cancelled','abort-agent：玩家中止時額度不夠仍是 cancelled');
   newRun('laravel','parallel'); {const j=job({left:1}); j.issue.running=true; S.jobs=[j]; ev.length=0; A.cancelJobs(()=>true,'到期還沒跑完，只好中止');
    ok(of('job_result')[0]?.p.outcome==='aborted','abort-agent：到期中止仍是 aborted');}
+  newRun('laravel','parallel'); {S.day=20; S.hours=0; const j=job({left:1}); j.issue.due=22; j.issue.running=true; S.jobs=[j]; ev.length=0; {const rr=Math.random; Math.random=()=>.99; endDay(); Math.random=rr;}
+   ok(of('job_result')[0]?.p.outcome==='cancelled','gh-44-01：月底收工 → cancelled',JSON.stringify(of('job_result').map(e=>e.p.outcome)));}
   newRun('laravel','serial');
   S.subs.anthropic='pro'; S.used.sub.anthropic.d=450; ok(res(job({b:'sub'})).outcome==='quota','choice-analytics：額度不夠 → quota');
   ok(res(job({ok:false,caught:true})).outcome==='caught','choice-analytics：審核抓到 → caught');

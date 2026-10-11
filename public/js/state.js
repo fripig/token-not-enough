@@ -95,7 +95,7 @@ export function makeIssue(inc,st){
   let cx;
   if(inc) cx=4; else { const r=Math.random()+S.day/20*.38; cx=r<.28?1:r<.6?2:r<.9?3:r<1.12?4:5; }
   const base=BASE[cx]*R(.85,1.15);
-  let due=inc?Math.min(20,S.day+(S.inv.monitor?1:0)):S.day+(cx<=2?1+rnd(3):2+rnd(4));
+  let due=inc?S.day+(S.inv.monitor?1:0):S.day+(cx<=2?1+rnd(3):2+rnd(4));
   const stack=st||(inc?pick(S.companies):pickStack());
   const trap=!inc&&cx<=2&&Math.random()<TRAP_RATE, trueCx=Math.random()<.6?4:5;
   /* 記下題庫位置（src），顯示時照目前語言查；亂數呼叫和原本的 pick 一樣 */
@@ -105,7 +105,7 @@ export function makeIssue(inc,st){
     store:stack==='app'&&cx>=2&&Math.random()<STORE_RATE,
     sens:Math.random()<(inc?.55:.25),big:cx>=3&&Math.random()<.45,
     client:inc?CLIENTS[0]:pickClient(),
-    due:Math.min(20,due+(!inc&&hardStack(stack)?1:0)),kpi:Math.round(KPI[cx]*(inc?(S.inv.monitor?MONITOR_KPI:INC_KPI):1)*(hardStack(stack)?HARD_KPI:1)),tries:0};
+    due:due+(!inc&&hardStack(stack)?1:0),kpi:Math.round(KPI[cx]*(inc?(S.inv.monitor?MONITOR_KPI:INC_KPI):1)*(hardStack(stack)?HARD_KPI:1)),tries:0};
   /* 研究單在所有既有亂數之後才擲；比例是 0 時不擲，亂數序列和沒有研究單時一樣 */
   if(RESEARCH_RATE>0&&!inc&&cx>=4&&Math.random()<RESEARCH_RATE){ const rp=STACKS[stack].pool.research, ri=rnd(rp.length), e=rp[ri]; Object.assign(is,{research:true,title:e.t,parts:[...e.parts],src:{k:stack,g:'research',i:ri}}); }
   return is;

@@ -163,6 +163,7 @@ export function dispatchPanel(){
   else if((sel.b==='sub'||sel.b==='seat')&&cl.hi>quotaLeft(sel.b,sel.v)) warn=t('ui.warn.quota');
   else if(PAR()&&S.jobs.length>=S.slots) warn=t('ui.warn.slots');
   else if(PAR()&&is.due<=S.day&&e.hrs+.2>S.hours) warn=t('ui.warn.late');
+  else if(PAR()&&S.day>=20&&e.hrs+.2>S.hours) warn=t('ui.warn.monthEnd');
   else if(PAR()&&e.hrs+.2>S.hours) warn=t('ui.warn.overnight');
   else if(!PAR()&&e.hrs*1.2>S.hours) warn=t('ui.warn.hours');
   else if(sel.b==='api'&&cl.hi>S.wallet) warn=t('ui.warn.wallet');

@@ -117,7 +117,7 @@ section("監控告警效果",()=>{
     S.day=20; ok(makeIssue(true).due===20,'沒有監控：第 20 天的事故單第 20 天到期'); S.day=5;
     S.inv.monitor=true; const m5=makeIssue(true); S.day=20; const m20=makeIssue(true);
     ok(q.kpi===Math.round(KPI[4]*1.6*(hardStack('laravel')?1.3:1))&&m5.kpi===Math.round(KPI[4]*1.2),'有監控：之後的事故單 KPI 加成 ×1.6 → ×1.2',`${q.kpi} ${m5.kpi}`);
-    ok(m5.due===6&&m20.due===20&&q.due===5,'有監控：第 5 天的事故單第 6 天到期、第 20 天仍是 20，已在佇列的不變',`${m5.due} ${m20.due}`);
+    ok(m5.due===6&&m20.due===21&&q.due===5,'有監控：第 5 天的事故單第 6 天到期、第 20 天的第 21 天到期，已在佇列的不變',`${m5.due} ${m20.due}`);
     const spike=EVENTS.find(f=>String(f).includes('ev.traffic'));
     newRun('laravel'); S.day=6; S.issues=[]; let txt=spike(); ok(txt[1].includes('今天下班前'),'沒有監控：流量暴增寫今天');
     S.inv.monitor=true; S.issues=[]; txt=spike(); ok(txt[1].includes('明天下班前')&&S.issues.every(i=>i.due===S.day+1),'有監控：流量暴增寫明天、事故單隔天到期');

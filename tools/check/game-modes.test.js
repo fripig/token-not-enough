@@ -83,6 +83,17 @@ section("玩家中止背景 agent（gh-32-01-abort-agent）",()=>{
   ok(near(S.st.tk.anthropic-tk0,50)&&near(S.wallet,7955)&&S.hours===6,'abort-agent：已跑 1/4 扣 50k、錢包 -NT$45、時鐘不動',`${S.st.tk.anthropic-tk0} ${S.wallet} ${S.hours}`);
   ok(!S.jobs.length&&S.issues.includes(c1)&&!c1.running,'abort-agent：agent 移出工作槽、工單回到佇列');
   ok(S.log[0].cls==='warn'&&S.log[0].msg.endsWith('⏹ 中止 t｜Claude Code / Opus・個人 API｜燒掉 50k｜NT$45｜1.0h'),'abort-agent：紀錄寫中止那行',S.log[0].msg);
+  /* 月底收工（gh-44-01）：第 20 天下班還在跑、第 22 天才到期的 agent 照比例扣款，不算逾期 */
+  newRun('laravel','parallel'); S.day=20; S.hours=0; S.wallet=8000; S.kpi=50; S.trust=70;
+  const me=ticket('laravel',2,{due:22,kpi:6}); run(me,{tk:100,hrs:2,left:1}); withRand(.99,endDay);
+  ok(near(S.wallet,7955)&&S.kpi===50&&S.trust===70&&S.st.late===0&&!S.jobs.length&&S.log.some(l=>l.cls==='warn'&&l.msg.includes('⏹ 月底收工 t｜Claude Code / Opus・個人 API｜燒掉 50k｜NT$45｜1.0h')),'月底收工：跑一半的 Opus 100k 扣 NT$45，KPI、信任、逾期張數不變',`${S.wallet} ${S.kpi} ${S.trust} ${S.st.late}`);
+  newRun('laravel','parallel'); S.day=20; S.hours=0; S.trust=70; S.corpDay=1400;
+  const mc=ticket('laravel',2,{due:22}); run(mc,{b:'corp',tk:400,hrs:9,left:4}); withRand(.99,endDay);
+  ok(near(S.corpDay,1600)&&S.trust===64,'月底收工：公司 API 的扣款算進當天上限（NT$1,400 + 200 → 信任 -6）',`${S.corpDay} ${S.trust}`);
+  newRun('laravel','parallel'); S.day=20; S.hours=0; const mt=ticket('laravel',1,{due:22,trap:true,trueCx:4,trueBase:BASE[4]}); run(mt,{hidden:true,stop:true}); withRand(.99,endDay);
+  ok(!mt.revealed&&mt.cx===1&&S.st.trapHit===0,'月底收工：隱藏陷阱不曝光、不算踩到');
+  newRun('laravel','parallel'); S.day=20; S.hours=1; const mw=ticket('laravel',3,{due:22}); S.issues=[mw]; Object.assign(sel,{issue:mw.id,v:'anthropic',m:'opus',b:'api',rv:0}); render();
+  ok(els.app.innerHTML.includes('今天是月底，下班前跑不完會月底收工')&&!els.app.innerHTML.includes('明早才有結果'),'月底派工提示：第 20 天跑不完寫月底收工，不寫明早才有結果');
   /* 剛派出去就中止：至少 5% */
   newRun('laravel','parallel'); const c2=ticket('laravel',2); run(c2,{left:4}); const tk1=S.st.tk.anthropic;
   A.cancelJob(c2.id); ok(near(S.st.tk.anthropic-tk1,10),'abort-agent：剛派就中止扣 10k（5%）',S.st.tk.anthropic-tk1);

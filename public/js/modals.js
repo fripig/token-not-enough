@@ -145,15 +145,15 @@ export function showBadSave(){
 }
 /* 總分權重與評等門檻（平行模式門檻 ×PAR_GRADE）；錢不算分，個人花費只顯示與判定稱號 */
 export const SCORE={kpi:10,trust:4,audit:80}, GRADES=[4300,3300,2500,1700], PAR_GRADE=1.6;
-/* 月底總分與評等；self 是你自己掏的錢 */
+/* 月底總分與評等；self 是你自己掏的錢（只算支出），net 是個人淨收支（外包收入 − self） */
 export function monthScore(){
-  const self=S.st.subFee+S.st.api+S.st.outPenalty+S.st.confFee-S.st.outIncome;
+  const self=S.st.subFee+S.st.api+S.st.outPenalty+S.st.confFee, net=Math.round(S.st.outIncome-self);
   const score=Math.round(S.kpi*SCORE.kpi+S.trust*SCORE.trust-S.st.audits*SCORE.audit);
   const gm=PAR()?PAR_GRADE:1; const gi=GRADES.findIndex(x=>score>=x*gm);
-  return {self,score,grade:gi<0?'D':'SABC'[gi]};
+  return {self,net,score,grade:gi<0?'D':'SABC'[gi]};
 }
 export function showEnd(){
-  const {self,score,grade:g}=monthScore();
+  const {self,net,score,grade:g}=monthScore();
   const tot=Object.values(S.st.tk).reduce((a,b)=>a+b,0)||1;
   let title,desc;
   if(S.st.audits>=2){title=t('end.title.audits');desc=t('end.desc.audits')}
@@ -179,6 +179,7 @@ export function showEnd(){
     ${conf?row('end.confFee',nt(S.st.confFee)):''}
     ${S.outsource?row('end.outIncome',nt(S.st.outIncome))+row('end.outPenalty',nt(S.st.outPenalty)):''}
     <div class="tot"><span>${t('end.self')}</span><span>${nt(self)}</span></div>
+    ${S.outsource?row('end.net',sumDelta(net,true)):''}
     ${row('end.wallet',nt(S.wallet))}
     ${row('end.corp',nt(S.st.corp))}
     <hr>${vendorLines}<hr>

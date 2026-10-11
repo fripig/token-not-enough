@@ -163,7 +163,7 @@ export function settle(j,o={}){
     Object.assign(is,{merge:true,title:t('ui.mergeTitle',{title}),cx,base:BASE[cx]*R(.85,1.15),trap:false,revealed:false,evaluated:false,research:false,big:is.big&&cx>=3,tries:0});
     log('warn',t('log.conflict',{title,who:w,cx,tk:kt(tk),spend,h:h1(hrs)}));
   } else if(o.cancel){
-    log('warn',t('log.cancel',{title:issueTitle(is),who:w,tk:kt(tk),spend,h:h1(hrs)}));
+    log('warn',t(o.monthEnd?'log.monthEnd':'log.cancel',{title:issueTitle(is),who:w,tk:kt(tk),spend,h:h1(hrs)}));
   } else {
     is.tries++; is.base*=j.stop?1:RETRY.tk;
     log('bad',t('log.fail',{title:issueTitle(is),who:w,note:note||t('log.note.fail'),tk:kt(tk),spend,h:h1(hrs)}));
@@ -225,7 +225,7 @@ export function rescope(){
   is.rescoped=true;
   track('rescope',{cx:is.cx,stack:is.stack,outcome:S.trust>=RESCOPE_TRUST?'approved':'refused'});
   if(S.trust>=RESCOPE_TRUST){
-    S.trust-=RESCOPE.ok; is.kpi=Math.round(KPI[is.cx]*(hardStack(is.stack)?HARD_KPI:1)); is.due=Math.min(20,is.due+RESCOPE.days);
+    S.trust-=RESCOPE.ok; is.kpi=Math.round(KPI[is.cx]*(hardStack(is.stack)?HARD_KPI:1)); is.due+=RESCOPE.days;
     log('ok',t('log.rescopeOk',{title:issueTitle(is),kpi:is.kpi,d:is.due,n:RESCOPE.ok}));
   } else { S.trust=Math.max(0,S.trust-RESCOPE.no); log('warn',t('log.rescopeNo',{title:issueTitle(is),n:RESCOPE.no})); }
   render();
@@ -442,6 +442,8 @@ export function endDay(){
   if(PAR()&&S.jobs.length) advance(S.hours);
   const killed=cancelJobs(j=>j.issue.due<=S.day,t('log.note.expired'));
   if(killed) rep.push(t('rep.killed',{n:killed}));
+  /* 月底收工：第 20 天還在跑的（工單第 20 天之後才到期）照玩家中止扣款，排在公司單日上限檢查之前 */
+  if(S.day>=20) S.jobs.splice(0).forEach(j=>{j.issue.running=false;settle(j,{frac:cancelFrac(j),fail:true,cancel:true,monthEnd:true});});
   const gigLate=S.issues.filter(i=>i.out&&i.due<=S.day);
   /* 外包逾期：賠違約金，不扣 KPI 和信任 */
   gigLate.forEach(i=>{const pen=Math.round(i.pay*GIG_LATE);S.wallet-=pen;S.st.outPenalty+=pen;S.st.outLate++;log('bad',t('log.gigLate',{title:issueTitle(i),pen:nt(pen)}));});

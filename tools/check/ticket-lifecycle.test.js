@@ -39,7 +39,9 @@ section("ticket-lifecycle：工單產生",()=>{
   const easy=gen.filter(i=>!hardStack(i.stack));
   ok(easy.every(i=>i.kpi===KPI[i.cx]),'ticket-lifecycle：一般工單 KPI 照 KPI 表');
   ok(easy.filter(i=>i.cx<=2).every(i=>i.due>=4&&i.due<=6)&&easy.filter(i=>i.cx>=3).every(i=>i.due>=5&&i.due<=8),'ticket-lifecycle：期限 1–3 天（複雜度 ≤2）或 2–5 天');
-  S.day=19; ok([...Array(500)].map(()=>makeIssue(false)).every(i=>i.due<=20),'ticket-lifecycle：期限不超過第 20 天');
+  S.day=19; const late19=[...Array(2000)].map(()=>makeIssue(false)).filter(i=>!hardStack(i.stack));
+  ok(late19.filter(i=>i.cx<=2).every(i=>i.due>=20&&i.due<=22)&&late19.filter(i=>i.cx>=3).every(i=>i.due>=21&&i.due<=24),'ticket-lifecycle：第 19 天的期限不截到第 20 天（20–22／21–24）');
+  ok(late19.some(i=>i.cx===3&&i.due===22),'ticket-lifecycle：第 19 天複雜度 3、偏移 3 天 → 第 22 天到期');
   const rate=(a,f)=>a.filter(f).length/a.length;
   ok(Math.abs(rate(gen,i=>i.sens)-.25)<=.03,'ticket-lifecycle：一般工單 25% 機敏',rate(gen,i=>i.sens));
   S.day=3; const incs=[...Array(5000)].map(()=>makeIssue(true));
@@ -92,6 +94,9 @@ section("ticket-lifecycle：工單產生",()=>{
   newRun('laravel'); S.day=5; S.kpi=50; const tl=ticket('laravel',4,{inc:true,kpi:26,due:5}), tn=ticket('fe',2,{kpi:6,due:5}); S.issues=[tl];
   withRand(.99,endDay); ok(S.kpi===37&&S.trust===62&&S.st.late===1&&S.st.kpiLost===13&&els.mo.innerHTML.includes('1 張工單逾期，主管信任 -8。')&&S.log.some(l=>l.msg.includes('⌛ 逾期：')&&l.msg.endsWith('KPI -13｜信任 -8')),'ticket-lifecycle：事故單逾期 KPI -13、信任 -8');
   newRun('laravel'); S.day=5; S.issues=[tn]; withRand(.99,endDay); ok(S.kpi===-3&&S.trust===66&&!S.issues.includes(tn),'ticket-lifecycle：一般工單逾期 KPI 扣一半（無條件進位）、信任 -4');
+  newRun('laravel'); S.day=20; S.hours=0; S.kpi=100; S.trust=70; const e20=ticket('laravel',3,{kpi:10,due:20}), e22=ticket('laravel',3,{kpi:10,due:22}); S.issues=[e20,e22]; withRand(.99,endDay);
+  ok(S.kpi===95&&S.trust===66&&S.st.late===1&&S.st.kpiLost===5&&S.log.filter(l=>l.msg.includes('⌛ 逾期：')).length===1,'ticket-lifecycle：第 20 天下班只有第 20 天到期的單逾期，第 22 天到期的不扣分',JSON.stringify([S.kpi,S.trust,S.st.late]));
+  newRun('laravel'); S.day=20; S.issues=[ticket('laravel',3,{due:22})]; render(); ok(els.app.innerHTML.includes('剩 2 天'),'ticket-lifecycle：第 20 天時第 22 天到期的單卡片寫剩 2 天');
   newRun('laravel'); S.day=5; const d0=ticket('fe',1,{due:5}), d2=ticket('fe',1,{due:7}); S.issues=[d0,d2]; render();
   ok(els.app.innerHTML.includes('chip due">今天到期')&&els.app.innerHTML.includes('剩 2 天'),'ticket-lifecycle：卡片顯示今天到期與剩 N 天');
   }

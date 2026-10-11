@@ -15,7 +15,7 @@ section("month-end-scoring：總分、評等、稱號、結算單",()=>{
   r=endRun('serial',()=>{base(); S.st.subFee=16250;}); ok(r.score===3120,'month-end-scoring：只訂 Pro 500 花 NT$16,250，總分一樣 3,120',r.score);
   r=endRun('serial',()=>{base(); S.st.subFee=0; S.st.api=50000;}); ok(r.score===3120,'month-end-scoring：花 NT$50,000 也不影響總分',r.score);
   ok(monthScore().score===r.score&&monthScore().grade===r.grade&&monthScore().self===50000,'month-end-scoring：結算單用 monthScore()，self 是你自己掏的錢',[monthScore().score,monthScore().self].join());
-  r=endRun('serial',()=>{S.kpi=0; S.trust=0; S.st.outIncome=3000; S.st.outPenalty=1000; S.st.api=500;}); ok(r.score===0&&r.h.includes('<span>你自己掏的錢</span><span>-NT$1,500</span>'),'month-end-scoring：外包收入不加分，你自己掏的錢 = 訂閱 + API + 外包違約金 − 外包收入',r.score);
+  r=endRun('serial',()=>{S.kpi=0; S.trust=0; S.st.outIncome=3000; S.st.outPenalty=1000; S.st.api=500;}); ok(r.score===0&&r.h.includes('<span>你自己掏的錢</span><span>NT$1,500</span>')&&monthScore().self===1500&&monthScore().net===1500,'month-end-scoring：外包收入不加分，你自己掏的錢 = 訂閱 + API + 外包違約金（不扣外包收入）',r.score);
   ok(r.h.includes('總分 = KPI × 10 + 信任 × 4 − 稽核次數 × 80')&&!r.h.includes('省下的個人預算'),'month-end-scoring：結算單寫出新公式');
   r=endRun('serial',()=>{base(); S.wallet=5430;}); ok(r.h.includes('<span>月底錢包餘額</span><span>NT$5,430</span>')&&r.score===3120,'month-end-scoring：結算單列出月底錢包餘額，不影響總分');
   /* 評等門檻 */
@@ -29,6 +29,7 @@ section("month-end-scoring：總分、評等、稱號、結算單",()=>{
   ok(titleOf(()=>{})==='還在摸索的開發者','month-end-scoring：預設稱號');
   ok(endRun('serial',()=>{S.kpi=1000; S.st.audits=2;}).title==='資安部門的常客','month-end-scoring：稽核 2 次優先於 S 評等');
   ok(titleOf(()=>{S.st.api=7001;})==='自費養 AI 的勇者','month-end-scoring：自費超過 NT$7,000');
+  ok(titleOf(()=>{S.st.subFee=8125; S.st.outIncome=68000;})==='自費養 AI 的勇者','month-end-scoring：自費稱號只看支出，不扣外包收入');
   ok(titleOf(()=>{S.st.corp=10501;})==='公司帳單上的頭號人物','month-end-scoring：公司帳單超過 NT$10,500');
   ok(titleOf(()=>{S.st.tk.deepseek=41; S.st.tk.anthropic=59;})==='對岸模型省錢達人'&&titleOf(()=>{S.st.tk.deepseek=40; S.st.tk.anthropic=60;})==='還在摸索的開發者','month-end-scoring：中國模型超過 40%');
   ok(titleOf(()=>{S.st.tk.local=41; S.st.tk.anthropic=59;})==='地端信仰者','month-end-scoring：本地超過 40%');

@@ -96,7 +96,7 @@ section("trap 6.1 評估也有稽核與透支檢查",()=>{
 
 section("trap 2.4 找主管重新評估（spec 範例表）",()=>{
   /* trap 2.4 找主管重新評估（spec 範例表） */
-  for(const [trust,st,tcx,kb,db,ta,ka,da] of [[70,'rust',4,4,6,65,21,8],[50,'laravel',5,3,19,45,24,20],[49,'laravel',4,3,6,46,3,6]]){
+  for(const [trust,st,tcx,kb,db,ta,ka,da] of [[70,'rust',4,4,6,65,21,8],[50,'laravel',5,3,19,45,24,21],[49,'laravel',4,3,6,46,3,6]]){
     newRun('laravel'); S.trust=trust; const rs=ticket(st,tcx,{trap:true,revealed:true,shownCx:1,trueCx:tcx,kpi:kb,due:db,rescoped:false});
     S.issues=[rs]; sel.issue=rs.id; rescope();
     ok(S.trust===ta&&rs.kpi===ka&&rs.due===da&&rs.rescoped,`重新評估：信任 ${trust} ${st} 真實 ${tcx} → 信任 ${ta}、KPI ${ka}、期限 ${da}`,JSON.stringify([S.trust,rs.kpi,rs.due]));

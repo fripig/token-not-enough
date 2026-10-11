@@ -47,8 +47,8 @@ section("5.1 Rust／App 補償：KPI ×1.3、期限 +1 天（上限第 20 天）
   ok(rustIs.some(i=>i.due===8),'出現 day 4 + 偏移 3 + 1 = 8 的期限');
   newRun('app'); S.day=19;
   const late19=[...Array(2000)].map(()=>makeIssue(false));
-  ok(late19.every(i=>i.due<=20),'期限不超過第 20 天');
-  ok(late19.filter(i=>i.stack==='app').some(i=>i.due===20),'第 19 天的 app 工單期限被壓到第 20 天');
+  ok(late19.filter(i=>i.stack==='app'&&i.cx<=2).every(i=>i.due>=21&&i.due<=23),'第 19 天複雜度 ≤2 的 app 工單期限 21–23，不截到第 20 天');
+  ok(late19.filter(i=>i.stack==='app').some(i=>i.cx<=2&&i.due===22),'第 19 天 app 工單偏移 2 天加 1 → 第 22 天到期');
   newRun('app'); S.day=5;
   ok([...Array(300)].map(()=>makeIssue(true)).every(i=>i.due===5&&i.kpi===33),'App 事故單當天到期、KPI 33');
 });
