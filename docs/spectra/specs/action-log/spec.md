@@ -23,7 +23,7 @@ The action log SHALL keep every entry written during a run, newest first, with n
 ---
 ### Requirement: Dispatch decision line
 
-Every agent dispatch, in parallel and serial mode, SHALL log one line `→ 派出 <title>（<tags>）｜<agent> / <model name>・<billing>・<review><sdd>｜成功率 <pe>%｜<trigger>｜預計 <hours>h`. `<tags>` SHALL be the shown complexity `複雜度 N`, then `今天到期` when the deadline is today or `第 N 天到期` otherwise, then 事故, 機敏 and 外包 for tickets with those flags, joined with ・. The model name SHALL include the effort suffix as defined in `reasoning-effort`. `<review>` SHALL be 不審核, 自審 or 嚴格審核. `<sdd>` SHALL be `・SDD markdown` when the applied SDD level is 1, `・SDD 框架` when it is 2, and empty when it is 0 or SDD is not owned (see `engineering-investments`). `<pe>` SHALL be the success rate the dispatch panel shows for the dispatched options, rounded to a whole percent, computed from the ticket as shown. `<trigger>` SHALL be 派工台 for the dispatch button, `一鍵派工方案 <letter>` for one-click dispatch and `批次派工方案 <letter>` for batch dispatch. In serial mode the dispatch line SHALL be written before the result line of the same dispatch.
+Every agent dispatch, in parallel and serial mode, SHALL log one line `→ 派出 <title>（<tags>）｜<agent> / <model name>・<billing>・<review><reviewer><sdd>｜成功率 <pe>%｜<trigger>｜預計 <hours>h`. `<tags>` SHALL be the shown complexity `複雜度 N`, then `今天到期` when the deadline is today or `第 N 天到期` otherwise, then 事故, 機敏 and 外包 for tickets with those flags, joined with ・. The model name SHALL include the effort suffix as defined in `reasoning-effort`. `<review>` SHALL be 不審核, 自審 or 嚴格審核. `<reviewer>` SHALL be `・<reviewer model name> 審（<reviewer billing>）` when the effective reviewer is not 同一個 (see `cross-model-review`), and empty otherwise. `<sdd>` SHALL be `・SDD markdown` when the applied SDD level is 1, `・SDD 框架` when it is 2, and empty when it is 0 or SDD is not owned (see `engineering-investments`). `<pe>` SHALL be the success rate the dispatch panel shows for the dispatched options, rounded to a whole percent, computed from the ticket as shown. `<trigger>` SHALL be 派工台 for the dispatch button, `一鍵派工方案 <letter>` for one-click dispatch and `批次派工方案 <letter>` for batch dispatch. In serial mode the dispatch line SHALL be written before the result line of the same dispatch.
 
 #### Scenario: One-click dispatch in parallel mode
 
@@ -61,10 +61,15 @@ Every agent dispatch, in parallel and serial mode, SHALL log one line `→ 派�
 | 1 | `Claude Code / Sonnet・公司 API・自審・SDD markdown` |
 | 2 | `Claude Code / Sonnet・公司 API・自審・SDD 框架` |
 
+#### Scenario: Reviewer in the dispatch line
+
+- **WHEN** 交叉審核工具 is owned and the player dispatches with Claude Code / Sonnet, 公司 API, 自審 reviewed by Opus on 個人訂閱, with applied SDD level 2
+- **THEN** the options segment of the dispatch line is `Claude Code / Sonnet・公司 API・自審・Opus 審（個人訂閱）・SDD 框架`
+
 ---
 ### Requirement: Billing method on result and evaluation lines
 
-Every attempt result line (success, failure, merge conflict) SHALL name the agent as `<agent> / <model name>・<billing>`; a success line SHALL keep its review suffix when review is not 不審核. Every architecture evaluation line SHALL contain `評估｜<agent> / <model name>・<billing>`, using the model name without effort.
+Every attempt result line (success, failure, merge conflict) SHALL name the agent as `<agent> / <model name>・<billing>`; a success line SHALL keep its review suffix when review is not 不審核, followed by the `<reviewer>` segment of the dispatch line when the job had a reviewer other than 同一個. A failure whose catch was discarded because the review could not be done SHALL use the note 審核沒做完，沒抓到錯誤 (see `cross-model-review`). Every architecture evaluation line SHALL contain `評估｜<agent> / <model name>・<billing>`, using the model name without effort.
 
 #### Scenario: Failure names the billing method
 
@@ -75,6 +80,11 @@ Every attempt result line (success, failure, merge conflict) SHALL name the agen
 
 - **WHEN** the player evaluates a ticket with Claude Code / Opus billed to 公司 API and nothing is found
 - **THEN** the log line contains `評估｜Claude Code / Opus・公司 API` and 評估完成，看起來沒問題
+
+#### Scenario: Success names the reviewer
+
+- **WHEN** a Sonnet attempt billed to 公司 API with 自審 reviewed by Opus on 公司 API succeeds
+- **THEN** the log line contains `Claude Code / Sonnet・公司 API・自審・Opus 審（公司 API）`
 
 ---
 ### Requirement: Waiting line

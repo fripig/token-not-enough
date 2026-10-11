@@ -171,7 +171,7 @@ code:
 ---
 ### Requirement: Dispatch event
 
-Each time an agent is started on a ticket, the game SHALL send one `dispatch` event with `vendor`, `model` (model id), `bill` (`sub`, `seat`, `api`, `corp` or `local`), `review` (`none`, `self` or `strict`), `effort` (`low`, `mid` or `high`; always `mid` outside advanced mode), `sdd` (the applied SDD level: `none` for 0, `md` for 1, `framework` for 2; `none` while SDD is not owned), `via` (`panel` for the 派工 button, `quick` for 一鍵派工, `batch` for 批次派工), `preset` (`A`, `B` or `C` for quick and batch, `none` for panel), and the ticket's `cx` (complexity shown at dispatch), `stack`, `incident`, `sensitive`, `gig` (outsourced ticket), `merge` (merge-conflict ticket) and `research` (research ticket dispatched without research). In serial mode it SHALL be sent before the job's `job_result`. A dispatch that is refused (no free slot, local GPU busy, company billing on an outsourced ticket, no usable preset) SHALL NOT send it.
+Each time an agent is started on a ticket, the game SHALL send one `dispatch` event with `vendor`, `model` (model id), `bill` (`sub`, `seat`, `api`, `corp` or `local`), `review` (`none`, `self` or `strict`), `effort` (`low`, `mid` or `high`; always `mid` outside advanced mode), `sdd` (the applied SDD level: `none` for 0, `md` for 1, `framework` for 2; `none` while SDD is not owned), `rv_vendor`, `rv_model` and `rv_bill` (the effective reviewer's vendor, model id and billing, see `cross-model-review`; each `same` when the effective reviewer is 同一個, including while 交叉審核工具 is not owned or the review level is 不審核), `via` (`panel` for the 派工 button, `quick` for 一鍵派工, `batch` for 批次派工), `preset` (`A`, `B` or `C` for quick and batch, `none` for panel), and the ticket's `cx` (complexity shown at dispatch), `stack`, `incident`, `sensitive`, `gig` (outsourced ticket), `merge` (merge-conflict ticket) and `research` (research ticket dispatched without research). In serial mode it SHALL be sent before the job's `job_result`. A dispatch that is refused (no free slot, local GPU busy, company billing on an outsourced ticket, no usable preset) SHALL NOT send it.
 
 #### Scenario: Panel dispatch
 
@@ -212,10 +212,15 @@ Each time an agent is started on a ticket, the game SHALL send one `dispatch` ev
 | 2 | 2 | `framework` |
 | 2 | 0 | `none` |
 
+#### Scenario: Reviewer on the dispatch
+
+- **WHEN** 交叉審核工具 is owned and the player dispatches Sonnet on 公司 API with 自審 reviewed by Opus on 個人訂閱, then dispatches another ticket with 同一個
+- **THEN** the first `dispatch` event has `rv_vendor` `anthropic`, `rv_model` `opus`, `rv_bill` `sub`, and the second has `same` for all three
+
 ---
 ### Requirement: Dispatch result event
 
-Each time a dispatched job is settled, the game SHALL send one `job_result` event with the job's `vendor`, `model`, `bill`, `review`, `effort` and `sdd` (the SDD level applied when it was dispatched, with the same values as the `dispatch` event), the ticket's `cx` (after any trap reveal), `stack`, `gig` and `research`, `tokens` (tokens used in thousands, rounded to an integer), `cost` (NT$ charged to the wallet or company API, rounded to an integer; 0 for subscription, seat and local billing), `hours` (rounded to one decimal) and `outcome`. `outcome` SHALL be the first that applies: `cancelled` (the player cancelled the background agent, or it was stopped when day 20 ended with its ticket due after day 20, see `game-modes`), `aborted` (settled as forced failure: serial run out of hours, cancelled at day end because its ticket is due, or by an outage), `quota` (subscription or seat quota ran out), `conflict` (merge conflict), `rejected` (App Store rejection), `caught` (the review caught the error and the ticket is done), `success`, `trap_stop` (a hidden trap stopped the agent), `fail`. A job saved before this change without a model id or effort SHALL report `model` `unknown` and `effort` `mid`. A job saved before this change with a boolean SDD record SHALL report `sdd` `md` for `true` and `none` for `false`.
+Each time a dispatched job is settled, the game SHALL send one `job_result` event with the job's `vendor`, `model`, `bill`, `review`, `effort` and `sdd` (the SDD level applied when it was dispatched, with the same values as the `dispatch` event), `rv_vendor`, `rv_model` and `rv_bill` (with the same values as the `dispatch` event), the ticket's `cx` (after any trap reveal), `stack`, `gig` and `research`, `tokens` (tokens used in thousands including the review part, rounded to an integer), `cost` (NT$ charged to the wallet or company API for the writer and review parts together, rounded to an integer; 0 for subscription, seat and local billing), `hours` (rounded to one decimal) and `outcome`. `outcome` SHALL be the first that applies: `cancelled` (the player cancelled the background agent, or it was stopped when day 20 ended with its ticket due after day 20, see `game-modes`), `aborted` (settled as forced failure: serial run out of hours, cancelled at day end because its ticket is due, or by an outage), `quota` (subscription or seat quota ran out, or the wallet ran out on 個人 API, including the fix charged after a cross review, see `cross-model-review`), `conflict` (merge conflict), `rejected` (App Store rejection), `caught` (the review caught the error and the ticket is done), `success`, `trap_stop` (a hidden trap stopped the agent), `fail`. A job saved before this change without a reviewer SHALL report `same` for `rv_vendor`, `rv_model` and `rv_bill`. A job saved before this change without a model id or effort SHALL report `model` `unknown` and `effort` `mid`. A job saved before this change with a boolean SDD record SHALL report `sdd` `md` for `true` and `none` for `false`.
 
 #### Scenario: Outcomes
 
@@ -251,6 +256,11 @@ Each time a dispatched job is settled, the game SHALL send one `job_result` even
 
 - **WHEN** a job dispatched with applied SDD level 2 is settled, and a running job saved with SDD `true` is settled after loading
 - **THEN** the first `job_result` has `sdd` `framework` and the second `sdd` `md`
+
+#### Scenario: Review part in tokens and cost
+
+- **WHEN** a successful job written by Sonnet on 個人 API used 200k tokens and its review by Opus on 公司 API used 51k tokens, with no price modifier
+- **THEN** its `job_result` has `tokens` 251, `cost` 136 and `rv_bill` `corp`
 
 ---
 ### Requirement: Other ticket action events
