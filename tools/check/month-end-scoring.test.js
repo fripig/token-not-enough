@@ -21,9 +21,9 @@ section("month-end-scoring：總分、評等、稱號、結算單",()=>{
   /* 評等門檻 */
   /* 個位數用信任補（信任 × 4），才能測到 4,099 這種 spec 例子的確切值 */
   const gradeAt=(mode,score)=>endRun(mode,()=>{S.kpi=Math.floor(score/10); S.trust=score%10/4;}).grade;
-  ok([[4300,'S'],[4299,'A'],[3300,'A'],[2500,'B'],[1700,'C'],[1699,'D']].every(([s,g])=>gradeAt('serial',s)===g),'month-end-scoring：單線門檻 4,300／3,300／2,500／1,700');
-  ok([[6880,'S'],[6879,'A'],[5280,'A'],[4000,'B'],[2720,'C'],[2719,'D']].every(([s,g])=>gradeAt('parallel',s)===g),'month-end-scoring：平行門檻 ×1.6（6,880／5,280／4,000／2,720）');
-  ok(endRun('serial',base).grade==='B'&&endRun('parallel',base).grade==='C','month-end-scoring：3,120 分單線 B、平行 C');
+  ok([[3800,'S'],[3799,'A'],[2400,'A'],[1400,'B'],[500,'C'],[499,'D']].every(([s,g])=>gradeAt('serial',s)===g),'month-end-scoring：單線門檻 3,800／2,400／1,400／500');
+  ok([[10700,'S'],[10699,'A'],[5280,'A'],[4000,'B'],[2720,'C'],[2719,'D']].every(([s,g])=>gradeAt('parallel',s)===g),'month-end-scoring：平行門檻 10,700／5,280／4,000／2,720（不是單線 × 倍數）');
+  ok(endRun('serial',base).grade==='A'&&endRun('parallel',base).grade==='C','month-end-scoring：3,120 分單線 A、平行 C');
   /* 稱號 */
   const titleOf=set=>endRun('serial',()=>{S.kpi=120; S.trust=0; set();}).title;
   ok(titleOf(()=>{})==='還在摸索的開發者','month-end-scoring：預設稱號');

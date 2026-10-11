@@ -41,7 +41,7 @@ section("rules-reference（gh-20-01-rules-modal）",()=>{
   {
   const plain=id=>Ru.rulesTab(id).replace(/ data-h="[^"]*"/g,''); // 窄螢幕卡片用的欄名屬性不影響比對
   const sc=plain('score'), bi=plain('billing'), iv=plain('invest'), D=dataModule;
-  ok(M.GRADES.join()==='4300,3300,2500,1700'&&M.PAR_GRADE===1.6&&M.GRADES.every(t=>sc.includes(`<td>${t}</td>`)&&sc.includes(`<td>${Math.round(t*M.PAR_GRADE)}</td>`))&&sc.includes('<td>6880</td>'),'rules-reference：結算分頁列出單線與平行模式的評等門檻');
+  ok(M.GRADES.serial.join()==='3800,2400,1400,500'&&M.GRADES.parallel.join()==='10700,5280,4000,2720'&&M.PAR_GRADE===undefined&&[...M.GRADES.serial,...M.GRADES.parallel].every(t=>sc.includes(`<td>${t}</td>`))&&/<td>S<\/td><td>3800<\/td><td>10700<\/td>/.test(sc),'rules-reference：結算分頁從 GRADES 列出單線與平行模式各自的評等門檻');
   ok(['kpi','trust','audit'].every(k=>sc.includes(`× ${M.SCORE[k]}`)),'rules-reference：結算分頁的總分權重來自 SCORE');
   ok(plain('tickets').includes(`評估時間 ×${D.MCP_EVAL_HRS}`),'rules-reference：MCP 評估時間倍率來自常數');
   ok(plain('tickets').includes(`信任 −${A.ABANDON_TRUST}、不扣 KPI`)&&plain('tickets').includes(`報酬的 ${Ru.pct(St.GIG_LATE)} 違約金`)&&plain('tickets').includes('事故單、跑著 agent 的單（先中止）不能退'),'rules-reference：退單的代價來自 ABANDON_TRUST 與 GIG_LATE');

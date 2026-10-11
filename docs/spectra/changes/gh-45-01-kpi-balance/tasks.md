@@ -1,0 +1,14 @@
+## 1. Precondition
+
+- [x] 1.1 Another session is implementing #51 (`gh-51-01-abandon-ticket`) in the same checkout and edits public/js/modals.js, public/js/rules.js, tools/check/rules-reference.test.js and docs/DESIGN.md. Start only after #51 is committed (check `git log` and `git status --short` show no uncommitted changes in those files) and gh-46-02's commits (63c86ee, c707285, 133fb75) are on `main`. Verify: `git status --short` lists none of the four files and `git log --oneline` shows the #51 commit and 133fb75.
+
+## 2. Thresholds
+
+- [x] 2.1 [after: 1.1] One threshold list per mode (Grade requirement): `GRADES` in public/js/modals.js becomes `{serial: [3800, 2400, 1400, 500], parallel: [10700, 5280, 4000, 2720]}`, `PAR_GRADE` is removed, and `monthScore()` picks the list for the current mode (decisions "Parallel S at the strong-play median" and "Parallel A–D unchanged, serial matched to the pre-gh-46-02 shares"). Verify: `node tools/check.js month-end-scoring` asserts every row of the "thresholds" example and that 3,120 is A in serial and C in parallel. The Game end requirement's example (`play-analytics`, serial 3,280 points) now reports grade A; `node tools/check.js play-analytics` asserts it.
+- [x] 2.2 [after: 2.1] The rules modal 結算 tab builds its serial and parallel columns from the two lists ("One threshold list per mode"). Verify: `node tools/check.js rules-reference localization` passes with the grade assertion rewritten to read `GRADES.serial` and `GRADES.parallel`, and the table shows 10700 and 3800.
+
+## 3. Measure and document
+
+- [x] 3.1 [after: 2.2] Re-measure on the code that ships: `SIM_N=100 SIM_SEED=101 node tools/sim.js` and `SIM_SLOTS=6 SIM_INVEST=2 SIM_CONF=1 SIM_SUB=pro200 SIM_N=100 SIM_SEED=101 node tools/sim.js`. The parallel strong-play S share is 48%–52%, parallel default S is at most 2%, and serial default shares are within 5 points of the pre-gh-46-02 shares (S 1.1, A 13.7, B 28.3, C 30.4, D 26.4). If #51 moved scores so these fail, stop and report instead of retuning. Verify: the grade counts in both outputs.
+- [x] 3.2 [after: 3.1] `docs/DESIGN.md` 結算 section states the per-mode thresholds, how they were chosen (strong-play median; serial quantile matching), the measured shares and the #53 / #52 follow-ups; the numbered requirement list gets the #45 entry. Verify: content review of the section and `node tools/check.js` passes with 0 failures.
+- [ ] 3.3 [after: 3.2] Ship with gh-46-02: commit, push `main` (which carries gh-46-02's commits), move #45 and #49 to 已上線待檢驗, and ask the user to play one strong-play parallel game online to confirm it lands around S. Verify: `git log origin/main` contains this change's commit and 133fb75, and the Pages deploy for that commit succeeded (`gh run list --workflow pages.yml --limit 1`).

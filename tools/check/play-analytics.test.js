@@ -47,7 +47,7 @@ section("GA 遊戲事件（gh-10-01-play-analytics）",()=>{
   ok(names()==='subscription,subscription'&&subEv()==='anthropic:max20@6,zhipu:none@6','play-analytics：週一只送改過的訂閱',subEv());
   /* game_end 帶 score 與 grade */
   newRun('laravel','serial'); S.kpi=300; S.trust=70; S.day=20; ev.length=0; showEnd();
-  ok(ev.length===1&&ev[0].name==='game_end'&&ev[0].p.score===3280&&ev[0].p.grade==='B'&&ev[0].p.day===20,'play-analytics：game_end 帶 score 3280、grade B',JSON.stringify(ev[0]?.p));
+  ok(ev.length===1&&ev[0].name==='game_end'&&ev[0].p.score===3280&&ev[0].p.grade==='A'&&ev[0].p.day===20,'play-analytics：game_end 帶 score 3280、grade A（單線門檻 2,400）',JSON.stringify(ev[0]?.p));
   /* gtag 會丟例外：遊戲照常開局 */
   globalThis.gtag=()=>{throw new Error('blocked');};
   let threw=false; try{newRun('laravel'); showSetup(false); clickMo({act:'confirm'});}catch(e){threw=true;}

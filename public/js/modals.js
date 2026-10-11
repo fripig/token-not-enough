@@ -143,13 +143,13 @@ export function showBadSave(){
   ov.hidden=false;
   mo.onclick=e=>{const bt=e.target.closest('button');if(!bt)return;if(bt.dataset.act==='new')start();};
 }
-/* 總分權重與評等門檻（平行模式門檻 ×PAR_GRADE）；錢不算分，個人花費只顯示與判定稱號 */
-export const SCORE={kpi:10,trust:4,audit:80}, GRADES=[4300,3300,2500,1700], PAR_GRADE=1.6;
+/* 總分權重與評等門檻（S、A、B、C，兩種模式各一組；平行 S 是強玩法的中位數）；錢不算分，個人花費只顯示與判定稱號 */
+export const SCORE={kpi:10,trust:4,audit:80}, GRADES={serial:[3800,2400,1400,500],parallel:[10700,5280,4000,2720]};
 /* 月底總分與評等；self 是你自己掏的錢（只算支出），net 是個人淨收支（外包收入 − self） */
 export function monthScore(){
   const self=S.st.subFee+S.st.api+S.st.outPenalty+S.st.confFee, net=Math.round(S.st.outIncome-self);
   const score=Math.round(S.kpi*SCORE.kpi+S.trust*SCORE.trust-S.st.audits*SCORE.audit);
-  const gm=PAR()?PAR_GRADE:1; const gi=GRADES.findIndex(x=>score>=x*gm);
+  const gi=GRADES[PAR()?'parallel':'serial'].findIndex(x=>score>=x);
   return {self,net,score,grade:gi<0?'D':'SABC'[gi]};
 }
 export function showEnd(){

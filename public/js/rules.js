@@ -2,7 +2,7 @@ import {CAP_SCALE,WEAK_CAP,P_TOP,RESEARCH_DIRECT_TK,RESEARCH_HRS,RESEARCH_SELF_H
 import {GIG_LATE,GIG_PAY,RESEARCH_RATE,START,TRAP_RATE} from './state.js';
 import {P_STEP,REVIEW,STORE_REJECT,pStep} from './calc.js';
 import {ABANDON_TRUST,CANCEL_MIN,AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_TRUST,DOUBT_TRUST,EVAL_TK,EVENT_RATE,INC_LATE_TRUST,INC_RAMP,INC_RATE,LATE_TRUST,OVERDRAFT_TRUST,OVERNIGHT_HRS,PACE_KPI,PRAISE_TRUST,RESCOPE_TRUST,REVIEW_LOAD,SLOT_CHOICES,TRAP_STOP} from './actions.js';
-import {GRADES,PAR_GRADE,SCORE} from './modals.js';
+import {GRADES,SCORE} from './modals.js';
 import {mo,ov} from './view.js';
 import {t} from './i18n.js';
 
@@ -89,7 +89,7 @@ export function rulesTab(id){
   case 'score': return rsec(r('h.score'),rlist([
       r('score1',{kpi:SCORE.kpi,trust:SCORE.trust,audit:SCORE.audit}),
       r('score2')]))
-    +rsec(r('h.grade'),`${rtable([r('th.grade'),r('th.serial'),r('th.par')],GRADES.map((g,i)=>['SABC'[i],g,Math.round(g*PAR_GRADE)]).concat([['D',r('below'),r('below')]]))}
+    +rsec(r('h.grade'),`${rtable([r('th.grade'),r('th.serial'),r('th.par')],GRADES.serial.map((g,i)=>['SABC'[i],g,GRADES.parallel[i]]).concat([['D',r('below'),r('below')]]))}
     ${rlist([r('best')])}`)
     +rsec(r('h.save'),rlist([r('save1'),r('save2')]));
   default: return rsec(r('h.time'),rlist([
