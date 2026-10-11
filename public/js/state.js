@@ -1,4 +1,4 @@
-import {CONF,HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,lv,normCompanies,objOf,pick,pickClient,presetsOf,rnd} from './data.js';
+import {CONF,HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,lv,normCompanies,objOf,pick,pickClient,presetsOf,rnd,validReviewer} from './data.js';
 import {SLOT_CHOICES} from './actions.js';
 import {t,tl} from './i18n.js';
 
@@ -21,7 +21,7 @@ export function fresh(){
     conf:{req:null,went:[]},
     outage:null,corpDay:0,issues:[],log:[],
     st:{subFee:0,api:0,corp:0,done:0,late:0,audits:0,manual:0,conflicts:0,caught:0,tk:objOf(Object.keys(VENDORS),()=>0),byBill:{sub:0,seat:0,api:0,corp:0,local:0},kpiLost:0,trapHit:0,trapFound:0,outIncome:0,outPenalty:0,outDone:0,outLate:0,confFee:0,abandoned:0}};
-  sel={issue:null,v:'anthropic',m:'sonnet',b:'api',rv:sel?.rv??1,ef:sel?.ef??1,sdd:2};
+  sel={issue:null,v:'anthropic',m:'sonnet',b:'api',rv:sel?.rv??1,ef:sel?.ef??1,sdd:2,rvv:sel?.rvv??null,rvm:sel?.rvm??null,rvb:sel?.rvb??null};
   S.dayStart=daySnap();
 }
 /* 下班總結的基準：當天開工時的 KPI、信任、錢包、公司預算 */
@@ -66,6 +66,10 @@ export function loadGame(d){
   S.conf??={req:null,went:[]}; S.st.confFee??=0; S.st.abandoned??=0;
   /* 舊存檔沒有 SDD 選擇：當 2（用已買的最高級） */
   if(![0,1,2].includes(sel.sdd)) sel.sdd=2;
+  /* 交叉審核之前的存檔沒有審核模型：選擇與跑著的 job 都當同一個 */
+  if(!validReviewer(sel)) Object.assign(sel,{rvv:null,rvm:null,rvb:null});
+  sel.rvv??=null; sel.rvm??=null; sel.rvb??=null;
+  for(const j of S.jobs){ j.rvv??=null; j.rvm??=null; j.rvb??=null; j.rtk??=0; }
 }
 
 /* 研討會：去過的技術線場涵蓋哪些技術線、去過哪類、去過幾場 */

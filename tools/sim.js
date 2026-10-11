@@ -8,6 +8,8 @@
 // SIM_CONF=1 讓自動玩家去國內研討會（要搭配 SIM_INVEST）：第 1、6、11 天報名第一個付得起的場次（涵蓋第一條主技術線的技術線場、台灣人工智慧年會、HWDC、HITCON、其他），
 // 每天先買開放了的 Lv2（已買 Lv1 的 CLAUDE.md、單元測試、secret scanning、做 skills）和下一級提升 agent 能力，再買 SIM_INVEST 的投資。
 // SIM_SDD2=1（要搭配 SIM_INVEST）讓自動玩家在 SIM_INVEST 的投資都買完、已有導入 SDD Lv1 之後，買 SDD 框架（Lv2）。
+// SIM_XREVIEW=1（要搭配 SIM_INVEST）讓自動玩家在 SIM_INVEST 的投資都買完後買交叉審核工具，之後寫的模型做不到這張單（能力差距 ≤ −10）、又有自審或嚴格審核時，
+// 改用 Claude Opus 審：付費方式照遊戲的預設（額度夠的席位、訂閱，否則公司 API，再不行個人 API）；審核模型不能用時照舊同一個模型審。
 // SIM_SDD_PICK=1 讓自動玩家每張單選 SDD：顯示複雜度 ≤2 選不用，其他選已買的最高級。沒開時自動玩家不動 SDD 選擇（一律已買的最高級）。
 // SIM_OUTSOURCE=1 開啟接外包：外包單一律走個人 API（能用 DeepSeek 就用，否則 Sonnet）。
 // SIM_EFFORT=1 開啟進階模式：每張單看選到模型的原始能力減顯示複雜度，≤ −1 用高強度、≥ 2 用低強度、其他用中。
@@ -34,7 +36,7 @@ import './sim-seed.js';
 import {firstIssues,start} from '../public/js/main.js';
 import {CAP_SCALE,COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model,CONF,CONF_KEYS,CONF_LAST_DAY} from '../public/js/data.js';
 import {START,S,sel,setResearchRate,setSixRate,setTrapRate} from '../public/js/state.js';
-import {est,hwBlock,localBusy,quotaLeft} from '../public/js/calc.js';
+import {est,hwBlock,localBusy,quotaLeft,reviewerBlock,rvPrefBill} from '../public/js/calc.js';
 import {PAR,abandon,canAbandon,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
 import {dispatchPanel} from '../public/js/view.js';
 import {subCost} from '../public/js/modals.js';
@@ -57,6 +59,10 @@ const CONFSIM=process.env.SIM_CONF==='1';
 const SDD2=process.env.SIM_SDD2==='1', SDD_PICK=process.env.SIM_SDD_PICK==='1';
 if(CONFSIM&&!INV){ console.error('SIM_CONF 要搭配 SIM_INVEST=1 或 2'); process.exit(1); }
 if(SDD2&&!INV){ console.error('SIM_SDD2 要搭配 SIM_INVEST=1 或 2'); process.exit(1); }
+const XREV=process.env.SIM_XREVIEW==='1';
+if(XREV&&!INV){ console.error('SIM_XREVIEW 要搭配 SIM_INVEST=1 或 2'); process.exit(1); }
+/* SIM_XREVIEW：Opus 審，付費方式照遊戲的預設（rvPrefBill） */
+const OPUS={v:'anthropic',m:'opus'};
 const COMBOS=process.env.SIM_COMBOS==='1';
 const OUT=process.env.SIM_OUTSOURCE==='1';
 const EFF=process.env.SIM_EFFORT==='1';
@@ -129,6 +135,7 @@ function sim(){
             const next=list.find(([k,st])=>!(k==='md'?S.inv.md[st]:S.inv[k]));
             if(next) invest(...next);
             else if(SDD2&&invLevel('sdd')===1&&!investBlock('sdd')) invest('sdd');
+            else if(XREV&&!S.inv.xreview&&!investBlock('xreview')) invest('xreview');
           }
           let acted=true;
           while(acted){acted=false;
@@ -152,6 +159,10 @@ function sim(){
                 const fb=quotaLeft('sub','anthropic')>300?'sub':S.corp>0&&!free[0].out?'corp':'';
                 if(fb){ sel.v='anthropic'; sel.m=HAIKU?'haiku':'sonnet'; sel.b=fb; }
                 else{ sel.v='local'; sel.m='gemma'; sel.b='local'; }
+              }
+              if(XREV){
+                const rr=S.inv.xreview&&sel.rv>=1&&model(sel.v,sel.m).cap-free[0].cx*CAP_SCALE<=-CAP_SCALE?{...OPUS,b:rvPrefBill(free[0],OPUS.v,OPUS.m)}:null;
+                Object.assign(sel,rr&&!reviewerBlock(free[0],rr,sel.v)?{rvv:rr.v,rvm:rr.m,rvb:rr.b}:{rvv:null,rvm:null,rvb:null});
               }
               /* SIM_RESEARCH：研究單先研究，拆出來的單下一輪照順序派 */
               if(RSCH&&free[0].research&&!researchBlock(free[0],RSCH)){ research(RSCH); acted=true; continue; }

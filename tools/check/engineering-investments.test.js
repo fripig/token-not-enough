@@ -25,7 +25,7 @@ section("engineering-investments：購買與拒絕",()=>{
   render(); ok(/data-inv="tests"\s+disabled><b>單元測試 Lv2<\/b><small>需要去過綜合場/.test(els.app.innerHTML),'買過 Lv1 的單元測試顯示 Lv2 的鎖定原因');
   ok(!els.app.innerHTML.includes('補測試'),'畫面上沒有補測試');
   const invRows=[...els.app.innerHTML.matchAll(/data-inv="(\w+)"(?! data-st)/g)].map(m=>m[1]).join(',');
-  ok(invRows==='tests,ci,hook,scan,fastlane,monitor,skills,mcp,sdd,ai','投資面板順序：單元測試、CI、hook、scan、fastlane、監控、skills、MCP、SDD、提升 agent 能力',invRows);
+  ok(invRows==='tests,ci,hook,scan,fastlane,monitor,skills,mcp,sdd,xreview,ai','投資面板順序：單元測試、CI、hook、scan、fastlane、監控、skills、MCP、SDD、交叉審核工具、提升 agent 能力',invRows);
   let before=snap(); ok(!invest('tests')&&snap()===before,'已買過不能再買');
   newRun('laravel'); S.hours=8; ok(invest('monitor')&&near(S.hours,5)&&S.corp===11600&&S.inv.monitor,'單線買監控告警：剩 5h、公司預算 11,600');
   newRun('laravel'); S.hours=5; before=snap(); ok(!invest('sdd')&&snap()===before,'剩 5h 買不了導入 SDD');
@@ -35,6 +35,12 @@ section("engineering-investments：購買與拒絕",()=>{
   bj.v='local'; S.issues=[bj.issue]; bj.issue.running=true; S.jobs=[bj];
   ok(invest('md','rails')&&S.hours<=5+1e-9&&S.hours>=4.5&&S.jobs.length===0,'平行模式投資推進時鐘 3h（加上審 PR）、背景 agent 照跑完；本地 GPU 忙也能投資',S.hours);
   start(); ok(invCount()===0&&!S.inv.md.rails,'新的一局投資歸零');
+  /* 交叉審核工具：不用研討會、2h、NT$200、只有一級 */
+  {const ge=[]; globalThis.gtag=(k,n,p)=>ge.push({n,p});
+  newRun('laravel'); S.hours=8;
+  ok(invest('xreview')&&near(S.hours,6)&&S.corp===11800&&S.inv.xreview===1&&A.investBlock('xreview')==='已完成','交叉審核工具：8h、NT$12,000 → 6h、NT$11,800，已完成');
+  ok(ge.some(e=>e.n==='invest'&&e.p.investment==='xreview'&&e.p.stack==='none'),'交叉審核工具：GA invest 送 xreview',JSON.stringify(ge));
+  delete globalThis.gtag;}
 });
 
 section("CLAUDE.md 效果",()=>{

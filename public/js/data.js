@@ -93,8 +93,10 @@ export const planOf=v=>VENDORS[v].plans.find(p=>p.id===S.subs[v])||{id:'none',pr
 export const PN=['A','B','C'];
 export const DEFAULT_PRESETS=[{v:'deepseek',m:'chat',b:'api',rv:1,ef:1,sdd:0},{v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:1,sdd:2},{v:'anthropic',m:'opus',b:'corp',rv:2,ef:1,sdd:2}];
 export const BILL_LABEL={get sub(){return t('bill.sub');},get seat(){return t('bill.seat');},get api(){return t('bill.api');},get corp(){return t('bill.corp');},get local(){return t('bill.local');}};
-export const validPreset=p=>!!(p&&VENDORS[p.v]&&model(p.v,p.m)&&BILL_LABEL[p.b]&&(p.v==='local')===(p.b==='local')&&[0,1,2].includes(p.rv)&&(p.ef===undefined||[0,1,2].includes(p.ef))&&(p.sdd===undefined||[0,1,2].includes(p.sdd)));
-/* 舊方案沒有推理強度補成中、沒有 SDD 等級補成 2（用已買的最高級） */
+/* 審核模型：rvv 是 null（或沒有）代表同一個；有的話廠商、模型、付費方式都要存在，本地模型只能本地付 */
+export const validReviewer=p=>p.rvv==null||!!(VENDORS[p.rvv]&&model(p.rvv,p.rvm)&&BILL_LABEL[p.rvb]&&(p.rvv==='local')===(p.rvb==='local'));
+export const validPreset=p=>!!(p&&VENDORS[p.v]&&model(p.v,p.m)&&BILL_LABEL[p.b]&&(p.v==='local')===(p.b==='local')&&[0,1,2].includes(p.rv)&&(p.ef===undefined||[0,1,2].includes(p.ef))&&(p.sdd===undefined||[0,1,2].includes(p.sdd))&&validReviewer(p));
+/* 舊方案沒有推理強度補成中、沒有 SDD 等級補成 2（用已買的最高級）；沒有審核模型（rvv）就是同一個，不補欄位 */
 export const presetsOf=ps=>(Array.isArray(ps)&&ps.length===3&&ps.every(validPreset)?ps:DEFAULT_PRESETS).map(p=>({...p,ef:p.ef??1,sdd:p.sdd??2}));
 
 /* 導入 SDD 依套用的等級查表（0 不用、1 markdown、2 框架）；陷阱停下的比例在 0 級時用 TRAP_STOP */
@@ -117,10 +119,11 @@ export const INVEST={
   skills:{get name(){return t('invest.skills.name');},hrs:3,cost:400,get desc(){return t('invest.skills.desc');},lv2:{hrs:1,cost:200,get desc(){return t('invest.skills.lv2');}}},
   mcp:{get name(){return t('invest.mcp.name');},hrs:3,cost:400,get desc(){return t('invest.mcp.desc');}},
   sdd:{get name(){return t('invest.sdd.name');},hrs:6,cost:500,get desc(){return t('invest.sdd.desc',{eg:SDD_EG[1],d:sddDesc(1)});},lv2:{hrs:1,cost:200,get desc(){return t('invest.sdd.lv2',{eg:SDD_EG[2],d:sddDesc(2)});}}},
+  xreview:{get name(){return t('invest.xreview.name');},hrs:2,cost:200,get desc(){return t('invest.xreview.desc');}},
   ai:{get name(){return t('invest.ai.name');},hrs:1,cost:200,get desc(){return t('invest.ai.desc',{p:Math.round(AI_P*100),max:AI_MAX});}},
 };
 /* CLAUDE.md 以外的投資，面板照這個順序 */
-export const INV_KEYS=['tests','ci','hook','scan','fastlane','monitor','skills','mcp','sdd','ai'];
+export const INV_KEYS=['tests','ci','hook','scan','fastlane','monitor','skills','mcp','sdd','xreview','ai'];
 /* 有 Lv2 的投資：數值依等級查表（0 沒買、1、2） */
 export const MD_TK=.85, MD_P=[0,.06,.15], TEST_CATCH=[0,.1,.2], MCP_REVEAL=.2, MCP_EVAL_HRS=.5;
 export const HOOK_PR=.5, SCAN_AUDIT=[1,.5,.25], SKILLS_CX=[0,2,3], FASTLANE_REJECT=.1, MONITOR_LATE=4, MONITOR_KPI=1.2;

@@ -34,7 +34,7 @@ export function stackHint(is){
   return '';
 }
 /* 本地 GPU 一次只能跑一個 agent，跑的時候電腦被吃滿，也不能自己手寫；買了電腦之後手寫不受影響 */
-export const localBusy=()=>S.jobs.some(j=>j.b==='local');
+export const localBusy=()=>S.jobs.some(j=>j.b==='local'||j.rvb==='local');
 export const hasHw=()=>Object.values(S.hw).some(Boolean);
 export const manualBlocked=()=>localBusy()&&!hasHw();
 /* 要先買電腦才能用的本地模型 */
@@ -53,16 +53,60 @@ export function pStep(gap){
 export const bigGap=(is,M)=>!is.big?0:M.ctx?BIG.gap:M.cap<WEAK_CAP?-BIG.gap:0;
 /* SDD 套用的等級：選的等級（沒選當 2）和已買的等級取小的 */
 export const sddLevel=(req=sel.sdd)=>Math.min(req??2,lv(S.inv.sdd));
-export function est(is,v,mid,rv=sel.rv,ef=sel.ef,sd=sel.sdd){
+/* 交叉審核：實際生效的審核模型。沒買交叉審核工具、不審核或選同一個時回傳 null（照原本同一個模型審） */
+export const reviewer=(o=sel)=>!lv(S.inv.xreview)||!o.rv||o.rvv==null?null:{v:o.rvv,m:o.rvm,b:o.rvb};
+export function est(is,v,mid,rv=sel.rv,ef=sel.ef,sd=sel.sdd,rr=reviewer({...sel,rv})){
   const M0=model(v,mid), M=effModel(M0,efOf(ef)), raw=M.cap-is.cx*CAP_SCALE, diff=raw+stackGap(is,M)+bigGap(is,M);
   const md=lv(S.inv.md[is.stack]), sdd=sddLevel(sd);
-  const tk=is.base*M.verb*(is.big&&M.ctx?BIG.tk:1)*(M0.cap-is.cx*CAP_SCALE>=CAP_SCALE?.85:1)*REVIEW[rv].tk*(md?MD_TK:1)*SDD_TK[sdd]*(is.research?RESEARCH_DIRECT_TK:1);
+  /* 交叉審核時寫的那段照不審核算，審核那段另外算 */
+  const rw=rr?0:rv;
+  const tk=is.base*M.verb*(is.big&&M.ctx?BIG.tk:1)*(M0.cap-is.cx*CAP_SCALE>=CAP_SCALE?.85:1)*REVIEW[rw].tk*(md?MD_TK:1)*SDD_TK[sdd]*(is.research?RESEARCH_DIRECT_TK:1);
   /* 投資把剩下的失敗打折，不直接加百分點 */
   const f=(1-pStep(diff))*(1-MD_P[md])*(is.cx>=3?1-SDD_P[sdd]:1)*(1-AI_P)**lv(S.inv.ai);
   const p=Math.max(.05,Math.min(.97,1-f));
-  const c=catchRate(rv,diff);
-  return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:(p+(1-p)*c)*(is.store?1-storeReject():1),hrs:is.cx*M.speed*localSpeed(v)*(is.tries?RETRY.hrs:1)*REVIEW[rv].hrs*stackHrs(is)};
+  let c=catchRate(rv,diff), R=null, rtk=0, rhrs=0;
+  if(rr){
+    /* 審核模型一律中強度；抓錯率看審核模型的能力差距，token 與時間照審核模型算 */
+    R=model(rr.v,rr.m); c=catchRate(rv,R.cap-is.cx*CAP_SCALE+stackGap(is,R)+bigGap(is,R));
+    rtk=tk*(REVIEW[rv].tk-1)*R.verb/M.verb;
+    rhrs=is.cx*R.speed*localSpeed(rr.v)*(is.tries?RETRY.hrs:1)*stackHrs(is)*(REVIEW[rv].hrs-1);
+  }
+  return {M,tk,lo:tk*.7,hi:tk*1.3,p,c,pe:(p+(1-p)*c)*(is.store?1-storeReject():1),hrs:is.cx*M.speed*localSpeed(v)*(is.tries?RETRY.hrs:1)*REVIEW[rw].hrs*stackHrs(is)+rhrs,rv:rr,R,rtk,rlo:rtk*.7,rhi:rtk*1.3};
 }
+/* 審核模型按鈕能不能選（付費方式另外看）：當機、案主禁用、沒買電腦、寫的是本地、本地 GPU 忙；wv 是寫的模型的廠商 */
+export function rvModelBlock(is,v,M,wv=sel.v){
+  if(S.outage===v) return t('ui.q.down');
+  const why=cnBlock(is,v,M)||hwBlock(M); if(why) return why;
+  if(v==='local'&&wv==='local') return t('why.rvLocal');
+  if(v==='local'&&PAR()&&localBusy()) return t('why.localBusy');
+  return '';
+}
+/* 審核模型對這張工單能不能用（含付費方式）；不能用時回傳原因 */
+export function reviewerBlock(is,rr,wv){
+  if(!rr) return '';
+  const why=rvModelBlock(is,rr.v,model(rr.v,rr.m),wv); if(why) return why;
+  if(rr.b==='seat'&&!S.seats.includes(rr.v)) return t('why.noSeat');
+  const bl=bills(rr.v,is).find(b=>b.id===rr.b); if(!bl) return t('why.bill'); if(!bl.ok) return bl.note;
+  return '';
+}
+/* 額度夠的席位或訂閱（機敏單只看席位，個人訂閱會被稽核）；need(k) 是這種付費方式要用的額度 */
+export function quotaBill(v,is,need){
+  const bl=bills(v,is);
+  for(const k of is?.sens?['seat']:['seat','sub']){
+    if(!bl.find(b=>b.id===k&&b.ok)) continue;
+    const q=quotaLeft(k,v); if(q>0&&q>=need(k)) return k;
+  }
+  return null;
+}
+/* 換審核模型時的預設付費：額度夠的席位或訂閱，否則公司 API、個人 API，都不行才用第一個能用的 */
+export function rvPrefBill(is,v,m){
+  if(v==='local') return 'local';
+  const k=quotaBill(v,is,k=>is?reviewCost(est(is,sel.v,sel.m,sel.rv,sel.ef,sel.sdd,{v,m,b:k})).hi:0); if(k) return k;
+  const bl=bills(v,is);
+  return (['corp','api'].map(id=>bl.find(b=>b.id===id&&b.ok)).find(Boolean)||bl.find(b=>b.ok)||bl[0]).id;
+}
+/* 審核那段的花費（額度或錢），沒有交叉審核時 null */
+export const reviewCost=e=>e.rv?costLine(e.rv.b,e.R,e.rv.v,{lo:e.rlo,hi:e.rhi}):null;
 
 /* 外包單只能自己付：公司 API 與公司席位都不能用 */
 export const GIG_NOTE=()=>t('why.gig');
@@ -79,13 +123,8 @@ export function bills(v,is){
 /* 換廠商時的預設付費：有席位且額度夠用席位，否則有訂閱且額度夠用訂閱，都不行回傳 null（維持原本）；機敏單不自動換成個人訂閱（會被稽核） */
 export function prefBill(v,is,m){
   if(v==='local') return null;
-  const bl=bills(v,is), M=model(v,m);
-  for(const k of is?.sens?['seat']:['seat','sub']){
-    if(!bl.find(b=>b.id===k&&b.ok)) continue;
-    const need=is?costLine(k,M,v,est(is,v,m)).hi:0;
-    const q=quotaLeft(k,v); if(q>0&&q>=need) return k;
-  }
-  return null;
+  const M=model(v,m);
+  return quotaBill(v,is,k=>is?costLine(k,M,v,est(is,v,m)).hi:0);
 }
 export function costLine(b,M,v,e){
   if(b==='sub'||b==='seat') return {t:t('cost.quota'),lo:e.lo*M.w,hi:e.hi*M.w,unit:'q'};
@@ -102,9 +141,15 @@ export function presetBlock(is,p){
   if(p.b==='seat'&&!S.seats.includes(p.v)) return t('why.noSeat');
   const bl=bills(p.v,is).find(b=>b.id===p.b); if(!bl) return t('why.bill'); if(!bl.ok) return bl.note;
   if(p.b==='local'&&PAR()&&localBusy()) return t('why.localBusy');
-  const cl=costLine(p.b,M,p.v,est(is,p.v,p.m,p.rv,p.ef,p.sdd));
+  const rr=reviewer(p), e=est(is,p.v,p.m,p.rv,p.ef,p.sdd,rr), cl=costLine(p.b,M,p.v,e);
   if((p.b==='sub'||p.b==='seat')&&cl.hi>quotaLeft(p.b,p.v)) return t('why.quota');
   if(p.b==='api'&&cl.hi>S.wallet) return t('why.wallet');
+  /* 交叉審核：審核模型照同樣的順序檢查，原因前面加「審核：」；同一家同一種額度時兩段加起來比 */
+  if(!rr) return '';
+  const rw=reviewerBlock(is,rr,p.v); if(rw) return t('why.rv',{w:rw});
+  const rc=reviewCost(e), share=rr.v===p.v&&rr.b===p.b;
+  if((rr.b==='sub'||rr.b==='seat')&&rc.hi+(share?cl.hi:0)>quotaLeft(rr.b,rr.v)) return t('why.rv',{w:t('why.quota')});
+  if(rr.b==='api'&&rc.hi+(p.b==='api'?cl.hi:0)>S.wallet) return t('why.rv',{w:t('why.wallet')});
   return '';
 }
 export function presetFor(is){

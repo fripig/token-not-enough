@@ -1,5 +1,5 @@
 import {S,addGigs,clearSave,fresh,makeIssue,readSave,resetIds,sel} from './state.js';
-import {log,prefBill} from './calc.js';
+import {log,prefBill,rvPrefBill} from './calc.js';
 import {abandon,batch,cancelJob,dispatch,endDay,evaluate,research,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait,registerConf,dayStartLine} from './actions.js';
 import {abandonArm,app,armAbandon,armCancel,cancelArm,render,scrollToDispatch,setTab} from './view.js';
 import {showBadSave,showResume,showSetup} from './modals.js';
@@ -19,6 +19,8 @@ app.addEventListener('click',e=>{
   else if(t.dataset.tab){setTab(t.dataset.tab);render();}
   else if(t.dataset.v){const nv=t.dataset.v!==sel.v;sel.v=t.dataset.v;sel.m=t.dataset.m;if(sel.v==='local')sel.b='local';else{if(sel.b==='local')sel.b='api';if(nv)sel.b=prefBill(sel.v,S.issues.find(i=>i.id===sel.issue),sel.m)??sel.b;}render();}
   else if(t.dataset.b){sel.b=t.dataset.b;render();}
+  else if(t.dataset.rvv!==undefined){if(!t.dataset.rvv)Object.assign(sel,{rvv:null,rvm:null,rvb:null});else{sel.rvv=t.dataset.rvv;sel.rvm=t.dataset.rvm;sel.rvb=rvPrefBill(S.issues.find(i=>i.id===sel.issue),sel.rvv,sel.rvm);}render();}
+  else if(t.dataset.rvb){sel.rvb=t.dataset.rvb;render();}
   else if(t.dataset.rv){sel.rv=+t.dataset.rv;render();}
   else if(t.dataset.ef){sel.ef=+t.dataset.ef;render();}
   else if(t.dataset.sdd){sel.sdd=+t.dataset.sdd;render();}

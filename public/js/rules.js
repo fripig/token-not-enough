@@ -9,6 +9,8 @@ import {t} from './i18n.js';
 /* ===== 規則速查：數字一律從遊戲常數插值，改數值時這裡跟著變；文字在字典的 rules.* ===== */
 export const RULE_TABS=['basic','dispatch','billing','tickets','invest','score'].map(id=>({id,get title(){return t(`rules.tab.${id}`);}}));
 export let ruleTab='basic';
+/* 審核多出來的倍率（×1.3 → 0.3），避開浮點尾數 */
+export const x1=m=>Math.round((m-1)*100)/100;
 export const pct=x=>`${Math.round(x*1000)/10}%`;
 export const rtag=s=>`<span class="rtag">${s}</span>`;
 export const rtable=(head,rows)=>`<div class="rtw"><table class="rt"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td data-h="${head[i]}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
@@ -27,7 +29,7 @@ export function rulesTab(id){
       r('retry',{tk:RETRY.tk,hrs:RETRY.hrs}),
       `${tag('adv')}${r('effortSee')}`])}`)
     +rsec(r('h.review'),`${rtable([r('th.level'),'token',r('th.time'),r('th.catch')],REVIEW.map((rv,i)=>[rv.name,`×${rv.tk}`,`×${rv.hrs}`,i===0?'0':r('catchFormula',{base:CATCH.base,per:CATCH.per,d:CAP_SCALE,strict:i===2?` + ${CATCH.strict}`:'',max:pct(CATCH.max)})]))}
-    ${rlist([r('review1'),r('review2')])}`)
+    ${rlist([r('review1'),r('review2'),r('review3',{name:INVEST.xreview.name,h:INVEST.xreview.hrs,cost:nt(INVEST.xreview.cost),tk1:x1(REVIEW[1].tk),tk2:x1(REVIEW[2].tk),h1:x1(REVIEW[1].hrs),h2:x1(REVIEW[2].hrs)})])}`)
     +rsec(r('h.stack'),rlist([
       r('stack.conv'),
       r('stack.rust',{x:STACK_HRS.rust,w:WEAK_CAP}),

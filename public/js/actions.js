@@ -1,6 +1,6 @@
 import {CAP_SCALE,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
 import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardKpi,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks,issueTitle} from './state.js';
-import {REVIEW,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetBlock,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
+import {REVIEW,reviewer,reviewerBlock,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetBlock,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
 import {render,setTab} from './view.js';
 import {showDay,showEnd} from './modals.js';
 import {t} from './i18n.js';
@@ -20,29 +20,32 @@ export function reveal(is){ if(!hiddenTrap(is)) return; is.shownCx=is.cx; is.cx=
 export function makeJob(is){
   const hidden=hiddenTrap(is), e=est(trueView(is),sel.v,sel.m);
   const sdd=sddLevel(), stop=hidden&&e.M.cap<is.trueCx*CAP_SCALE, f=stop?(sdd?SDD_TRAP_STOP[sdd]:TRAP_STOP):1;
-  const ok=!stop&&Math.random()<e.p, tk=e.tk*f*R(.7,1.3), n=R(.8,1.2);
+  const ok=!stop&&Math.random()<e.p, k=R(.7,1.3), tk=e.tk*f*k, n=R(.8,1.2), rr=e.rv;
   /* shownHrs：畫面與紀錄看到的預估，陷阱曝光前照顯示的複雜度算，才不會從時間看出陷阱；實際跑 hrs */
-  return {issue:is,v:sel.v,m:sel.m,ef:efOf(sel.ef),b:sel.b,M:e.M,rv:sel.rv,tk,hrs:e.hrs*f*n,shownHrs:(hidden?est(is,sel.v,sel.m).hrs:e.hrs*f)*n,ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd,research:!!is.research};
+  return {issue:is,v:sel.v,m:sel.m,ef:efOf(sel.ef),b:sel.b,M:e.M,rv:sel.rv,tk,hrs:e.hrs*f*n,shownHrs:(hidden?est(is,sel.v,sel.m).hrs:e.hrs*f)*n,ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd,research:!!is.research,rvv:rr?.v??null,rvm:rr?.m??null,rvb:rr?.b??null,rtk:e.rtk*f*k};
 }
 /* GA：派工與結果共用的選擇參數；舊存檔的 job 沒有 m、ef，sdd 是布林 */
 export const RV_ID=['none','self','strict'];
 export const SDD_ID=['none','md','framework'];
-export const jobChoice=j=>({vendor:j.v,model:j.m??'unknown',bill:j.b,review:RV_ID[j.rv],effort:EFFORT[j.ef??1].id,sdd:SDD_ID[lv(j.sdd)]});
+export const jobChoice=j=>({vendor:j.v,model:j.m??'unknown',bill:j.b,review:RV_ID[j.rv],effort:EFFORT[j.ef??1].id,sdd:SDD_ID[lv(j.sdd)],
+  rv_vendor:j.rvv??'same',rv_model:j.rvv!=null?j.rvm:'same',rv_bill:j.rvv!=null?j.rvb:'same'});
+/* 紀錄裡的「・Opus 審（公司 API）」；同一個模型審時是空的 */
+export const rvSeg=j=>j.rvv!=null?`${t('sep')}${t('log.rvBy',{m:model(j.rvv,j.rvm).name,bill:BILL_LABEL[j.rvb]})}`:'';
 /* 目前選的付費方式能不能用（錢包見底、沒訂閱、外包不能用公司資源等，同派工台的按鈕） */
 /* 紀錄裡的「agent / 模型・付費方式」 */
 export const who=(v,M,b)=>t('log.who',{agent:VENDORS[v].agent,model:M.name,bill:BILL_LABEL[b]});
 export const billOk=is=>bills(sel.v,is).some(b=>b.id===sel.b&&b.ok);
 /* via：panel（派工按鈕）、quick（一鍵派工）、batch（批次派工）；preset 是方案字母 */
 export function dispatch(via='panel',preset='none'){
-  const is=S.issues.find(i=>i.id===sel.issue); if(!is||!billOk(is)||hwBlock(model(sel.v,sel.m))) return;
+  const is=S.issues.find(i=>i.id===sel.issue); if(!is||!billOk(is)||hwBlock(model(sel.v,sel.m))||reviewerBlock(is,reviewer(),sel.v)) return;
   const pe=est(is,sel.v,sel.m).pe, j=makeJob(is);
-  if(PAR()&&(S.jobs.length>=S.slots||(j.b==='local'&&localBusy()))) return;
-  useHw(j.v,j.m);
+  if(PAR()&&(S.jobs.length>=S.slots||((j.b==='local'||j.rvb==='local')&&localBusy()))) return;
+  useHw(j.v,j.m); if(j.rvb==='local') useHw(j.rvv,j.rvm);
   track('dispatch',{...jobChoice(j),via,preset,cx:is.cx,stack:is.stack,incident:!!is.inc,sensitive:!!is.sens,gig:!!is.out,merge:!!is.merge,research:!!is.research});
   /* 復盤用：記下派工當下看到的條件（成功率是派工台顯示的，陷阱照顯示的複雜度） */
   const sp=t('sep'), tags=[t('ui.card.cx',{cx:is.cx}),is.due<=S.day?t('ui.dueToday'):t('log.dueOn',{d:is.due}),...(is.inc?[t('ui.chip.inc')]:[]),...(is.sens?[t('ui.chip.sens')]:[]),...(is.out?[t('ui.chip.gig')]:[]),...(is.research?[t('ui.chip.research')]:[])].join(sp);
   const how=via==='quick'?t('log.via.quick',{p:preset}):via==='batch'?t('log.via.batch',{p:preset}):t('log.via.panel');
-  log('dim',t('log.dispatch',{title:issueTitle(is),tags,who:who(j.v,j.M,j.b),opts:`${sp}${REVIEW[j.rv].name}${j.sdd?`${sp}SDD ${SDD_NAME[j.sdd]}`:''}`,p:Math.round(pe*100),how,h:h1(j.shownHrs)}));
+  log('dim',t('log.dispatch',{title:issueTitle(is),tags,who:who(j.v,j.M,j.b),opts:`${sp}${REVIEW[j.rv].name}${rvSeg(j)}${j.sdd?`${sp}SDD ${SDD_NAME[j.sdd]}`:''}`,p:Math.round(pe*100),how,h:h1(j.shownHrs)}));
   if(PAR()){
     j.left=j.hrs; is.running=true; S.jobs.push(j); sel.issue=null;
     advance(.2); render(); return;
@@ -59,13 +62,15 @@ export const canQuick=()=>S.hours>=.2&&(!PAR()||S.jobs.length<S.slots);
 export function quick(id,via='quick',pi=null){
   const is=S.issues.find(i=>i.id===id); if(!is||is.running||!canQuick()) return false;
   const {i,skip}=pi===null?presetFor(is):{i:S.presets[pi]&&!presetBlock(is,S.presets[pi])?pi:-1,skip:[]}; if(i<0) return false;
-  Object.assign(sel,S.presets[i],{issue:id});
+  Object.assign(sel,NO_RV,S.presets[i],{issue:id});
   if(skip.length) log('dim',t('log.quickSkip',{p:PN[i],list:skip.map(s=>t('log.skipItem',{p:PN[s.i],r:s.r})).join(t('sep.list'))}));
   dispatch(via,PN[i]); return true;
 }
-export const loadPreset=i=>Object.assign(sel,S.presets[i]);
+/* 方案沒有審核模型就是同一個：載入前先清掉 */
+export const NO_RV={rvv:null,rvm:null,rvb:null};
+export const loadPreset=i=>Object.assign(sel,NO_RV,S.presets[i]);
 export function savePreset(i){
-  S.presets[i]={v:sel.v,m:sel.m,b:sel.b,rv:sel.rv,ef:sel.ef,sdd:sel.sdd??2};
+  S.presets[i]={v:sel.v,m:sel.m,b:sel.b,rv:sel.rv,ef:sel.ef,sdd:sel.sdd??2,...(sel.rvv!=null?{rvv:sel.rvv,rvm:sel.rvm,rvb:sel.rvb}:{})};
   log('dim',t('log.savePreset',{p:PN[i],who:who(sel.v,effModel(model(sel.v,sel.m),efOf(sel.ef)),sel.b),rv:REVIEW[sel.rv].name}));
 }
 /* 平行模式：推進時鐘，背景 agent 跑完就結算，成功的要花時間審 PR */
@@ -107,13 +112,15 @@ export function cancelJob(id){
 export function charge(b,v,M,tk){
   if(b==='sub'||b==='seat'){
     const need=tk*M.w, left=quotaLeft(b,v);
-    if(need>left){ useQuota(b,v,left); return {spend:t('log.spend.quota',{n:kt(left)}),short:true,frac:need>0?left/need:0}; }
-    useQuota(b,v,need); return {spend:t('log.spend.quota',{n:kt(need)}),short:false,frac:1};
+    if(need>left){ useQuota(b,v,left); return {spend:t('log.spend.quota',{n:kt(left)}),short:true,frac:need>0?left/need:0,q:left}; }
+    useQuota(b,v,need); return {spend:t('log.spend.quota',{n:kt(need)}),short:false,frac:1,q:need};
   }
   if(b==='api'){ const c=tk*M.price*S.priceMod[v], paid=Math.min(c,Math.max(0,S.wallet)); S.wallet-=paid; S.st.api+=paid; return {spend:nt(paid),short:paid<c,frac:c>0?paid/c:1,cost:paid}; }
   if(b==='corp'){ const c=tk*M.price*S.priceMod[v]; S.corp-=c; S.corpDay+=c; S.st.corp+=c; return {spend:t('log.spend.corp',{c:nt(c)}),short:false,frac:1,cost:c}; }
   return {spend:t('log.spend.power'),short:false,frac:1};
 }
+/* 同一種付費方式扣了兩次（交叉審核的修正）時，紀錄寫合計 */
+export const spendText=(b,q,c,s)=>b==='sub'||b==='seat'?t('log.spend.quota',{n:kt(q)}):b==='api'?nt(c):b==='corp'?t('log.spend.corp',{c:nt(c)}):s;
 /* 機敏程式碼送進個人帳號的稽核風險；派工與評估共用 */
 export const auditRisk=(is,b)=>is.sens&&(b==='sub'||b==='api');
 /* 資安稽核、公司帳單、逾期的信任扣分 */
@@ -135,24 +142,40 @@ export function settle(j,o={}){
   const is=j.issue,v=j.v,b=j.b,M=j.M,frac=o.frac??1;
   if(!o.cancel&&j.hidden&&hiddenTrap(is)){ reveal(is); S.st.trapHit++; }
   let tk=j.tk*frac, hrs=j.hrs*frac, ok=j.ok&&!o.fail, note=o.note||'', spend='', conflict=false, fixed=false, rejected=false;
-  if(!j.ok&&j.caught&&!o.fail){tk*=1.25;ok=true;fixed=true;}
-  if(!j.ok&&!j.caught&&j.rv&&!o.fail) note=t('log.note.missed');
+  const cross=j.rvv!=null;
+  if(!cross&&!j.ok&&j.caught&&!o.fail){tk*=1.25;ok=true;fixed=true;}
+  if(!cross&&!j.ok&&!j.caught&&j.rv&&!o.fail) note=t('log.note.missed');
   if(j.stop&&!o.fail) note=t(TRAP_NOTE[lv(j.sdd)]);
   const ch=charge(b,v,M,tk); spend=ch.spend;
   if(ch.short){ tk*=ch.frac; hrs=Math.max(.3,hrs*Math.max(.3,ch.frac)); ok=false; note=t(b==='api'?'log.note.wallet':'log.note.quota'); }
+  /* 交叉審核：寫的先扣，審核那段另外付；廠商今天當機或付不出來就當作沒審。抓到錯的修正（多 25%）最後再對寫的付費方式扣，扣不到就當作沒修好 */
+  let rch=null, rtk=0, wq=ch.q||0, wc=ch.cost||0;
+  if(cross){
+    let revOk=S.outage!==j.rvv;
+    if(revOk){ rtk=(j.rtk||0)*frac; rch=charge(j.rvb,j.rvv,model(j.rvv,j.rvm),rtk); if(rch.short){ rtk*=rch.frac; revOk=false; } }
+    if(!ch.short&&!j.ok&&!o.fail){
+      if(j.caught&&revOk){
+        const fx=charge(b,v,M,tk*.25); wq+=fx.q||0; wc+=fx.cost||0; tk+=tk*.25*fx.frac;
+        if(fx.short) note=t(b==='api'?'log.note.wallet':'log.note.quota'); else{ok=true;fixed=true;}
+        spend=spendText(b,wq,wc,ch.spend);
+      }
+      else if(j.caught) note=t('log.note.reviewSkipped');
+      else if(j.rv&&!j.stop) note=t('log.note.missed');
+    }
+  }
   /* 解決衝突工單本身不會再衝突 */
   if(ok&&!is.merge&&o.conflict&&Math.random()<o.conflict){ok=false;conflict=true;}
   /* App 上架審核在 agent 做完之後才發生，自我審核救不回來 */
   if(ok&&is.store&&Math.random()<storeReject()){ok=false;rejected=true;note=t('log.note.store');}
-  S.st.tk[v]+=tk; S.st.byBill[b]+=tk;
+  S.st.tk[v]+=tk; S.st.byBill[b]+=tk; if(rtk){S.st.tk[j.rvv]+=rtk; S.st.byBill[j.rvb]+=rtk;}
   const outcome=o.cancel?'cancelled':o.fail?'aborted':ch.short?'quota':conflict?'conflict':rejected?'rejected':ok?(fixed?'caught':'success'):j.stop?'trap_stop':'fail';
-  track('job_result',{...jobChoice(j),cx:is.cx,stack:is.stack,gig:!!is.out,research:!!j.research,outcome,tokens:Math.round(tk),cost:Math.round(ch.cost||0),hours:Math.round(hrs*10)/10});
+  track('job_result',{...jobChoice(j),cx:is.cx,stack:is.stack,gig:!!is.out,research:!!j.research,outcome,tokens:Math.round(tk+rtk),cost:Math.round(wc+(rch?.cost||0)),hours:Math.round(hrs*10)/10});
   const w=who(v,M,b), sp=t('sep');
   if(ok){
     S.issues=S.issues.filter(i=>i!==is); const rw=reward(is);
     if(is.inc) S.trust=Math.min(100,S.trust+2);
     if(fixed)S.st.caught++;
-    log('ok',t('log.ok',{title:issueTitle(is),who:w+(j.rv?sp+REVIEW[j.rv].name:''),tk:kt(tk),spend,h:h1(hrs),rw}));
+    log('ok',t('log.ok',{title:issueTitle(is),who:w+(j.rv?sp+REVIEW[j.rv].name+rvSeg(j):''),tk:kt(tk),spend,h:h1(hrs),rw}));
     if(fixed)log('ok',t('log.fixed',{rv:REVIEW[j.rv].name}));
     if(j.hidden)log('warn',t('log.trapForced',{a:is.shownCx,b:is.cx}));
     if(sel.issue===is.id) sel.issue=null;
@@ -168,7 +191,7 @@ export function settle(j,o={}){
     is.tries++; is.base*=j.stop?1:RETRY.tk;
     log('bad',t('log.fail',{title:issueTitle(is),who:w,note:note||t('log.note.fail'),tk:kt(tk),spend,h:h1(hrs)}));
   }
-  auditRoll(is,b,v); checkOverdraft();
+  auditRoll(is,b,v); if(rtk>0) auditRoll(is,j.rvb,j.rvv); checkOverdraft();
   return {ok,hrs,rejected};
 }
 export function wait(next){
@@ -383,7 +406,7 @@ export function batch(){
     if(!canQuick()) break;
     const {i}=presetFor(is);
     if(i<0){skip++;continue;}
-    if(!PAR()){const p=S.presets[i]; if(est(is,p.v,p.m,p.rv,p.ef,p.sdd).hrs>S.hours) break;}
+    if(!PAR()){const p=S.presets[i]; if(est(is,p.v,p.m,p.rv,p.ef,p.sdd,reviewer(p)).hrs>S.hours) break;}
     if(quick(is.id,'batch')) n++; else skip++;
   }
   log('dim',t('log.batch',{n,skip}));
@@ -496,7 +519,7 @@ export function endDay(){
   if(S.outage){const n=cancelJobs(j=>j.v===S.outage,t('log.note.outage'));if(n)rep.push(t('rep.outage',{n,v:VENDORS[S.outage].name}));}
   if(S.jobs.length){ S.jobs.forEach(j=>j.left=Math.max(.05,j.left-OVERNIGHT_HRS)); rep.push(t('rep.overnight',{n:S.jobs.length})); }
   /* 跑過夜的本地 agent 一早還占著 GPU，今天算用到那台電腦 */
-  S.jobs.forEach(j=>{if(j.b==='local')useHw(j.v,j.m);});
+  S.jobs.forEach(j=>{if(j.b==='local')useHw(j.v,j.m); if(j.rvb==='local')useHw(j.rvv,j.rvm);});
   const n=PAR()?3+rnd(4):2+rnd(3); for(let i=0;i<n;i++)S.issues.push(intakeIssue());
   const g=addGigs();
   log('dim',dayStartLine(S.day,monday,n,g));

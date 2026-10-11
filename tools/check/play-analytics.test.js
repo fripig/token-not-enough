@@ -165,3 +165,20 @@ section("play-analytics：退單事件",()=>{
   newRun('laravel'); const inc=ticket('laravel',4,{inc:true}); S.issues=[inc]; ev.length=0; A.abandon(inc.id);
   ok(!ev.some(x=>x.name==='abandon'),'play-analytics：事故單退不掉、不送 abandon');
 });
+
+section("play-analytics：交叉審核參數（gh-48-01-cross-model-review）",()=>{
+  const ev=[]; globalThis.gtag=(kind,name,p)=>ev.push({name,p}); const of=n=>ev.filter(e=>e.name===n);
+  newRun('laravel','parallel'); S.inv.xreview=1; S.hours=8; S.subs.anthropic='max20'; const a=ticket('fe',2), b=ticket('fe',2); S.issues=[a,b];
+  Object.assign(sel,{issue:a.id,v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:1,rvv:'anthropic',rvm:'opus',rvb:'sub'}); dispatch();
+  Object.assign(sel,{issue:b.id,rvv:null,rvm:null,rvb:null}); dispatch();
+  const [p1,p2]=of('dispatch').map(e=>e.p);
+  ok(p1?.rv_vendor==='anthropic'&&p1.rv_model==='opus'&&p1.rv_bill==='sub'&&p2?.rv_vendor==='same'&&p2.rv_model==='same'&&p2.rv_bill==='same','dispatch 帶審核模型；同一個送 same',JSON.stringify([p1,p2]));
+  /* 結果：tokens、cost 含審核那段 */
+  newRun('laravel'); S.inv.xreview=1; const s=ticket('fe',2); S.issues=[s]; ev.length=0;
+  settle({issue:s,v:'anthropic',m:'sonnet',b:'api',M:model('anthropic','sonnet'),rv:1,tk:200,hrs:1,ok:true,caught:false,left:0,hidden:false,stop:false,sdd:0,rvv:'anthropic',rvm:'opus',rvb:'corp',rtk:51});
+  const r=of('job_result')[0]?.p||{};
+  ok(r.tokens===251&&r.cost===136&&r.rv_bill==='corp','job_result：tokens 251、cost 136、rv_bill corp',JSON.stringify(r));
+  settle({issue:ticket('fe',1),v:'anthropic',m:'sonnet',b:'api',M:model('anthropic','sonnet'),rv:1,tk:10,hrs:1,ok:true,caught:false,left:0,hidden:false,stop:false,sdd:0});
+  ok(of('job_result')[1]?.p.rv_vendor==='same','舊 job 沒有審核欄位：送 same');
+  delete globalThis.gtag;
+});

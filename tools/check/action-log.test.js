@@ -81,3 +81,14 @@ section("執行紀錄（gh-25-01-log-history）",()=>{
   S.day=6; S.dayStart.wallet=1; showSetup(true); p0({act:'confirm'}); ok(S.dayStart.wallet===1,'action-log：週一調整訂閱不重設基準');
   }
 });
+
+section("action-log：交叉審核寫出審核模型（gh-48-01-cross-model-review）",()=>{
+  newRun('laravel','parallel'); S.inv.xreview=1; S.inv.sdd=2; S.hours=8; S.subs.anthropic='max20'; const d=ticket('fe',2); S.issues=[d];
+  Object.assign(sel,{issue:d.id,v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:1,sdd:2,rvv:'anthropic',rvm:'opus',rvb:'sub'}); dispatch();
+  const l=S.log.find(x=>x.msg.includes('→ 派出'))?.msg||'';
+  ok(l.includes('｜Claude Code / Sonnet・公司 API・自審・Opus 審（個人訂閱）・SDD 框架｜'),'派工那行：自審後面寫 Opus 審（個人訂閱）',l);
+  newRun('laravel'); S.inv.xreview=1; const s=ticket('fe',2); S.issues=[s];
+  A.settle({issue:s,v:'anthropic',b:'corp',M:C.est(s,'anthropic','sonnet',0,1,2,null).M,m:'sonnet',rv:1,tk:10,hrs:1,ok:true,caught:false,left:0,hidden:false,stop:false,sdd:0,rvv:'anthropic',rvm:'opus',rvb:'corp',rtk:3});
+  ok(S.log[0].msg.includes('Claude Code / Sonnet・公司 API・自審・Opus 審（公司 API）'),'成功那行寫出審核模型',S.log[0].msg);
+  Object.assign(sel,{rvv:null,rvm:null,rvb:null});
+});

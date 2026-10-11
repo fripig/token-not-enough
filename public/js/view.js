@@ -1,6 +1,6 @@
 import {CAP_SCALE,RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
 import {GIG_LATE,S,issueTitle,sel,unfamiliar} from './state.js';
-import {REVIEW,sddLevel,bills,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetBlock,quotaLeft,stackHint} from './calc.js';
+import {REVIEW,reviewer,reviewCost,rvModelBlock,sddLevel,bills,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetBlock,quotaLeft,stackHint} from './calc.js';
 import {ABANDON_TRUST,canAbandon,INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
 import {LANGS,LANG_SWITCH,lang,t} from './i18n.js';
 
@@ -154,8 +154,26 @@ export function capBar(cap){
   const full=Math.floor(cap/CAP_SCALE), half=cap%CAP_SCALE>=CAP_SCALE/2?1:0;
   return `${'●'.repeat(full)}${'◐'.repeat(half)}${'○'.repeat(Math.max(0,5-full-half))} ${cap}`;
 }
+const costTxt=c=>c.unit==='q'?`${kt(c.lo)}–${kt(c.hi)}`:c.hi?`${nt(c.lo)}–${nt(c.hi)}`:'NT$0';
+/* 選的審核模型不能用、或那家沒有能用的付費方式就回到同一個；審核付費方式不能用就換第一個能用的 */
+export function fixReviewer(is){
+  if(sel.rvv==null) return;
+  const R=model(sel.rvv,sel.rvm);
+  if(!R||(sel.rvv===sel.v&&sel.rvm===sel.m)||rvModelBlock(is,sel.rvv,R)){Object.assign(sel,{rvv:null,rvm:null,rvb:null});return;}
+  const rbl=bills(sel.rvv,is); if(!rbl.find(b=>b.id===sel.rvb&&b.ok)){const f=rbl.find(b=>b.ok); if(f) sel.rvb=f.id; else Object.assign(sel,{rvv:null,rvm:null,rvb:null});}
+}
+/* 交叉審核：買了交叉審核工具、選了自審或嚴格審核才出現；審核模型一律中強度 */
+export function reviewerRows(is){
+  if(!lv(S.inv.xreview)||!sel.rv) return '';
+  const sp=t('sep'), pc=(v,m)=>Math.round(est(is,sel.v,sel.m,sel.rv,sel.ef,sel.sdd,{v,m,b:'corp'}).c*100);
+  const same=`<button class="sb ${sel.rvv==null?'sel':''}" data-rvv="">${t('ui.dp.rvSame')}<small>${t('ui.dp.reviewDesc',{tk:REVIEW[sel.rv].tk,p:Math.round(est(is,sel.v,sel.m,sel.rv,sel.ef,sel.sdd,null).c*100)})}</small></button>`;
+  const mods=Object.keys(VENDORS).flatMap(v=>VENDORS[v].models.filter(M=>!(v===sel.v&&M.id===sel.m)).map(M=>{const why=rvModelBlock(is,v,M);
+    return `<button class="mb ${sel.rvv===v&&sel.rvm===M.id?'sel':''}" style="--vc:${vc(v)}" data-rvv="${v}" data-rvm="${M.id}" ${why?'disabled':''}><b>${M.name}</b><span>${t('ui.dp.cap')} ${capBar(M.cap)}</span><span class="${why?'why':''}">${why||`${M.price?`$${M.price}/k`:t('ui.dp.free')}${sp}${t('ui.dp.rvCatch',{p:pc(v,M.id)})}`}</span></button>`;})).join('');
+  const bill=sel.rvv==null?'':`<div class="sec"><label>${t('ui.dp.rvBill')}</label><div class="seg">${bills(sel.rvv,is).map(b=>`<button class="sb ${sel.rvb===b.id?'sel':''}" data-rvb="${b.id}" ${b.ok?'':'disabled'}>${b.label}<small>${b.note}</small></button>`).join('')}</div></div>`;
+  return `<div class="sec"><label>${t('ui.dp.rvModel')}</label><div class="seg">${same}</div><div class="mods">${mods}</div></div>${bill}`;
+}
 /* 目前選擇跟方案一樣時，載入方案按鈕亮起來；強度只在進階模式比 */
-export const presetIs=p=>p.v===sel.v&&p.m===sel.m&&p.b===sel.b&&p.rv===sel.rv&&(!S.advanced||p.ef===sel.ef)&&sddLevel(p.sdd)===sddLevel();
+export const presetIs=p=>p.v===sel.v&&p.m===sel.m&&p.b===sel.b&&p.rv===sel.rv&&(!S.advanced||p.ef===sel.ef)&&sddLevel(p.sdd)===sddLevel()&&JSON.stringify(reviewer(p))===JSON.stringify(reviewer());
 export function dispatchPanel(){
   const is=S.issues.find(i=>i.id===sel.issue), sp=t('sep'), ls=t('sep.list');
   if(!is) return `<div class="empty">${t('ui.dp.empty1')}<br>${t('ui.dp.empty2')}</div>${S.log.length?`<div class="recent"><label>${t('ui.dp.recent')}</label>${logLines(S.log.slice(0,DP_RECENT))}</div>`:''}`;
@@ -163,12 +181,13 @@ export function dispatchPanel(){
   const avail=(v,M)=>S.outage!==v&&!cnBlock(is,v,M)&&!hwBlock(M);
   if(!avail(sel.v,model(sel.v,sel.m))){for(const v in VENDORS){const M=VENDORS[v].models.find(M=>avail(v,M));if(M){sel.v=v;sel.m=M.id;break;}}if(sel.v==='local')sel.b='local';else if(sel.b==='local')sel.b='api';}
   let bl=bills(sel.v,is); if(!bl.find(b=>b.id===sel.b&&b.ok)){const f=bl.find(b=>b.ok);sel.b=f?f.id:bl[0].id;}
+  fixReviewer(is);
   const rows=Object.keys(VENDORS).map(v=>{
     const V=VENDORS[v], down=S.outage===v;
     return `<div class="vrow" style="--vc:${vc(v)}"><div class="vn"><b>${V.name}</b><span>${down?t('ui.q.down'):V.agent}</span>${V.cn?`<span class="cn">${t('ui.dp.cnVendor')}</span>`:''}</div>
       <div class="mods">${V.models.map(M=>{const why=cnBlock(is,v,M)||hwBlock(M);return `<button class="mb ${sel.v===v&&sel.m===M.id?'sel':''}" data-v="${v}" data-m="${M.id}" ${down||why?'disabled':''}><b>${M.name}</b><span>${t('ui.dp.cap')} ${capBar(M.cap)}</span><span class="${why?'why':''}">${why||(M.price?`$${M.price}/k`:t('ui.dp.free'))}${!why&&M.cn?`${sp}${t('ui.dp.cnWeights')}`:''}</span></button>`;}).join('')}</div></div>`;
   }).join('');
-  const e=est(is,sel.v,sel.m), M=e.M, cl=costLine(sel.b,M,sel.v,e);
+  const e=est(is,sel.v,sel.m), M=e.M, cl=costLine(sel.b,M,sel.v,e), rcl=reviewCost(e), rr=e.rv;
   const segs=bl.map(b=>`<button class="sb ${sel.b===b.id?'sel':''}" data-b="${b.id}" ${b.ok?'':'disabled'}>${b.label}<small>${b.note}</small></button>`).join('');
   const pc=e.pe>=.8?'good':e.pe>=.5?'meh':'bad';
   let warn='';
@@ -176,20 +195,24 @@ export function dispatchPanel(){
   else if(sel.b==='local'&&localBusy()) warn=t('ui.warn.localBusy');
   else if(is.sens&&VENDORS[sel.v].cn) warn=t('ui.warn.sensCn',{p:Math.round(auditOdds(sel.v)*100)});
   else if(is.sens&&(sel.b==='sub'||sel.b==='api')) warn=t('ui.warn.sensPersonal',{p:Math.round(auditOdds(sel.v)*100)});
+  else if(rr&&is.sens&&(rr.b==='sub'||rr.b==='api')) warn=t('why.rv',{w:t(VENDORS[rr.v].cn?'ui.warn.sensCn':'ui.warn.sensPersonal',{p:Math.round(auditOdds(rr.v)*100)})});
   else if((sel.b==='sub'||sel.b==='seat')&&cl.hi>quotaLeft(sel.b,sel.v)) warn=t('ui.warn.quota');
+  else if(rr&&(rr.b==='sub'||rr.b==='seat')&&rcl.hi+(rr.v===sel.v&&rr.b===sel.b?cl.hi:0)>quotaLeft(rr.b,rr.v)) warn=t('why.rv',{w:t('ui.warn.quota')});
   else if(PAR()&&S.jobs.length>=S.slots) warn=t('ui.warn.slots');
   else if(PAR()&&is.due<=S.day&&e.hrs+.2>S.hours) warn=t('ui.warn.late');
   else if(PAR()&&S.day>=20&&e.hrs+.2>S.hours) warn=t('ui.warn.monthEnd');
   else if(PAR()&&e.hrs+.2>S.hours) warn=t('ui.warn.overnight');
   else if(!PAR()&&e.hrs*1.2>S.hours) warn=t('ui.warn.hours');
   else if(sel.b==='api'&&cl.hi>S.wallet) warn=t('ui.warn.wallet');
+  else if(rr&&rr.b==='api'&&rcl.hi+(sel.b==='api'?cl.hi:0)>S.wallet) warn=t('why.rv',{w:t('ui.warn.wallet')});
   const mh=manualHrs(is), ec=evalCost(model(sel.v,sel.m),sel.v), rc=researchCost(model(sel.v,sel.m),sel.v);
   const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m))||!!hwBlock(model(sel.v,sel.m))||(sel.b==='local'&&localBusy());
   return `<p class="dpt">${issueTitle(is)}</p>
-  <div class="sec"><label>${t('ui.dp.presets')}</label><div class="seg">${S.presets.map((p,i)=>`<button class="sb ${presetIs(p)?'sel':''}" data-load="${i}">${t('ui.dp.load',{p:PN[i]})}<small>${model(p.v,p.m).name}${S.advanced&&p.ef!==1?`${sp}${t('ui.dp.effortTag',{name:EFFORT[p.ef].name})}`:''}${sp}${BILL_LABEL[p.b]}${sp}${REVIEW[p.rv].name}${lv(S.inv.sdd)?`${sp}SDD ${SDD_NAME[sddLevel(p.sdd)]}`:''}</small></button>`).join('')}</div></div>
+  <div class="sec"><label>${t('ui.dp.presets')}</label><div class="seg">${S.presets.map((p,i)=>`<button class="sb ${presetIs(p)?'sel':''}" data-load="${i}">${t('ui.dp.load',{p:PN[i]})}<small>${model(p.v,p.m).name}${S.advanced&&p.ef!==1?`${sp}${t('ui.dp.effortTag',{name:EFFORT[p.ef].name})}`:''}${sp}${BILL_LABEL[p.b]}${sp}${REVIEW[p.rv].name}${lv(S.inv.sdd)?`${sp}SDD ${SDD_NAME[sddLevel(p.sdd)]}`:''}${reviewer(p)?`${sp}${t('ui.dp.rvTag',{m:model(p.rvv,p.rvm).name})}`:''}</small></button>`).join('')}</div></div>
   <div class="est">
-    <div><label>${t('ui.dp.estTk')}</label><b>${kt(e.lo)}–${kt(e.hi)}</b></div>
-    <div><label>${cl.t}</label><b>${cl.unit==='q'?`${kt(cl.lo)}–${kt(cl.hi)}`:cl.hi?`${nt(cl.lo)}–${nt(cl.hi)}`:'NT$0'}</b></div>
+    <div><label>${t('ui.dp.estTk')}</label><b>${kt(e.lo+e.rlo)}–${kt(e.hi+e.rhi)}</b></div>
+    <div><label>${cl.t}</label><b>${costTxt(cl)}</b></div>
+    ${rcl?`<div><label>${t('ui.dp.rvCost',{t:rcl.t})}</label><b>${costTxt(rcl)}</b></div>`:''}
     <div><label>${t('ui.dp.p')}${sel.rv||is.store?t('ui.dp.pRaw',{p:Math.round(e.p*100)}):''}</label><b class="${pc}">${Math.round(e.pe*100)}%</b></div>
     <div><label>${PAR()?t('ui.dp.runHrs'):t('ui.dp.workHrs')}</label><b>${h1(e.hrs)}h</b></div>
   </div>
@@ -210,6 +233,7 @@ export function dispatchPanel(){
   <div class="sec"><label>${t('ui.dp.pick')}</label>${rows}</div>
   <div class="sec"><label>${t('ui.dp.bill')}</label><div class="seg">${segs}</div>${S.seats.length&&!S.seats.includes(sel.v)?`<p class="hint">${t('ui.dp.seatHint',{seats:S.seats.map(v=>VENDORS[v].name).join(ls),agents:S.seats.map(v=>VENDORS[v].agent).join(ls)})}</p>`:''}</div>
   <div class="sec"><label>${t('ui.dp.review')}</label><div class="seg">${REVIEW.map((r,i)=>`<button class="sb ${sel.rv===i?'sel':''}" data-rv="${i}">${r.name}<small>${i?t('ui.dp.reviewDesc',{tk:r.tk,p:Math.round(est(is,sel.v,sel.m,i).c*100)}):t('ui.dp.reviewNone')}</small></button>`).join('')}</div></div>
+  ${reviewerRows(is)}
   ${S.advanced?`<div class="sec"><label>${t('ui.dp.effort')}</label><div class="seg">${EFFORT.map((f,i)=>`<button class="sb ${sel.ef===i?'sel':''}" data-ef="${i}">${f.name}<small>${f.cap?t('ui.dp.effortDesc',{sign:f.cap>0?'+':'−',n:Math.abs(f.cap),tk:f.tk,hrs:f.hrs}):t('ui.dp.effortMid')}</small></button>`).join('')}</div></div>`:''}
   ${sddRow()}
   <div class="sec"><label>${t('ui.dp.savePresets')}</label><div class="seg">${PN.map((n,i)=>`<button class="sb" data-save="${i}">${t('ui.dp.save',{p:n})}<small>${t('ui.dp.saveSub')}</small></button>`).join('')}</div></div>`;

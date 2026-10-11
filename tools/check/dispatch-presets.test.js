@@ -22,6 +22,16 @@ section("dispatch-presets：預設、沿用、不合法退回",()=>{
   S.presets[1]={v:'anthropic',m:'nope',b:'corp',rv:1}; fresh();
   ok(same(S.presets,DEFAULT_PRESETS),'有不存在的模型時三組都退回預設');
   S.presets[0].rv=0; ok(DEFAULT_PRESETS[0].rv===1,'修改方案不會改到預設值');
+  /* 審核模型（gh-48-01-cross-model-review） */
+  start(); ok(S.presets.every(p=>p.rvv==null),'預設三組方案都是同一個模型審');
+  S.presets[0]={v:'anthropic',m:'sonnet',b:'corp',rv:1}; start();
+  ok(S.presets[0].rvv==null&&S.presets[0].ef===1&&S.presets[0].sdd===2,'沒有審核模型的方案沿用、當同一個');
+  S.presets[2]={v:'anthropic',m:'sonnet',b:'corp',rv:1,rvv:'anthropic',rvm:'opus',rvb:'corp'}; start();
+  ok(S.presets[2].rvv==='anthropic'&&S.presets[2].rvm==='opus'&&S.presets[2].rvb==='corp','有審核模型的方案沿用');
+  S.presets[1]={v:'anthropic',m:'sonnet',b:'corp',rv:1,rvv:'anthropic',rvm:'nope',rvb:'corp'}; fresh();
+  ok(same(S.presets,DEFAULT_PRESETS),'審核模型不存在時三組都退回預設');
+  S.presets[1]={v:'anthropic',m:'sonnet',b:'corp',rv:1,rvv:'local',rvm:'qwen',rvb:'api'}; fresh();
+  ok(same(S.presets,DEFAULT_PRESETS),'本地審核模型不走本地付費時三組都退回預設');
 });
 
 section("方案能不能用：原因與優先順序",()=>{

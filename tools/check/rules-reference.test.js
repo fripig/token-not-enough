@@ -83,3 +83,11 @@ section("rules-reference（gh-20-01-rules-modal）",()=>{
   press({act:'close'});
   }
 });
+
+section("rules-reference：交叉審核工具（gh-48-01-cross-model-review）",()=>{
+  const txt=Ru.rulesTab('dispatch');
+  ok(txt.includes('交叉審核工具（2h、公司 NT$200）')&&txt.includes('× 0.3（嚴格 0.6）')&&txt.includes('× 0.2（嚴格 0.35）')&&txt.includes('再擲一次稽核'),'規則：交叉審核那段寫出工時、預算、倍率與稽核',txt.slice(txt.indexOf('交叉審核工具'),txt.indexOf('交叉審核工具')+120));
+  const h0=dataModule.INVEST.xreview.hrs; dataModule.INVEST.xreview.hrs=3;
+  ok(Ru.rulesTab('dispatch').includes('交叉審核工具（3h'),'改工時常數，規則跟著寫 3h');
+  dataModule.INVEST.xreview.hrs=h0;
+});
