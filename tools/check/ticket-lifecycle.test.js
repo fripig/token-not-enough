@@ -3,7 +3,7 @@ import {ok,near,section,newRun,ticket,withRand,job} from './lib.js';
 import {els} from '../fake-dom.js';
 import {start} from '../../public/js/main.js';
 import {BASE,KPI} from '../../public/js/data.js';
-import {S,hardStack,makeIssue,sel} from '../../public/js/state.js';
+import {S,hardStack,makeIssue,sel,SIX_RATE,SIX_DAY} from '../../public/js/state.js';
 import {est,manualHrs} from '../../public/js/calc.js';
 import {dispatch,endDay,manual,settle} from '../../public/js/actions.js';
 import {dispatchPanel,render} from '../../public/js/view.js';
@@ -100,4 +100,27 @@ section("ticket-lifecycle：工單產生",()=>{
   newRun('laravel'); S.day=5; const d0=ticket('fe',1,{due:5}), d2=ticket('fe',1,{due:7}); S.issues=[d0,d2]; render();
   ok(els.app.innerHTML.includes('chip due">今天到期')&&els.app.innerHTML.includes('剩 2 天'),'ticket-lifecycle：卡片顯示今天到期與剩 N 天');
   }
+});
+
+section("ticket-lifecycle：複雜度 6",()=>{
+  newRun('laravel');
+  ok(BASE[6]===1200&&KPI[6]===34&&SIX_RATE===.25&&SIX_DAY===11,'複雜度 6：token 1,200k、KPI 34、第 11 天起 25%');
+  /* 第 10 天 r=1.18 還是 5；第 20 天 r=1.37、第二擲 0.1 < 0.25 變 6，0.5 維持 5 */
+  S.day=10; ok(withRand([.99,.1],()=>makeIssue(false)).cx===5,'第 10 天抽到 5 不會變 6');
+  S.day=20; ok(withRand([.99,.5],()=>makeIssue(false)).cx===5,'第 20 天第二擲 0.5 維持 5');
+  S.day=20; ok(withRand([.99,.1],()=>makeIssue(false)).cx===6,'第 20 天第二擲 0.1 變成 6');
+  S.day=15; const n=20000, gen=[...Array(n)].map(()=>makeIssue(false)), band=gen.filter(i=>i.cx>=5), six=band.filter(i=>i.cx===6);
+  const share=six.length/band.length, sd=Math.sqrt(.25*.75/band.length);
+  ok(Math.abs(share-.25)<3*sd,`第 15 天複雜度 5 那一段約 25% 變 6（${(share*100).toFixed(1)}%，${band.length} 張）`);
+  S.day=8; ok(![...Array(5000)].some(()=>makeIssue(false).cx===6),'第 10 天以前不會有複雜度 6');
+  S.day=15; ok(![...Array(3000)].some(()=>makeIssue(true).cx===6),'事故單不會是複雜度 6');
+  const lar=six.find(i=>i.stack==='laravel'), rs=six.find(i=>i.stack==='rust');
+  ok(lar&&lar.kpi===34&&rs&&rs.kpi===44,'Laravel 複雜度 6 KPI 34、Rust 44',`${lar?.kpi}/${rs?.kpi}`);
+  ok(six.every(i=>i.base>=1020-1e-9&&i.base<=1380+1e-9&&i.trueBase===i.base&&i.trueCx===6)&&six.filter(i=>!i.research).every(i=>i.src.g==='6'),'複雜度 6 的 token 基準在 1,020k–1,380k、不是研究單的題庫位置在 6');
+});
+
+section("ticket-lifecycle：卡片的複雜度格數",()=>{
+  newRun('laravel'); const ts=[2,5,6].map(c=>ticket('fe',c)); S.issues=ts; sel.issue=null; render();
+  const pips=[...els.app.innerHTML.matchAll(/<span class="pips"[^>]*>(.*?)<\/span>/g)].map(m=>[(m[1].match(/<i class="on">/g)||[]).length,(m[1].match(/<i /g)||[]).length]);
+  pips.sort((x,y)=>x[0]-y[0]); ok(JSON.stringify(pips)==='[[2,5],[5,5],[6,6]]','複雜度 2、5、6 的卡片是 2/5、5/5、6/6 格',JSON.stringify(pips));
 });

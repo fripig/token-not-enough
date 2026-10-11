@@ -6,7 +6,7 @@ import {seedRandom} from '../seed.js';
 import {boot,firstIssues,start} from '../../public/js/main.js';
 import {STACKS,VENDORS} from '../../public/js/data.js';
 import * as dataModule from '../../public/js/data.js';
-import {S,makeIssue,sel} from '../../public/js/state.js';
+import {S,issueTitle,makeIssue,sel} from '../../public/js/state.js';
 import {EVENTS,dispatch,endDay,evaluate,invest,manual} from '../../public/js/actions.js';
 import {render} from '../../public/js/view.js';
 import {showSetup} from '../../public/js/modals.js';
@@ -284,4 +284,11 @@ section("工單標題跟著目前語言（gh-38-01-untranslated-tickets）",()=>
    const h=els.app.innerHTML;
    ok(S.issues.length>0&&S.issues.every(i=>i.src&&h.includes(IT(i))&&!CJK.test(IT(i)))&&zhT.every(x=>!h.includes(x)),'存檔：繁中存檔用英文讀，佇列工單顯示英文標題');
    I.setLang('zh-TW'); resetStore();}
+});
+
+section("localization：複雜度 6 的標題跟著語言",()=>{
+  ok(dataModule.POOL_KEYS.includes('6')&&['laravel','rails','rust','app','sre','devops','fe'].every(k=>I.LANGS.every(L=>(L.dict[`pool.${k}.6`]||[]).length===3)),'七條技術線的複雜度 6 題庫中英文各 3 題');
+  newRun('laravel'); S.day=20; I.setLang('zh-TW'); let is; do is=makeIssue(false,'rails'); while(is.cx!==6||is.research);
+  const zh=issueTitle(is); I.setLang('en'); const en=issueTitle(is); I.setLang('zh-TW');
+  ok(is.cx===6&&zh===I.LANGS[0].dict['pool.rails.6'][is.src.i]&&en===I.LANGS[1].dict['pool.rails.6'][is.src.i],'複雜度 6 工單切到英文顯示同位置的英文標題',`${zh} / ${en}`);
 });

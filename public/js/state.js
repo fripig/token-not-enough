@@ -88,6 +88,10 @@ export const setTrapRate=r=>{TRAP_RATE=r;};
 export let RESEARCH_RATE=.3;
 /* 模擬器用來調整研究單比例 */
 export const setResearchRate=r=>{RESEARCH_RATE=r;};
+/* 複雜度 6：第 SIX_DAY 天起，抽到複雜度 5 的非事故單有 SIX_RATE 變成 6（模擬器可改，0 時不擲） */
+export let SIX_RATE=.25;
+export const SIX_DAY=11;
+export const setSixRate=r=>{SIX_RATE=r;};
 /* Rust、App、DevOps 比較慢：期限多一天、KPI ×1.3 作為補償 */
 export const hardStack=st=>st==='rust'||st==='app'||st==='devops';
 export const unfamiliar=is=>!S.companies.includes(is.stack)&&is.stack!=='fe'&&!confStacks().has(is.stack);  // 去過涵蓋它的技術線場就算熟
@@ -106,6 +110,9 @@ export function makeIssue(inc,st){
     sens:Math.random()<(inc?.55:.25),big:cx>=3&&Math.random()<.45,
     client:inc?CLIENTS[0]:pickClient(),
     due:due+(!inc&&hardStack(stack)?1:0),kpi:Math.round(KPI[cx]*(inc?(S.inv.monitor?MONITOR_KPI:INC_KPI):1)*(hardStack(stack)?HARD_KPI:1)),tries:0};
+  /* 複雜度 6 在研究單之前擲（6 也可能是研究單）；沿用已抽的 token 倍率與標題位置，比例是 0 時不擲 */
+  if(SIX_RATE>0&&!inc&&cx===5&&S.day>=SIX_DAY&&Math.random()<SIX_RATE){ const p6=STACKS[stack].pool['6'], i6=i%p6.length, b6=base*BASE[6]/BASE[5];
+    Object.assign(is,{cx:6,base:b6,trueCx:6,trueBase:b6,kpi:Math.round(KPI[6]*(hardStack(stack)?HARD_KPI:1)),title:p6[i6],src:{k:stack,g:'6',i:i6}}); }
   /* 研究單在所有既有亂數之後才擲；比例是 0 時不擲，亂數序列和沒有研究單時一樣 */
   if(RESEARCH_RATE>0&&!inc&&cx>=4&&Math.random()<RESEARCH_RATE){ const rp=STACKS[stack].pool.research, ri=rnd(rp.length), e=rp[ri]; Object.assign(is,{research:true,title:e.t,parts:[...e.parts],src:{k:stack,g:'research',i:ri}}); }
   return is;

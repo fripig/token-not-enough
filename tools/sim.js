@@ -23,6 +23,7 @@
 // 有 OpenAI 訂閱後照 SIM_SUB 的派法（今日額度還超過 300k 就派 Codex Sol 走個人訂閱）。量「接外包→存錢→升級」這條路，和 SIM_OUTSOURCE=1 一起用。
 // SIM_UPGRADE=2 同上，但升到 Pro 500 之後就不再接外包單（放著逾期只賠錢、不扣分）。
 // SIM_RESEARCH_RATE=<比例> 可覆寫研究單比例（例如 SIM_RESEARCH_RATE=0 關掉研究單，亂數序列和沒有研究單時一樣）。
+// SIM_SIX_RATE=<比例> 可覆寫複雜度 6 的比例（第 11 天起複雜度 5 的單變成 6 的機率；SIM_SIX_RATE=0 時亂數序列和沒有複雜度 6 時一樣）。
 // SIM_RESEARCH=agent|self 讓自動玩家遇到研究單時先研究再派工：agent 用它本來要派的廠商、模型與付費方式研究，self 自己研究；不能研究（例如工時不夠）時照舊直接派工。預設的自動玩家一律直接派工。
 // SIM_COMBOS=1 改跑十五種雙選組合（另跑單選 Laravel 當對照）。
 // SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
@@ -32,7 +33,7 @@ import './sim-seed.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {firstIssues,start} from '../public/js/main.js';
 import {CAP_SCALE,COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model,CONF,CONF_KEYS,CONF_LAST_DAY} from '../public/js/data.js';
-import {START,S,sel,setResearchRate,setTrapRate} from '../public/js/state.js';
+import {START,S,sel,setResearchRate,setSixRate,setTrapRate} from '../public/js/state.js';
 import {est,hwBlock,localBusy,quotaLeft} from '../public/js/calc.js';
 import {PAR,abandon,canAbandon,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
 import {dispatchPanel} from '../public/js/view.js';
@@ -44,6 +45,8 @@ const TRAP=process.env.SIM_TRAP===undefined?undefined:Number(process.env.SIM_TRA
 if(TRAP!==undefined&&(process.env.SIM_TRAP.trim()===''||!Number.isFinite(TRAP))){ console.error(`SIM_TRAP 必須是數字，收到「${process.env.SIM_TRAP}」`); process.exit(1); }
 const RRATE=process.env.SIM_RESEARCH_RATE===undefined?undefined:Number(process.env.SIM_RESEARCH_RATE);
 if(RRATE!==undefined&&(process.env.SIM_RESEARCH_RATE.trim()===''||!Number.isFinite(RRATE)||RRATE<0||RRATE>1)){ console.error(`SIM_RESEARCH_RATE 必須是 0–1 的數字，收到「${process.env.SIM_RESEARCH_RATE}」`); process.exit(1); }
+const SIX=process.env.SIM_SIX_RATE===undefined?undefined:Number(process.env.SIM_SIX_RATE);
+if(SIX!==undefined&&(process.env.SIM_SIX_RATE.trim()===''||!Number.isFinite(SIX)||SIX<0||SIX>1)){ console.error(`SIM_SIX_RATE 必須是 0–1 的數字，收到「${process.env.SIM_SIX_RATE}」`); process.exit(1); }
 const RSCH=process.env.SIM_RESEARCH;
 if(RSCH!==undefined&&!['agent','self'].includes(RSCH)){ console.error(`SIM_RESEARCH 只能是 agent 或 self，收到「${RSCH}」`); process.exit(1); }
 const N=+process.env.SIM_N||100;
@@ -91,6 +94,7 @@ const ABANDON=process.env.SIM_ABANDON==='1';
 function sim(){
   if(TRAP!==undefined) setTrapRate(TRAP);
   if(RRATE!==undefined) setResearchRate(RRATE);
+  if(SIX!==undefined) setSixRate(SIX);
   const sum={};
   for(const mode of ['parallel','serial']){
     const runs=COMBOS?['laravel',...COMPANIES.flatMap((a,i)=>COMPANIES.slice(i+1).map(b=>a+'+'+b))]:COMPANIES;

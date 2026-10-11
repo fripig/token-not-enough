@@ -52,7 +52,7 @@ export function render(){
     const left=i.due-S.day;
     return `<div class="issw"><button class="iss ${sel.issue===i.id?'sel':''}" data-iss="${i.id}">
       <span class="t">${issueTitle(i)}</span><span class="k">${i.out?nt(i.pay):`+${i.kpi}`}</span>
-      <span class="meta"><span class="pips" title="${t('ui.card.cx',{cx:i.cx})}">${[1,2,3,4,5].map(n=>`<i class="${n<=i.cx?'on':''}"></i>`).join('')}</span>
+      <span class="meta"><span class="pips" title="${t('ui.card.cx',{cx:i.cx})}">${Array.from({length:Math.max(5,i.cx)},(_,n)=>`<i class="${n<i.cx?'on':''}"></i>`).join('')}</span>
       <span class="num">~${kt(i.base)} tokens</span>
       ${i.out?`<span class="chip out">${t('ui.chip.gig')}</span>`:''}<span class="chip stack">${STACKS[i.stack].name}</span>${unfamiliar(i)?`<span class="chip unfam">${t('ui.chip.unfam')}</span>`:''}${i.merge?`<span class="chip trap">${t('ui.chip.merge')}</span>`:''}${i.research?`<span class="chip rsch">${t('ui.chip.research')}</span>`:''}${i.store?`<span class="chip store">${t('ui.chip.store')}</span>`:''}${i.revealed?`<span class="chip trap">${t('ui.chip.trap',{cx:i.shownCx})}</span>`:i.evaluated?`<span class="chip">${t('ui.chip.evaluated')}</span>`:''}
       ${i.inc?`<span class="chip inc">${t('ui.chip.inc')}</span>`:''}${i.sens?`<span class="chip sens">${t('ui.chip.sens')}</span>`:''}${i.big?`<span class="chip big">${t('ui.chip.big')}</span>`:''}${i.client.ban?`<span class="chip ban">${i.client.name}${sp}${i.client.ban==='all'?t('ui.chip.banAll'):t('ui.chip.banApi')}</span>`:S.cnBan&&!i.out?`<span class="chip ban">${t('ui.chip.banApi')}</span>`:`<span class="chip">${i.client.name}</span>`}

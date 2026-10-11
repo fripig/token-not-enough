@@ -44,11 +44,11 @@ export function cnBlock(is,v,M){
   return '';
 }
 export const SEAT={day:2500,week:10000,get name(){return t('seat.name');},vendors:['anthropic','openai','google'],trust:[55,65,75],review:5};
-export const BASE=[0,60,180,350,550,850];
-export const KPI=[0,3,6,10,16,24];
+export const BASE=[0,60,180,350,550,850,1200];
+export const KPI=[0,3,6,10,16,24,34];
 /* 技術線：前六個是可選的工作內容（主技術線），fe 是每種工作內容都會有的前端工單 */
-/* 工單題庫在字典（pool.<技術線>.<1–5|trap|research|inc>），各語言數量與順序相同，同一個亂數抽到對應的標題 */
-export const POOL_KEYS=['1','2','3','4','5','trap','research','inc'];
+/* 工單題庫在字典（pool.<技術線>.<1–6|trap|research|inc>），各語言數量與順序相同，同一個亂數抽到對應的標題 */
+export const POOL_KEYS=['1','2','3','4','5','6','trap','research','inc'];
 export const poolOf=k=>Object.fromEntries(POOL_KEYS.map(n=>[n,tl(`pool.${k}.${n}`)]));
 export const STACKS={
   laravel:{name:'Laravel',get company(){return t('stack.laravel.company');},level:1,get desc(){return t('stack.laravel.desc');},get pool(){return poolOf('laravel');}},
@@ -155,7 +155,7 @@ export const CONFLICT=.1, CI_CONFLICT=.5, PR_HRS=.2, PR_REVIEWED=.5, EVAL_HRS=.5
 export const RESCOPE={ok:5,no:3,days:2};                            // 找主管：同意與拒絕各扣多少信任、延幾天
 /* 研究單：直接派工 token 倍率；agent 研究的 token（× 模型 token 倍率）與時數（× 模型速度）；自己研究的時數；拆成哪兩個複雜度 */
 export const RESEARCH_DIRECT_TK=4, RESEARCH_TK=40, RESEARCH_HRS=.5, RESEARCH_SELF_HRS=1.5;
-export const RESEARCH_SPLIT={4:[2,3],5:[3,3]};
+export const RESEARCH_SPLIT={4:[2,3],5:[3,3],6:[3,4]};
 /* 採購電腦：走公司採購申請，不扣公司 API 預算；到貨當天看信任決定核不核准 */
 export const PC_SPEED=.7, HW_REQ_HRS=1, HW_SETUP_HRS=1, HW_IDLE=2;
 export const HW={

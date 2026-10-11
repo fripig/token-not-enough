@@ -44,6 +44,7 @@ section("rules-reference（gh-20-01-rules-modal）",()=>{
   ok(M.GRADES.serial.join()==='3800,2400,1400,500'&&M.GRADES.parallel.join()==='10700,5280,4000,2720'&&M.PAR_GRADE===undefined&&[...M.GRADES.serial,...M.GRADES.parallel].every(t=>sc.includes(`<td>${t}</td>`))&&/<td>S<\/td><td>3800<\/td><td>10700<\/td>/.test(sc),'rules-reference：結算分頁從 GRADES 列出單線與平行模式各自的評等門檻');
   ok(['kpi','trust','audit'].every(k=>sc.includes(`× ${M.SCORE[k]}`)),'rules-reference：結算分頁的總分權重來自 SCORE');
   ok(plain('tickets').includes(`評估時間 ×${D.MCP_EVAL_HRS}`),'rules-reference：MCP 評估時間倍率來自常數');
+  ok(plain('tickets').includes(`<td>6</td><td>1.2M</td><td>${KPI[6]}</td>`)&&plain('tickets').includes(`第 ${St.SIX_DAY} 天起，抽到複雜度 5 的非事故工單有 ${Ru.pct(St.SIX_RATE)} 變成複雜度 6`),'rules-reference：複雜度表有第 6 列、第 11 天起 25% 來自常數',plain('tickets').slice(0,600));
   ok(plain('tickets').includes(`信任 −${A.ABANDON_TRUST}、不扣 KPI`)&&plain('tickets').includes(`報酬的 ${Ru.pct(St.GIG_LATE)} 違約金`)&&plain('tickets').includes('事故單、跑著 agent 的單（先中止）不能退'),'rules-reference：退單的代價來自 ABANDON_TRUST 與 GIG_LATE');
   ok(bi.includes(D.nt(A.CORP_DAY_LIMIT))&&bi.includes(`信任 −${A.AUDIT_TRUST}`)&&bi.includes(SEAT.trust.join('／')),'rules-reference：付費分頁的公司單日上限、稽核扣分、席位門檻來自常數');
   ok(['md',...D.INV_KEYS].every(k=>{const I=D.INVEST[k];return iv.includes(I.name)&&iv.includes(`<td>${I.hrs}h</td>`)&&iv.includes(`<td>${D.nt(I.cost)}</td>`)&&iv.includes(I.desc);}),'rules-reference：投資分頁列出每項投資的工時、預算與效果');

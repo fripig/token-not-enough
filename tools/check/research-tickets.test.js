@@ -51,7 +51,7 @@ section("研究單（gh-21-01-research-split-tickets）",()=>{
    ok(tr.merge&&tr.title.startsWith('解決衝突：')&&!tr.research&&tr.cx===3,'research：直接派工的研究單合併衝突後，解決衝突單不是研究單');}
   /* research 2.2 拆單 */
   {const sp=(is)=>{newRun('laravel'); S.issues=[is]; return A.splitResearch(is).map(p=>[p.cx,is.out?p.pay:p.kpi]);};
-   const rows=[[rt('laravel',4,{kpi:16}),[[2,6],[3,10]]],[rt('laravel',5,{kpi:24}),[[3,12],[3,12]]],[rt('rust',4,{kpi:21}),[[2,8],[3,13]]],[rt('laravel',4,{kpi:16,out:true,pay:1280}),[[2,512],[3,768]]]];
+   const rows=[[rt('laravel',4,{kpi:16}),[[2,6],[3,10]]],[rt('laravel',5,{kpi:24}),[[3,12],[3,12]]],[rt('laravel',6,{kpi:34}),[[3,15],[4,19]]],[rt('rust',4,{kpi:21}),[[2,8],[3,13]]],[rt('laravel',4,{kpi:16,out:true,pay:1280}),[[2,512],[3,768]]]];
    for(const [is,want] of rows) ok(JSON.stringify(sp(is))===JSON.stringify(want),`research：${is.stack} 複雜度 ${is.cx}${is.out?' 外包':''} 拆成 ${JSON.stringify(want)}`,JSON.stringify(sp(is)));
    newRun('laravel'); const fin=CLIENTS.find(c=>c.ban==='api'), x=ticket('fe',1), y=ticket('fe',2), tr=rt('laravel',4,{sens:true,big:true,client:fin,due:9,tries:2,store:true});
    S.issues=[x,tr,y]; sel.issue=tr.id; const [a,b]=A.splitResearch(tr);
@@ -144,4 +144,11 @@ section("研究單（gh-21-01-research-split-tickets）",()=>{
    newRun('laravel'); S.day=3; S.issues=[rt('laravel',4)]; resetStore(); St.saveGame(null); St.loadGame(St.readSave());
    ok(S.issues[0].research&&S.issues[0].parts.join()==='拆單一,拆單二','research：研究單存檔讀檔後保留研究標記與拆單標題');}
   }
+});
+
+section("research：複雜度 6 也會是研究單",()=>{
+  newRun('laravel'); S.day=15; const six=[...Array(30000)].map(()=>makeIssue(false)).filter(i=>i.cx===6);
+  const share=six.filter(i=>i.research).length/six.length, sd=Math.sqrt(.3*.7/six.length);
+  ok(Math.abs(share-.3)<3*sd,`複雜度 6 約 30% 是研究單（${(share*100).toFixed(1)}%，${six.length} 張）`);
+  ok(Ru.rulesTab('tickets').includes('複雜度 4–6 的非事故工單'),'規則說明寫研究單是複雜度 4–6');
 });
