@@ -1,4 +1,4 @@
-import {BIG,CATCH,MANUAL_HRS,RESEARCH_DIRECT_TK,RETRY,STACK_HRS,UNFAMILIAR_HRS,FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,CAP_SCALE,WEAK_CAP,cnBlock,effModel,efOf,kt,model,planOf,AI_P,CONF_MANUAL,lv} from './data.js';
+import {BIG,CATCH,MANUAL_HRS,RESEARCH_DIRECT_TK,RETRY,STACK_HRS,UNFAMILIAR_HRS,FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,CAP_SCALE,WEAK_CAP,P_TOP,cnBlock,effModel,efOf,kt,model,planOf,AI_P,CONF_MANUAL,lv} from './data.js';
 import {S,sel,unfamiliar,confStacks} from './state.js';
 import {PAR} from './actions.js';
 import {t} from './i18n.js';
@@ -44,7 +44,7 @@ export const localSpeed=v=>v==='local'&&S.hw.pc?PC_SPEED:1;
 export const manualHrs=is=>is.cx*MANUAL_HRS*(is.tries?RETRY.hrs:1)*(unfamiliar(is)?UNFAMILIAR_HRS:1)*(confStacks().has(is.stack)?CONF_MANUAL:1);
 /* 進階模式的推理強度套在模型上；能力超過工單的 token 折扣看原本的模型 */
 /* 成功率錨點：能力差 +20、+10、0、−10、−20、−30（能力 ×10 的刻度），中間線性內插、兩端截平 */
-export const P_STEP=[.95,.88,.75,.5,.25,.1], P_TOP=2*CAP_SCALE;
+export const P_STEP=[.95,.88,.75,.5,.25,.1];
 export function pStep(gap){
   const x=Math.min(P_STEP.length-1,Math.max(0,(P_TOP-gap)/CAP_SCALE)), i=Math.floor(x);
   return i>=P_STEP.length-1?P_STEP[i]:P_STEP[i]+(P_STEP[i+1]-P_STEP[i])*(x-i);

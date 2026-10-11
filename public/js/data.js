@@ -78,7 +78,7 @@ export const kt=k=>{if(k<1000)return Math.round(k)+'k'; const m=(k/1000).toFixed
 export const h1=x=>(Math.round(x*10)/10).toFixed(1);
 export const vc=v=>`var(${VENDORS[v].vc})`;
 /* 能力是 ×10 的整數（Sonnet 40），跟工單複雜度比時複雜度 ×CAP_SCALE；能力低於 WEAK_CAP 算弱模型（Rust、大型 codebase） */
-export const CAP_SCALE=10, WEAK_CAP=40;
+export const CAP_SCALE=10, WEAK_CAP=40, P_TOP=2*CAP_SCALE;  // P_TOP：成功率錨點從能力差 +20 開始
 export const model=(v,m)=>VENDORS[v].models.find(x=>x.id===m);
 /* 推理強度（進階模式）：套在選到的模型上，越強越貴也越慢；中＝原本的模型 */
 export const EFFORT=[{id:'low',get name(){return t('effort.low');},cap:-10,tk:.7,hrs:.8},{id:'mid',get name(){return t('effort.mid');},cap:0,tk:1,hrs:1},{id:'high',get name(){return t('effort.high');},cap:10,tk:1.5,hrs:1.4}];
@@ -107,7 +107,7 @@ export const sddDesc=L=>t('sdd.desc',{tk:SDD_TK[L],p:Math.round(SDD_P[L]*100),st
 
 /* 工程投資：花工時和公司預算，效果維持到月底 */
 export const INVEST={
-  md:{get name(){return t('invest.md.name');},hrs:3,cost:300,get desc(){return t('invest.md.desc');},lv2:{hrs:1,cost:200,get desc(){return t('invest.md.lv2');}}},
+  md:{get name(){return t('invest.md.name');},hrs:3,cost:300,get desc(){return t('invest.md.desc',{tk:MD_TK,p:Math.round(MD_P[1]*100)});},lv2:{hrs:1,cost:200,get desc(){return t('invest.md.lv2',{p:Math.round(MD_P[2]*100)});}}},
   tests:{get name(){return t('invest.tests.name');},hrs:4,cost:400,get desc(){return t('invest.tests.desc');},lv2:{hrs:1,cost:200,get desc(){return t('invest.tests.lv2');}}},
   ci:{get name(){return t('invest.ci.name');},hrs:3,cost:300,get desc(){return t('invest.ci.desc');}},
   hook:{get name(){return t('invest.hook.name');},hrs:2,cost:200,get desc(){return t('invest.hook.desc');}},
@@ -117,7 +117,7 @@ export const INVEST={
   skills:{get name(){return t('invest.skills.name');},hrs:3,cost:400,get desc(){return t('invest.skills.desc');},lv2:{hrs:1,cost:200,get desc(){return t('invest.skills.lv2');}}},
   mcp:{get name(){return t('invest.mcp.name');},hrs:3,cost:400,get desc(){return t('invest.mcp.desc');}},
   sdd:{get name(){return t('invest.sdd.name');},hrs:6,cost:500,get desc(){return t('invest.sdd.desc',{eg:SDD_EG[1],d:sddDesc(1)});},lv2:{hrs:1,cost:200,get desc(){return t('invest.sdd.lv2',{eg:SDD_EG[2],d:sddDesc(2)});}}},
-  ai:{get name(){return t('invest.ai.name');},hrs:1,cost:200,get desc(){return t('invest.ai.desc');}},
+  ai:{get name(){return t('invest.ai.name');},hrs:1,cost:200,get desc(){return t('invest.ai.desc',{p:Math.round(AI_P*100),max:AI_MAX});}},
 };
 /* CLAUDE.md 以外的投資，面板照這個順序 */
 export const INV_KEYS=['tests','ci','hook','scan','fastlane','monitor','skills','mcp','sdd','ai'];
