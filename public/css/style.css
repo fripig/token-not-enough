@@ -274,6 +274,8 @@ button:disabled{cursor:not-allowed;opacity:.42}
 .tp{display:flex;flex-direction:column;gap:12px}
 .dpt{margin:0;font-weight:700}
 .tabbed .inv{grid-template-columns:1fr}
+/* 窄螢幕點工單捲過來時，分頁列上方留一點空隙 */
+.tabbed{scroll-margin-top:8px}
 /* 派工台：上面是方案、預估與派出，下面是細調 */
 .dptune{margin:4px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:11px;letter-spacing:.1em;color:var(--muted)}
 /* 早上報告：昨天下班的四格（變化在上、現值在下） */

@@ -1,0 +1,12 @@
+## 1. Assertions first
+
+- [x] 1.1 Add a section to `tools/check/game-layout.test.js` for requirement "Ticket click scrolls to the dispatch panel on narrow screens". Stub `globalThis.matchMedia` (returning `matches` per query) and `els.app.querySelector` (recording the selector and the `scrollIntoView` options), restore both at the end. Assert: narrow width + `clickApp({iss:<id>})` → `sel.issue` is that id, dispatch tab active, exactly one `scrollIntoView` on `.tabbed` with `{behavior:'smooth', block:'start'}`; narrow + reduced motion → `behavior:'auto'`; wide → no call; narrow with the investment tab active → card click scrolls once; narrow + `clickApp({quick:<id>, p:0})`, `clickApp({tab:'invest'})` and `clickApp({act:'batch'})` → no call; `matchMedia` deleted → card click selects the ticket and throws nothing; `NARROW_MQ` exported from `public/js/view.js` appears in the `.main` media rule read from `public/css/style.css`; `S.log.length` and the save string are unchanged by the scroll. Verify: `node tools/check.js game-layout` fails on these assertions before task 2.1, as intended.
+
+## 2. Implementation
+
+- [x] 2.1 [after: 1.1] Implement the scroll as described in design decisions "Scroll only when the one-column media query matches", "Scroll after render, targeting the tab panel section", "Reduced motion uses instant scrolling" and "Guard every browser API": `NARROW_MQ` and `scrollToDispatch()` in `public/js/view.js`, the ticket-card branch of the click handler in `public/js/main.js` calls it after `render()`, and `.tabbed{scroll-margin-top:8px}` in `public/css/style.css`. Verify: `node tools/check.js` passes in full.
+
+## 3. Browser check and docs
+
+- [x] 3.1 [after: 2.1] Manual browser check with `python3 -m http.server -d public 8000`: in a 400px-wide frame, clicking a card scrolls to the tab bar; clicking a card from the 工程投資 tab scrolls and shows 派工台; one-click A/B/C and dispatching do not scroll; at desktop width a card click does not scroll. Verify: screenshots reviewed, results noted in an issue #54 comment.
+- [x] 3.2 [after: 2.1] Update `docs/DESIGN.md`: append item 47 to 對話中的需求 citing issue #54 and Spectra change `gh-54-01-mobile-scroll-to-dispatch` with the user's decisions (one-column only, no scroll back, presets not moved into the dock); in item 36 note the scroll is now done; add `NARROW_MQ`, `scrollToDispatch` to the `view.js` code map entry. Verify: content review against the delta spec.

@@ -7,6 +7,7 @@ import {log} from '../../public/js/calc.js';
 import {start} from '../../public/js/main.js';
 import {dispatch,invest,endDay} from '../../public/js/actions.js';
 import {render,dispatchPanel} from '../../public/js/view.js';
+import * as Vw from '../../public/js/view.js';
 
 /* 主畫面切成「動作列之前」與「動作列」兩段 */
 const split=()=>{const h=els.app.innerHTML, i=h.indexOf('<div class="dock">');return {before:i<0?h:h.slice(0,i), dock:i<0?'':h.slice(i)};};
@@ -96,4 +97,37 @@ section('game-layout：派工台先放方案、預估與派出，下面才是細
   clickApp({v:'google',m:'pro'});
   const h2=dispatchPanel(), top=h2.slice(0,h2.indexOf('data-v='));
   ok(top.includes('Gemini CLI')&&/data-act="go"[^>]*>[^<]*Gemini CLI/.test(top),'game-layout：在下面選 Gemini Pro，上面的派出按鈕跟著變 Gemini CLI');
+});
+
+section('game-layout：窄螢幕點工單捲到派工台',()=>{
+  const mm0=globalThis.matchMedia, qs0=els.app.querySelector, calls=[];
+  let narrow=true, reduced=false;
+  globalThis.matchMedia=q=>({matches:q.includes('reduced-motion')?reduced:q===Vw.NARROW_MQ&&narrow});
+  els.app.querySelector=s=>({scrollIntoView:o=>calls.push([s,o])});
+  try{
+    newRun('laravel','parallel'); const a=ticket('laravel',2), b=ticket('laravel',1); S.issues=[a,b]; S.hours=8; render();
+    clickApp({iss:a.id});
+    ok(sel.issue===a.id&&Vw.tab==='dispatch'&&calls.length===1&&calls[0][0]==='.tabbed'&&calls[0][1]?.behavior==='smooth'&&calls[0][1]?.block==='start','game-layout：窄螢幕點工單選好、切派工台、平滑捲到分頁頂端',JSON.stringify(calls));
+    calls.length=0; reduced=true; clickApp({iss:b.id});
+    ok(calls.length===1&&calls[0][1]?.behavior==='auto','game-layout：減少動態效果時直接跳過去',JSON.stringify(calls));
+    calls.length=0; reduced=false; narrow=false; clickApp({iss:a.id});
+    ok(sel.issue===a.id&&calls.length===0,'game-layout：寬螢幕點工單不捲',JSON.stringify(calls));
+    narrow=true; clickApp({tab:'invest'}); calls.length=0; clickApp({iss:b.id});
+    ok(Vw.tab==='dispatch'&&calls.length===1,'game-layout：在投資分頁點工單也捲',JSON.stringify(calls));
+    calls.length=0; S.inv.skills=1;
+    clickApp({tab:'invest'}); clickApp({tab:'dispatch'}); clickApp({act:'batch'}); clickApp({quick:a.id,p:0});
+    ok(calls.length===0,'game-layout：切分頁、批次派工、一鍵派工都不捲',JSON.stringify(calls));
+    newRun('laravel','parallel'); const d=ticket('laravel',1); S.issues=[d]; S.hours=8; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0}); render();
+    clickApp({iss:d.id}); calls.length=0; clickApp({act:'go'}); const sent=S.jobs.length; clickApp({act:'wait1'});
+    ok(sent===1&&calls.length===0,'game-layout：點工單後按派出、按動作列的等 1 小時都不捲',`jobs=${sent} ${JSON.stringify(calls)}`);
+    newRun('laravel'); const c=ticket('laravel',2); S.issues=[c]; sel.issue=c.id; render(); saveGame(null);
+    const sv=store[SAVE_KEY], n=S.log.length, g0=globalThis.gtag, ev=[]; globalThis.gtag=(...x)=>ev.push(x);
+    calls.length=0; clickApp({iss:c.id}); saveGame(null); globalThis.gtag=g0;
+    ok(calls.length===1&&S.log.length===n&&ev.length===0&&store[SAVE_KEY]===sv,'game-layout：捲動不寫紀錄、不送 GA、不改存檔');
+    delete globalThis.matchMedia; calls.length=0; let err=null;
+    try{clickApp({iss:c.id});}catch(e){err=e;}
+    ok(!err&&sel.issue===c.id&&calls.length===0,'game-layout：沒有 matchMedia 時照樣選工單、不報錯',String(err));
+  }finally{globalThis.matchMedia=mm0; if(mm0===undefined) delete globalThis.matchMedia; els.app.querySelector=qs0;}
+  const css=readFileSync(new URL('../../public/css/style.css',import.meta.url),'utf8');
+  ok(Vw.NARROW_MQ==='(max-width:860px)'&&css.includes(`@media ${Vw.NARROW_MQ}{.main{grid-template-columns:1fr}}`),'game-layout：NARROW_MQ 跟 CSS 的一欄斷點一樣',String(Vw.NARROW_MQ));
 });

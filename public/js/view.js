@@ -113,6 +113,13 @@ export function invPanel(){
 /* 派工台與工程投資：同一欄的兩個分頁。兩頁都產生，沒選到的藏起來；選哪頁不進存檔 */
 export let tab='dispatch';
 export const setTab=id=>{tab=id;};
+/* 一欄版面（要跟 style.css 裡 .main 改成一欄的斷點一樣）：點工單後捲到派工台；桌機兩欄並排不捲 */
+export const NARROW_MQ='(max-width:860px)';
+export function scrollToDispatch(){
+  if(typeof globalThis.matchMedia!=='function'||!matchMedia(NARROW_MQ).matches) return;
+  const behavior=matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth';
+  app.querySelector?.('.tabbed')?.scrollIntoView?.({behavior,block:'start'});
+}
 export function tabPanel(){
   const tb=(id,label)=>`<button role="tab" class="tab ${tab===id?'on':''}" data-tab="${id}" aria-selected="${tab===id}" aria-controls="tp-${id}">${label}</button>`;
   const tp=(id,body)=>`<div role="tabpanel" class="tp" id="tp-${id}" data-tabpanel="${id}" ${tab===id?'':'hidden'}>${body}</div>`;
