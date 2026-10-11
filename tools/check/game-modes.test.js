@@ -157,3 +157,14 @@ section("玩家中止背景 agent（gh-32-01-abort-agent）",()=>{
    ok(dl.msg.endsWith(`預計 ${h1(j6.shownHrs)}h`)&&h1(j6.shownHrs)!==h1(j6.hrs),'shown-estimate：派工紀錄的預計時數用 shownHrs',dl.msg);}
   }
 });
+
+section("下班前的浮點殘值歸零（gh-55-01-sim-hang-strong-outsource）",()=>{
+  /* advance() 停在 ≤1e-9 時剩下的浮點殘值要歸零，否則等待按鈕可按卻不會推進（#55） */
+  newRun('laravel','parallel'); S.slots=6; const ts=[1,2,3].map(()=>ticket('fe',3,{running:true})); S.issues=ts;
+  S.jobs=ts.map((is,i)=>job(is,'deepseek','chat','api',{left:2+i*.3,hrs:3}));
+  S.hours=1+5e-16; A.wait(false);
+  ok(S.hours===0,'game-modes：等完剩下的浮點殘值歸零',S.hours);
+  ok(S.jobs.length===3&&S.jobs.every((j,i)=>near(j.left,1+i*.3)),'game-modes：殘值歸零不多推進 agent',S.jobs.map(j=>j.left).join());
+  render(); const h=els.app.innerHTML;
+  ok(/data-act="wait1" disabled/.test(h)&&/data-act="waitn" disabled/.test(h)&&/data-act="end"(?![^>]*disabled)/.test(h),'game-modes：17:00 時兩顆等待按鈕停用、下班可按');
+});

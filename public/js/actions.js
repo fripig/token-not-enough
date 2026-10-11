@@ -92,7 +92,8 @@ export function advance(dt){
       if(r.ok||r.rejected){const rv=prHrs(j.issue.cx,j.rv);dt+=rv;log('dim',t('log.prReview',{h:h1(rv)}));}
     }
   }
-  S.hours=Math.max(0,S.hours);
+  /* 迴圈把 ≤1e-9 當成下班，殘值要歸零，否則等待按鈕可按卻不會推進（#55） */
+  if(S.hours<=1e-9) S.hours=0;
 }
 /* 中止的 agent 照已跑比例扣 token，至少 5% */
 export const CANCEL_MIN=.05;
