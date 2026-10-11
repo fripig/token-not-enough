@@ -180,7 +180,7 @@ public/index.html SHALL keep `<head>` (title, description, Open Graph, Twitter C
 ---
 ### Requirement: Ticket titles follow the current language
 
-Every ticket generated from a title pool SHALL remember its pool position: the technology line, the pool group (complexity 1–5, telltale trap, research or incident) and the index in that pool; a research split ticket SHALL also remember which of the two part titles it uses. Picking the position SHALL use the same random draws as picking the title string did before, so fixed-seed simulator output stays byte-identical. Wherever a ticket title is shown or written (ticket card, background agent row, dispatch panel header, log line), the title SHALL be looked up at that moment from the current language's pool at the remembered position; for a merge-conflict ticket it SHALL be the current language conflict-resolution prefix around that title. A ticket without a remembered position (a save written before this change) or whose position does not exist in the current dictionary SHALL show the title string stored when it was generated. Switching language SHALL NOT change any ticket field.
+Every ticket generated from a title pool SHALL remember its pool position: the technology line, the pool group (complexity 1–6, telltale trap, research or incident) and the index in that pool; a research split ticket SHALL also remember which of the two part titles it uses. Picking the position SHALL use the same random draws as picking the title string did before, so fixed-seed simulator output stays byte-identical; a ticket turned into complexity 6 SHALL keep its drawn index modulo the length of the complexity-6 pool, with no extra draw. Wherever a ticket title is shown or written (ticket card, background agent row, dispatch panel header, log line), the title SHALL be looked up at that moment from the current language's pool at the remembered position; for a merge-conflict ticket it SHALL be the current language conflict-resolution prefix around that title. A ticket without a remembered position (a save written before this change) or whose position does not exist in the current dictionary SHALL show the title string stored when it was generated. Switching language SHALL NOT change any ticket field.
 
 #### Scenario: Queued ticket follows a switch
 
@@ -196,7 +196,7 @@ Every ticket generated from a title pool SHALL remember its pool position: the t
 
 | Ticket generated in zh-TW | Shown in English |
 | --- | --- |
-| ordinary complexity 1–5 ticket | the English title at the same pool position |
+| ordinary complexity 1–6 ticket | the English title at the same pool position |
 | trap with a telltale title, before and after reveal | the English telltale title at the same position |
 | incident ticket | the English incident title at the same position |
 | outsourced ticket | the English title of its technology line at the same position |
