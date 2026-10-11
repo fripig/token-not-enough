@@ -98,10 +98,12 @@ export function quotaBill(v,is,need){
   }
   return null;
 }
-/* 換審核模型時的預設付費：額度夠的席位或訂閱，否則公司 API、個人 API，都不行才用第一個能用的 */
+/* 換審核模型時的預設付費：額度夠的席位或訂閱（跟寫的共用時看兩段加起來），否則公司 API、個人 API，都不行才用第一個能用的 */
 export function rvPrefBill(is,v,m){
   if(v==='local') return 'local';
-  const k=quotaBill(v,is,k=>is?reviewCost(est(is,sel.v,sel.m,sel.rv,sel.ef,sel.sdd,{v,m,b:k})).hi:0); if(k) return k;
+  /* 寫的模型同一家、同一種額度時，兩段加起來比 */
+  const need=k=>{ if(!is) return 0; const e=est(is,sel.v,sel.m,sel.rv,sel.ef,sel.sdd,{v,m,b:k}); return reviewCost(e).hi+(v===sel.v&&k===sel.b?costLine(k,e.M,v,e).hi:0); };
+  const k=quotaBill(v,is,need); if(k) return k;
   const bl=bills(v,is);
   return (['corp','api'].map(id=>bl.find(b=>b.id===id&&b.ok)).find(Boolean)||bl.find(b=>b.ok)||bl[0]).id;
 }

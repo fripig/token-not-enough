@@ -107,7 +107,7 @@ With a reviewer other than 同一個, an attempt's tokens SHALL be split into a 
 ---
 ### Requirement: Reviewer billing
 
-When a reviewer other than 同一個 is selected, the dispatch panel SHALL show a row 審核付費方式 under the 審核模型 row listing the reviewer vendor's billing methods with the same availability and notes as the writer's billing row, including the rule that an outsourced ticket cannot use 公司 API or 公司席位; a local reviewer SHALL list only 本地 GPU. When the reviewer changes, its billing SHALL be set to the writer's default-billing rule applied to the reviewer (an approved seat with enough quota for the review part, else a subscription with enough quota on a non-sensitive ticket), else 公司 API when usable, else 個人 API when usable, else the first usable billing method. If the selected reviewer billing becomes unusable, it SHALL switch to the first usable one; if the reviewer vendor has no usable billing at all, the reviewer SHALL switch to 同一個. The review part SHALL count toward the company API daily limit and overdraft like any company charge.
+When a reviewer other than 同一個 is selected, the dispatch panel SHALL show a row 審核付費方式 under the 審核模型 row listing the reviewer vendor's billing methods with the same availability and notes as the writer's billing row, including the rule that an outsourced ticket cannot use 公司 API or 公司席位; a local reviewer SHALL list only 本地 GPU. When the reviewer changes, its billing SHALL be set to the writer's default-billing rule applied to the reviewer (an approved seat with enough quota for the review part, else a subscription with enough quota on a non-sensitive ticket; when the writer uses the same vendor and the same quota billing, the writer part's high estimate is added to the need), else 公司 API when usable, else 個人 API when usable, else the first usable billing method. If the selected reviewer billing becomes unusable, it SHALL switch to the first usable one; if the reviewer vendor has no usable billing at all, the reviewer SHALL switch to 同一個. The review part SHALL count toward the company API daily limit and overdraft like any company charge.
 
 #### Scenario: Default reviewer billing
 
@@ -132,7 +132,7 @@ When a reviewer other than 同一個 is selected, the dispatch panel SHALL show 
 ---
 ### Requirement: Review that cannot be done
 
-When a job with a reviewer other than 同一個 settles, the writer part (without the fix) SHALL be charged first, then the review part with the same completion fraction. The review SHALL count as performed only when the reviewer's vendor is not down that day and the review charge was not short (quota or wallet). When a caught failure's review was performed, the fix (25% of the writer part) SHALL be charged last to the writer's billing; if that charge is short, the remaining quota or wallet is used, the failure stays a failure with the writer billing's short note, and no rescue is counted. When the review is not performed, a rolled catch SHALL be discarded: a failed attempt SHALL stay a failure with the note 審核沒做完，沒抓到錯誤, and a successful attempt SHALL stay a success. The writer part SHALL settle as it would without the review, and a short review charge SHALL NOT stop the writer halfway.
+When a job with a reviewer other than 同一個 settles, the writer part (without the fix) SHALL be charged first, then the review part with the same completion fraction. When the writer charge is short (the agent stops halfway), the review part SHALL NOT be charged, no reviewer audit SHALL be rolled, and the review counts as not performed. The review SHALL count as performed only when the reviewer's vendor is not down that day and the review charge was not short (quota or wallet). When a caught failure's review was performed, the fix (25% of the writer part) SHALL be charged last to the writer's billing; if that charge is short, the remaining quota or wallet is used, the failure stays a failure with the writer billing's short note, and no rescue is counted. When the review is not performed, a rolled catch SHALL be discarded: a failed attempt SHALL stay a failure with the note 審核沒做完，沒抓到錯誤, and a successful attempt SHALL stay a success. The writer part SHALL settle as it would without the review, and a short review charge SHALL NOT stop the writer halfway.
 
 #### Scenario: Reviewer quota runs out
 
@@ -147,7 +147,12 @@ When a job with a reviewer other than 同一個 settles, the writer part (withou
 #### Scenario: Fix cannot be paid
 
 - **WHEN** a caught failure's writer is on 個人 API, the review on 公司 API is paid, and the wallet holds less than the fix after the writer part
-- **THEN** the wallet is emptied, the attempt fails with 錢包見底，agent 停在一半, and the rescued count does not change
+- **THEN** the wallet is emptied, the attempt fails with 錢包見底，agent 停在一半, the rescued count does not change, and the job's GA `outcome` is `quota`
+
+#### Scenario: Writer stops halfway
+
+- **WHEN** Sonnet on the Anthropic subscription writes a sensitive ticket reviewed by DeepSeek Reasoner on 個人 API, and the subscription quota runs out during the writer part
+- **THEN** the attempt fails with 撞到用量上限，agent 停在一半, nothing is charged for the review, and only one audit is rolled (the writer's, at 35% for 個人訂閱)
 
 #### Scenario: Reviewer vendor down overnight
 

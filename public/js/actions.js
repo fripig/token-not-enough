@@ -149,14 +149,15 @@ export function settle(j,o={}){
   const ch=charge(b,v,M,tk); spend=ch.spend;
   if(ch.short){ tk*=ch.frac; hrs=Math.max(.3,hrs*Math.max(.3,ch.frac)); ok=false; note=t(b==='api'?'log.note.wallet':'log.note.quota'); }
   /* 交叉審核：寫的先扣，審核那段另外付；廠商今天當機或付不出來就當作沒審。抓到錯的修正（多 25%）最後再對寫的付費方式扣，扣不到就當作沒修好 */
-  let rch=null, rtk=0, wq=ch.q||0, wc=ch.cost||0;
+  let rch=null, rtk=0, wq=ch.q||0, wc=ch.cost||0, fixShort=false;
   if(cross){
-    let revOk=S.outage!==j.rvv;
+    /* 寫的那段停在一半就沒有東西可審：審核那段不扣、不擲稽核 */
+    let revOk=S.outage!==j.rvv&&!ch.short;
     if(revOk){ rtk=(j.rtk||0)*frac; rch=charge(j.rvb,j.rvv,model(j.rvv,j.rvm),rtk); if(rch.short){ rtk*=rch.frac; revOk=false; } }
     if(!ch.short&&!j.ok&&!o.fail){
       if(j.caught&&revOk){
         const fx=charge(b,v,M,tk*.25); wq+=fx.q||0; wc+=fx.cost||0; tk+=tk*.25*fx.frac;
-        if(fx.short) note=t(b==='api'?'log.note.wallet':'log.note.quota'); else{ok=true;fixed=true;}
+        if(fx.short){ fixShort=true; note=t(b==='api'?'log.note.wallet':'log.note.quota'); } else{ok=true;fixed=true;}
         spend=spendText(b,wq,wc,ch.spend);
       }
       else if(j.caught) note=t('log.note.reviewSkipped');
@@ -168,7 +169,7 @@ export function settle(j,o={}){
   /* App 上架審核在 agent 做完之後才發生，自我審核救不回來 */
   if(ok&&is.store&&Math.random()<storeReject()){ok=false;rejected=true;note=t('log.note.store');}
   S.st.tk[v]+=tk; S.st.byBill[b]+=tk; if(rtk){S.st.tk[j.rvv]+=rtk; S.st.byBill[j.rvb]+=rtk;}
-  const outcome=o.cancel?'cancelled':o.fail?'aborted':ch.short?'quota':conflict?'conflict':rejected?'rejected':ok?(fixed?'caught':'success'):j.stop?'trap_stop':'fail';
+  const outcome=o.cancel?'cancelled':o.fail?'aborted':ch.short||fixShort?'quota':conflict?'conflict':rejected?'rejected':ok?(fixed?'caught':'success'):j.stop?'trap_stop':'fail';
   track('job_result',{...jobChoice(j),cx:is.cx,stack:is.stack,gig:!!is.out,research:!!j.research,outcome,tokens:Math.round(tk+rtk),cost:Math.round(wc+(rch?.cost||0)),hours:Math.round(hrs*10)/10});
   const w=who(v,M,b), sp=t('sep');
   if(ok){

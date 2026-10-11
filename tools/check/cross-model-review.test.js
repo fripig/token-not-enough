@@ -209,3 +209,24 @@ section("cross-model-review：先扣寫的、修正最後扣、預設付費退�
   ok(sel.rvv===null,'審核那家沒有能用的付費方式：回到同一個');
   Object.assign(sel,{rvv:null,rvm:null,rvb:null});
 });
+
+section("cross-model-review：寫的停在一半、修正額度不夠、預設付費看兩段",()=>{
+  const ge=[]; globalThis.gtag=(k,n,p)=>ge.push({n,p});
+  /* 寫的訂閱額度不夠：審核不扣、只擲寫的那次稽核 */
+  newRun('laravel'); S.inv.xreview=1; S.subs.anthropic='pro'; S.used.sub.anthropic.d=450-10; let tk=ticket('fe',4,{sens:true}); S.issues=[tk];
+  const w0=S.wallet, a0=S.st.audits;
+  withRand([.5],()=>settle(job(tk,'anthropic','sonnet','sub',{rv:1,ok:true,tk:200,rvv:'deepseek',rvm:'reasoner',rvb:'api',rtk:50})));
+  ok(S.wallet===w0&&S.st.audits===a0&&S.log[0].msg.includes('撞到用量上限，agent 停在一半')&&ge.at(-1).p.outcome==='quota','寫的停在一半：審核沒扣、0.5 不到寫的 35% 沒被稽核、審核沒多擲',`${S.wallet-w0} ${S.st.audits-a0}`);
+  /* 修正時訂閱額度不夠：outcome 送 quota */
+  newRun('laravel'); S.inv.xreview=1; S.subs.anthropic='pro'; S.used.sub.anthropic.d=450-210; tk=ticket('fe',4); S.issues=[tk];
+  settle(job(tk,'anthropic','sonnet','sub',{rv:1,ok:false,caught:true,tk:200,rvv:'anthropic',rvm:'opus',rvb:'corp',rtk:51}));
+  ok(S.issues.includes(tk)&&ge.at(-1).p.outcome==='quota'&&S.log[0].msg.includes('撞到用量上限'),'修正時額度不夠：失敗、GA outcome quota',ge.at(-1).p.outcome);
+  delete globalThis.gtag;
+  /* 預設審核付費：寫的同一家同一種額度時看兩段加起來 */
+  newRun('laravel'); S.inv.xreview=1; S.seats=['anthropic']; tk=ticket('fe',2); S.issues=[tk];
+  Object.assign(sel,{issue:tk.id,v:'anthropic',m:'sonnet',b:'seat',rv:1,ef:1,sdd:2});
+  const e=est(tk,'anthropic','sonnet',1,1,2,{v:'anthropic',m:'opus',b:'seat'}), wh=e.hi, rh=reviewCost(e).hi;
+  S.used.seat.anthropic.d=2500-(rh+wh*.5);
+  ok(C.rvPrefBill(tk,'anthropic','opus')==='corp','席位只夠審核那段、不夠兩段加起來：預設公司 API',`${wh} ${rh}`);
+  S.used.seat.anthropic.d=0; ok(C.rvPrefBill(tk,'anthropic','opus')==='seat','席位夠兩段：預設席位');
+});
