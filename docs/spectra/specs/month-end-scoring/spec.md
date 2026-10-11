@@ -38,22 +38,28 @@ Personal spend SHALL be subscription fees + personal API + outsourcing penalties
 ---
 ### Requirement: Grade
 
-The grade SHALL be S at 4,300 or more, A at 3,300, B at 2,500, C at 1,700, and D below, with every threshold multiplied by 1.6 in parallel mode (6,880 / 5,280 / 4,000 / 2,720).
+The grade SHALL use thresholds per mode. In serial mode it SHALL be S at 3,800 or more, A at 2,400, B at 1,400, C at 500, and D below. In parallel mode it SHALL be S at 10,700 or more, A at 5,280, B at 4,000, C at 2,720, and D below. Parallel thresholds SHALL NOT be derived from the serial ones.
 
 #### Scenario: Same score, different modes
 
 - **WHEN** the score is 3,120
-- **THEN** the grade is B in serial mode and C in parallel mode
+- **THEN** the grade is A in serial mode and C in parallel mode
 
 ##### Example: thresholds
 
 | Mode | Score | Grade |
 | --- | --- | --- |
-| serial | 4,300 | S |
-| serial | 4,299 | A |
-| serial | 1,699 | D |
-| parallel | 6,880 | S |
-| parallel | 6,879 | A |
+| serial | 3,800 | S |
+| serial | 3,799 | A |
+| serial | 2,400 | A |
+| serial | 1,400 | B |
+| serial | 500 | C |
+| serial | 499 | D |
+| parallel | 10,700 | S |
+| parallel | 10,699 | A |
+| parallel | 5,280 | A |
+| parallel | 4,000 | B |
+| parallel | 2,720 | C |
 | parallel | 2,719 | D |
 
 ---
