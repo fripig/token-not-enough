@@ -304,3 +304,34 @@ An action that is refused (not enough hours, local GPU busy, research on a ticke
 
 - **WHEN** the player registers for HITCON, then tries to register for COSCUP in the same week
 - **THEN** one `invest` event is sent with `investment` `conf_hitcon` and `stack` `none`, the second attempt sends nothing, and the Monday attendance sends nothing
+
+---
+### Requirement: Abandon event
+
+When the player abandons a ticket (see `abandon-ticket`), the game SHALL send one `abandon` event with the ticket's shown `cx`, `stack`, `gig`, `merge` and `research`, plus the common parameters. A refused abandon (incident, running or missing ticket) SHALL NOT send the event. Because `cx` is the shown complexity, abandoning a hidden trap SHALL NOT reveal its true complexity.
+
+#### Scenario: Abandon a company ticket
+
+- **WHEN** the player abandons a complexity-3 Rails ticket that is not outsourced, not a merge-conflict ticket and not a research ticket
+- **THEN** one `abandon` event is sent with `cx` 3, `stack` `rails`, `gig` `false`, `merge` `false`, `research` `false`
+
+#### Scenario: Hidden trap
+
+- **WHEN** the player abandons a hidden trap shown as complexity 1 with true complexity 5
+- **THEN** the `abandon` event has `cx` 1
+
+#### Scenario: Refused abandon
+
+- **WHEN** the player tries to abandon an incident ticket
+- **THEN** no `abandon` event is sent
+
+<!-- @trace
+source: gh-51-01-abandon-ticket
+updated: 2026-10-11
+code:
+  - public/js/modals.js
+  - public/js/rules.js
+tests:
+  - tools/check/month-end-scoring.test.js
+  - tools/check/rules-reference.test.js
+-->
