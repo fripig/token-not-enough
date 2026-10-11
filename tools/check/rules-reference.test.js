@@ -47,6 +47,7 @@ section("rules-reference（gh-20-01-rules-modal）",()=>{
   ok(['md',...D.INV_KEYS].every(k=>{const I=D.INVEST[k];return iv.includes(I.name)&&iv.includes(`<td>${I.hrs}h</td>`)&&iv.includes(`<td>${D.nt(I.cost)}</td>`)&&iv.includes(I.desc);}),'rules-reference：投資分頁列出每項投資的工時、預算與效果');
   ok(D.HW_KEYS.every(k=>{const H=D.HW[k];return iv.includes(H.name)&&iv.includes(`<td>${H.trust}</td>`)&&iv.includes(H.price);}),'rules-reference：投資分頁列出每台電腦的價格與信任門檻');
   ok(plain('dispatch').includes(`<td>${Math.round(C.P_STEP[1]*100)}%</td>`)&&plain('tickets').includes(`<td>${KPI[5]}</td>`),'rules-reference：成功率表與 KPI 表來自常數');
+  {const dp=plain('dispatch'), tk=plain('tickets'); ok(dp.includes(`<td>+${D.CAP_SCALE} 以上</td>`)&&dp.includes(`<td>−${3*D.CAP_SCALE} 以下</td>`)&&dp.includes(`差 +${D.CAP_SCALE/2} 是 ${Ru.pct(C.pStep(D.CAP_SCALE/2))}`)&&dp.includes('87.5%')&&dp.includes(`× 能力 ÷ ${D.CAP_SCALE}`)&&tk.includes(`× 能力 ÷ ${D.CAP_SCALE}`)&&dp.includes(`能力低於 ${D.WEAK_CAP}`),'rules-reference：成功率表用 ×10 刻度、寫出內插例子（+5 → 87.5%），抓錯率與識破率寫 ÷ 10',dp.slice(0,400));}
   }
 
   {

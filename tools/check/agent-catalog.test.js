@@ -55,12 +55,12 @@ section("派工台選模型",()=>{
   newRun('laravel'); S.hours=8; const tc=ticket('fe',2); S.issues=[tc]; sel.issue=tc.id; Object.assign(sel,{v:'openai',m:'std',b:'api'}); render();
   ok(/data-b="corp" disabled>公司 API<small>公司沒簽約/.test(els.app.innerHTML),'agent-catalog：OpenAI 不能走公司 API');
   {const h=els.app.innerHTML, at=s=>h.indexOf(s), gpt=['<b>Luna</b><span>能力 ●●●○○ 30</span>','<b>Sol</b><span>能力 ●●●●○ 40</span>','<b>Astra</b><span>能力 ●●●●● 50</span>'];
-  ok(gpt.every(s=>at(s)>=0)&&at(gpt[0])<at(gpt[1])&&at(gpt[1])<at(gpt[2])&&!['<b>mini</b>','<b>標準</b>','<b>高推理</b>'].some(s=>h.includes(s)),'agent-catalog：Codex CLI 依序顯示 Luna、Sol、Astra（能力 3／4／5），沒有舊名稱');}
+  ok(gpt.every(s=>at(s)>=0)&&at(gpt[0])<at(gpt[1])&&at(gpt[1])<at(gpt[2])&&!['<b>mini</b>','<b>標準</b>','<b>高推理</b>'].some(s=>h.includes(s)),'agent-catalog：Codex CLI 依序顯示 Luna、Sol、Astra（能力 30／40／50），沒有舊名稱');}
   {const tg=ticket('laravel',2,{client:CLIENTS[3]}); S.issues=[tg]; sel.issue=tg.id; render(); const h=els.app.innerHTML;
   ok(/data-v="openai" data-m="mini" ><b>Luna<\/b><span>能力 ●●●○○ 30<\/span><span class="">\$0\.15\/k/.test(h)&&/data-v="deepseek" data-m="chat" disabled><b>Chat<\/b><span>能力 ●●●○○ 30<\/span><span class="why">政府標案禁用/.test(h),'agent-catalog：政府標案可用 Luna（$0.15/k），DeepSeek Chat 停用');
   S.issues=[tc]; sel.issue=tc.id; render();}
   {const h=els.app.innerHTML, at=s=>h.indexOf(s), cl=[['Haiku','●●●○○ 30','0.15'],['Sonnet','●●●●○ 40','0.45'],['Opus','●●●●● 50','0.9'],['Fable','●●●●●● 60','1.8']].map(([n,d,p])=>`<b>${n}</b><span>能力 ${d}</span><span class="">$${p}/k`);
-  ok(cl.every(s=>at(s)>=0)&&cl.every((s,i)=>!i||at(cl[i-1])<at(s)),'agent-catalog：Claude Code 依序顯示 Haiku、Sonnet、Opus、Fable（能力 3／4／5／6，$0.15／0.45／0.9／1.8）');}
+  ok(cl.every(s=>at(s)>=0)&&cl.every((s,i)=>!i||at(cl[i-1])<at(s)),'agent-catalog：Claude Code 依序顯示 Haiku、Sonnet、Opus、Fable（能力 30／40／50／60，$0.15／0.45／0.9／1.8）');}
   ok(els.app.innerHTML.includes('價格、額度與模型能力都是遊戲平衡用的虛構數字，不代表各家實際方案。'),'agent-catalog：頁尾保留虛構數字聲明');
   ok(els.app.innerHTML.includes('<b>Gemma 4 26B A4B</b><span>能力 ●●●○○ 30</span><span class="">免費</span>')&&els.app.innerHTML.includes('免費・中國權重'),'agent-catalog：本地模型顯示免費、Qwen 標中國權重');
   ok(!['Qwen Coder 32B','Gemma 27B','gpt-oss'].some(n=>els.app.innerHTML.includes(n)),'agent-catalog：派工台沒有舊的本地模型名稱');
