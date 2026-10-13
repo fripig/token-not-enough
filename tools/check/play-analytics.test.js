@@ -64,7 +64,9 @@ section("GA 遊戲事件（gh-10-01-play-analytics）",()=>{
   for(const line of wf.slice(wf.indexOf('\njobs:')).split('\n').slice(2)){const m=line.match(/^  ([\w-]+):\s*$/); if(m){cur=m[1]; jobs[cur]='';} else if(cur) jobs[cur]+=line+'\n';}
   const stamped=(job='',pub)=>job.includes(`sed -i "s/export const GAME_VERSION='dev';/export const GAME_VERSION='\${GITHUB_SHA::7}';/" public/js/data.js`)&&job.includes(`grep -q "GAME_VERSION='\${GITHUB_SHA::7}'" public/js/data.js`)&&job.includes('Stamp game version')&&job.indexOf('Stamp game version')<job.indexOf(pub);
   ok(stamped(jobs.deploy,'upload-pages-artifact'),'play-analytics：GitHub Pages 部署前把版本換成短 commit hash 並檢查',Object.keys(jobs).join(','));
-  ok(stamped(jobs.cloudflare,'cloudflare/wrangler-action')&&/command:.*pages deploy public/.test(jobs.cloudflare||''),'play-analytics：Cloudflare Pages 部署前把版本換成短 commit hash 並檢查',Object.keys(jobs).join(','));
+  /* 只看 wrangler-action 那一步（到下一個步驟為止），確認部署指令屬於它 */
+  const cf=jobs.cloudflare||'', wa=cf.slice(Math.max(0,cf.indexOf('cloudflare/wrangler-action'))), wrStep=wa.slice(0,(wa.indexOf('\n      - ')+1||wa.length+1)-1);
+  ok(stamped(cf,'cloudflare/wrangler-action')&&/command:.*pages deploy public/.test(wrStep),'play-analytics：Cloudflare Pages 部署前把版本換成短 commit hash 並檢查',Object.keys(jobs).join(','));
   }
 });
 

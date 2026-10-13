@@ -18,7 +18,7 @@
 
 - [x] 4.1 `docs/DESIGN.md` (the 部署 paragraph and the `GAME_VERSION` sentence naming `pages.yml`), `README.md`, `README.en.md` and the `已上線待檢驗` row in `CLAUDE.md` describe both deployments: push to `main` runs `pages.yml`, which stamps the version and deploys `public/` to GitHub Pages (`token-not-enough.youareright.app`) and to the Cloudflare Pages project `token-not-enough` (`token-not-enough-2.youareright.app`); the copy keeps the main address as canonical; GA tells them apart by hostname; the required secrets; and the reason (#59, some people could not connect) without claiming it was fixed for them. Verify by content review against `proposal.md` and `design.md`, and `grep -n "token-not-enough-2" docs/DESIGN.md README.md README.en.md CLAUDE.md` finding each file. [after: 3.1]
 - [x] 4.2 The full rule check passes. Verify by running `node tools/check.js` and seeing every test pass. [after: 2.3]
-- [ ] 4.3 The people who reported that they could not connect are given `https://token-not-enough-2.youareright.app/`, and whether it works for them is recorded as a comment on #59 (or that no answer came yet). Verify by the comment existing on #59. [after: 3.1]
+- [x] 4.3 The people who reported that they could not connect are given `https://token-not-enough-2.youareright.app/`, and whether it works for them is recorded as a comment on #59 (or that no answer came yet). Verify by the comment existing on #59. [after: 3.1]
 
 ## Change note
 
