@@ -2,7 +2,7 @@ import {S} from './state.js';
 import {t,tl} from './i18n.js';
 
 /* ===== 資料（數字為遊戲平衡用，非實際報價） ===== */
-/* 遊戲版本：部署時 .github/workflows/pages.yml 把 'dev' 換成短 commit hash，本機與 node 工具維持 dev */
+/* 遊戲版本：部署時 .github/workflows/pages.yml 的兩個 job（GitHub Pages、Cloudflare Pages）各自把 'dev' 換成短 commit hash，本機與 node 工具維持 dev */
 export const GAME_VERSION='dev';
 export const VENDORS={
   anthropic:{name:'Anthropic',agent:'Claude Code',vc:'--anth',corp:true,

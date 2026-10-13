@@ -59,7 +59,12 @@ section("GA 遊戲事件（gh-10-01-play-analytics）",()=>{
   /* 版本：repo 裡是 dev，部署 workflow 換成短 commit hash，沒換到就失敗 */
   const wf=readFileSync(new URL('../../.github/workflows/pages.yml',import.meta.url),'utf8');
   ok(dataModule.GAME_VERSION==='dev','play-analytics：repo 裡的 GAME_VERSION 是 dev');
-  ok(wf.includes(`sed -i "s/export const GAME_VERSION='dev';/export const GAME_VERSION='\${GITHUB_SHA::7}';/" public/js/data.js`)&&wf.includes(`grep -q "GAME_VERSION='\${GITHUB_SHA::7}'" public/js/data.js`)&&wf.indexOf('Stamp game version')<wf.indexOf('upload-pages-artifact'),'play-analytics：部署前把版本換成短 commit hash 並檢查');
+  /* GitHub Pages（deploy）與 Cloudflare Pages（cloudflare）兩個 job 各自先蓋版號再發佈（gh-59-01-cloudflare-pages） */
+  const jobs={}; let cur=null;
+  for(const line of wf.slice(wf.indexOf('\njobs:')).split('\n').slice(2)){const m=line.match(/^  ([\w-]+):\s*$/); if(m){cur=m[1]; jobs[cur]='';} else if(cur) jobs[cur]+=line+'\n';}
+  const stamped=(job='',pub)=>job.includes(`sed -i "s/export const GAME_VERSION='dev';/export const GAME_VERSION='\${GITHUB_SHA::7}';/" public/js/data.js`)&&job.includes(`grep -q "GAME_VERSION='\${GITHUB_SHA::7}'" public/js/data.js`)&&job.includes('Stamp game version')&&job.indexOf('Stamp game version')<job.indexOf(pub);
+  ok(stamped(jobs.deploy,'upload-pages-artifact'),'play-analytics：GitHub Pages 部署前把版本換成短 commit hash 並檢查',Object.keys(jobs).join(','));
+  ok(stamped(jobs.cloudflare,'cloudflare/wrangler-action')&&/command:.*pages deploy public/.test(jobs.cloudflare||''),'play-analytics：Cloudflare Pages 部署前把版本換成短 commit hash 並檢查',Object.keys(jobs).join(','));
   }
 });
 
