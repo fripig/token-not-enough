@@ -50,8 +50,10 @@ node tools/sim.js     # 兩種模式 × 六種工作內容 × 三種審核等級
 
 ## 部署
 
-推送到 `main` 後，`.github/workflows/pages.yml` 會把 `public/` 部署到 GitHub Pages。
-第一次需要到 repo 的 **Settings → Pages → Build and deployment** 把 Source 設成 **GitHub Actions**。
+推送到 `main` 後，`.github/workflows/pages.yml` 會把 `public/` 同時部署到兩個地方：
+
+- GitHub Pages：https://token-not-enough.youareright.app/ （主網址）。第一次需要到 repo 的 **Settings → Pages → Build and deployment** 把 Source 設成 **GitHub Actions**。
+- Cloudflare Pages 專案 `token-not-enough`：https://token-not-enough-2.youareright.app/ ，給連不上 GitHub Pages 的人用。需要 repo secrets `CLOUDFLARE_API_TOKEN`（權限 Account → Cloudflare Pages → Edit）與 `CLOUDFLARE_ACCOUNT_ID`。
 
 ## 專案結構
 

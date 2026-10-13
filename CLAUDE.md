@@ -39,7 +39,7 @@ Changes can be parked（暫存）— temporarily moved out of `docs/spectra/chan
 | `可處理` | proposal 到 tasks 都寫完、analyze 與 validate 通過，已 park，等使用者叫 apply |
 | `進行中` | apply 開始實作 |
 | `檢驗中` | 任務做完，在跑 verify／review，或等使用者在本機試玩 |
-| `已上線待檢驗` | 已 push 到 `main`，GitHub Pages 已部署，等使用者在線上確認 |
+| `已上線待檢驗` | 已 push 到 `main`，GitHub Pages 與 Cloudflare Pages（`token-not-enough-2.youareright.app`）都已部署，等使用者在線上確認 |
 | `已完成` | archive 完成，同時關閉 issue |
 
 這個專案沒有測試站與正式站之分（push 到 `main` 就上線），所以不用 `測試站待檢驗`、`正式站待檢驗`。

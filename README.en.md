@@ -52,8 +52,10 @@ All game text lives in the dictionaries under `public/js/i18n/`, keyed by Englis
 
 ## Deployment
 
-Pushing to `main` runs `.github/workflows/pages.yml`, which deploys `public/` to GitHub Pages.
-The first time, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions** in the repo.
+Pushing to `main` runs `.github/workflows/pages.yml`, which deploys `public/` to two places:
+
+- GitHub Pages: https://token-not-enough.youareright.app/ (main address). The first time, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions** in the repo.
+- Cloudflare Pages project `token-not-enough`: https://token-not-enough-2.youareright.app/ , for people who cannot reach GitHub Pages. Needs repository secrets `CLOUDFLARE_API_TOKEN` (permission Account → Cloudflare Pages → Edit) and `CLOUDFLARE_ACCOUNT_ID`.
 
 ## Project layout
 
