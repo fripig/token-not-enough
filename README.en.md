@@ -4,6 +4,8 @@
 
 Play online: https://token-not-enough.youareright.app/
 
+If that address does not load for you, try the backup: https://token-not-enough-2.youareright.app/
+
 A 20-working-day management game. You are an engineer who picks one or two work roles at the start (Laravel backend, Rails backend, Rust infrastructure, App development, SRE, DevOps). New tickets come in every day, and you decide which code agent to send each one to, which model it uses, and who pays for the tokens: a personal subscription, personal API, company API, a company team seat, or a local GPU.
 
 > Prices, quotas and model abilities are made-up numbers for game balance. They do not reflect any vendor's real plans.

@@ -4,6 +4,8 @@
 
 線上遊玩：https://token-not-enough.youareright.app/
 
+連不上的話，可以改用備用網址：https://token-not-enough-2.youareright.app/
+
 一個 20 個工作天的經營小遊戲：你是工程師，開局選一到兩項工作內容（Laravel 後端、Rails 後端、Rust 基礎設施、App 開發、SRE、DevOps），每天會進來新的工單，你要決定派給哪家 code agent、用哪個模型，以及這筆 token 由誰付錢（個人訂閱、個人 API、公司 API、公司團隊席位，或本地 GPU）。
 
 > 價格、額度與模型能力都是遊戲平衡用的虛構數字，不代表各家實際方案。
