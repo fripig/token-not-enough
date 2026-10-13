@@ -120,7 +120,7 @@ When the month-end receipt opens, the game SHALL send `game_end` with the common
 ---
 ### Requirement: Game version stamp
 
-`public/js/data.js` SHALL define `GAME_VERSION` as `'dev'` in the repository. The GitHub Pages workflow SHALL replace it with the first 7 characters of the deployed commit hash before uploading `public/`, and SHALL fail the deployment when the replacement did not happen.
+`public/js/data.js` SHALL define `GAME_VERSION` as `'dev'` in the repository. The deploy workflow `.github/workflows/pages.yml` publishes `public/` twice, to GitHub Pages and to Cloudflare Pages; each of its deploy jobs SHALL replace `'dev'` with the first 7 characters of the deployed commit hash before publishing `public/`, and SHALL fail when the replacement did not happen.
 
 #### Scenario: Repository value
 
@@ -130,15 +130,12 @@ When the month-end receipt opens, the game SHALL send `game_end` with the common
 #### Scenario: Deploy stamp
 
 - **WHEN** the deploy workflow runs for commit `aa66a04…`
-- **THEN** the published `js/data.js` defines `GAME_VERSION` as `aa66a04`
+- **THEN** the `js/data.js` published to GitHub Pages and the one published to Cloudflare Pages both define `GAME_VERSION` as `aa66a04`
 
-<!-- @trace
-source: gh-10-01-play-analytics
-updated: 2026-10-09
-code:
-  - tools/check/play-analytics.test.js
-  - docs/DESIGN.md
--->
+#### Scenario: Stamp runs before each publish
+
+- **WHEN** `.github/workflows/pages.yml` is read
+- **THEN** in the GitHub Pages job the `Stamp game version` step appears before `upload-pages-artifact`, and in the Cloudflare job it appears before the step that runs `cloudflare/wrangler-action` with a command containing `pages deploy public`
 
 ---
 ### Requirement: Subscription events
