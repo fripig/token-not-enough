@@ -2,92 +2,13 @@
 
 ## Purpose
 
-Lets the player choose how many background agents run at once in parallel mode, turning the PR review load and merge-conflict trade-off of running agents concurrently into a decision made at the start of each run.
+Prices running background agents at once in parallel mode: there is no limit on how many run, and each dispatch's PR review load and merge-conflict chance grow with the other agents still running (the slot count chosen at run start was removed in gh-63-01-unlimited-parallel-agents).
 
 ## Requirements
 
-### Requirement: Slot count selection
-
-When parallel mode is selected in the opening setup modal, the modal SHALL offer slot counts 2, 3, 4, 5 and 6 with 3 selected by default, and confirming SHALL set the run's slot count. Each slot button SHALL show the maximum PR review load 審 PR 最多 ×<1 + 0.25 × (n − 1), two decimals> and the maximum conflict chance 衝突最多 <10 × (n − 1)>%. The picker SHALL NOT appear for serial mode or in the weekly subscription adjustment modal. The slot count SHALL persist to the next run started with 再玩一個月, and an invalid stored value SHALL fall back to 3.
-
-#### Scenario: Pick five slots
-
-- **WHEN** the player selects parallel mode and 5 slots, then starts day 1
-- **THEN** the background-agent list shows 0 / 5
-
-#### Scenario: Serial mode hides the picker
-
-- **WHEN** the player selects serial mode in the opening modal
-- **THEN** no slot buttons are shown
-
-#### Scenario: Replay keeps the count
-
-- **WHEN** a parallel run with 6 slots ends and the player clicks 再玩一個月
-- **THEN** the opening modal preselects 6 slots
-
-#### Scenario: Slot button labels
-
-- **WHEN** the opening modal shows the 4-slot button
-- **THEN** it shows 審 PR 最多 ×1.75 and 衝突最多 30%
-
-
-<!-- @trace
-source: gh-12-01-parallel-review-load
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - public/js/calc.js
-  - public/js/view.js
-  - public/js/actions.js
-  - public/js/modals.js
-  - tools/check/parallel-slots.test.js
--->
-
----
-### Requirement: Slot limit on dispatch
-
-In parallel mode the player SHALL NOT be able to have more background agents running than the chosen slot count; the dispatch button SHALL be disabled and the warning 工作槽都滿了，先等一個 agent 跑完。 SHALL be shown when all slots are busy. PR review load and merge-conflict chance SHALL keep their per-running-agent formulas. A dispatch's tokens SHALL NOT depend on the number of running agents.
-
-#### Scenario: Two slots fill up
-
-- **WHEN** the run has 2 slots and 2 agents are running
-- **THEN** a third dispatch is refused and the dispatch button is disabled
-
-##### Example: maximum PR review load by slot count
-
-| Slots | Other agents still running at most | PR review load |
-| ----- | ---------------------------------- | -------------- |
-| 2 | 1 | 1.25 |
-| 4 | 3 | 1.75 |
-| 6 | 5 | 2.25 |
-
-
-<!-- @trace
-source: gh-12-01-parallel-review-load
-updated: 2026-10-09
-code:
-  - docs/DESIGN.md
-  - public/js/calc.js
-  - public/js/view.js
-  - public/js/actions.js
-  - public/js/modals.js
-  - tools/check/parallel-slots.test.js
--->
-
----
-### Requirement: Slot count on the receipt
-
-The month-end receipt title for a parallel run SHALL include the slot count.
-
-#### Scenario: Receipt title
-
-- **WHEN** a Laravel 新聞站 parallel run with 4 slots ends
-- **THEN** the receipt title is 月底結算・Laravel 新聞站・平行模式（4 個 agent）
-
----
 ### Requirement: Merge conflicts leave a conflict ticket
 
-In parallel mode, when a background job finishes and the merge-conflict chance (0.1 per other running agent, halved with 補測試) is rolled on a job that would otherwise succeed, the ticket SHALL NOT complete and SHALL NOT be treated as a failed attempt. It SHALL stay in the queue as a conflict ticket titled 解決衝突：<original title>, with complexity max(1, original complexity − 1), base tokens for that complexity, and the original's tech stack, client, sensitivity, incident flag, due date, KPI and App Store review flag. The job's tokens SHALL be charged as usual, no PR review time SHALL be spent, and the receipt's conflict count SHALL increase by 1.
+In parallel mode, when a background job finishes and the merge-conflict chance is rolled on a job that would otherwise succeed, the ticket SHALL NOT complete and SHALL NOT be treated as a failed attempt. The merge-conflict chance SHALL be 0.1 per other running agent, halved with CI 流水線, and SHALL NOT exceed 0.9 (`CONFLICT_MAX`), the cap applying after the halving. The ticket SHALL stay in the queue as a conflict ticket titled 解決衝突：<original title>, with complexity max(1, original complexity − 1), base tokens for that complexity, and the original's tech stack, client, sensitivity, incident flag, due date, KPI and App Store review flag. The job's tokens SHALL be charged as usual, no PR review time SHALL be spent, and the receipt's conflict count SHALL increase by 1.
 
 A conflict ticket SHALL be resolvable with any dispatch method or by hand under the normal ticket rules; completing it SHALL add the inherited KPI and the done count. A conflict ticket SHALL NOT roll a merge conflict, SHALL NOT be a trap, and SHALL NOT offer 評估架構 or 找主管重新評估. A conflict ticket still open on its due date SHALL receive the normal overdue penalty.
 
@@ -104,6 +25,22 @@ A conflict ticket SHALL be resolvable with any dispatch method or by hand under 
 | 3 | 2 |
 | 5 | 4 |
 
+#### Scenario: Conflict chance cap
+
+- **WHEN** a job finishes in parallel mode
+- **THEN** the conflict chance follows the number of other agents still running, capped at 0.9
+
+##### Example: conflict chance by other agents running
+
+| Other agents still running | CI 流水線 | Conflict chance |
+| -------------------------- | --------- | --------------- |
+| 2 | no | 0.2 |
+| 5 | no | 0.5 |
+| 9 | no | 0.9 |
+| 12 | no | 0.9 |
+| 12 | yes | 0.6 |
+| 20 | yes | 0.9 |
+
 #### Scenario: Resolving the conflict ticket
 
 - **WHEN** the player dispatches the conflict ticket with any model and it succeeds while 3 other agents are running
@@ -119,10 +56,35 @@ A conflict ticket SHALL be resolvable with any dispatch method or by hand under 
 - **WHEN** a conflict ticket is still in the queue at the end of its due day
 - **THEN** half its KPI is deducted and trust drops by 4 (8 for an incident)
 
-<!-- @trace
-source: merge-conflict-resolve
-updated: 2026-10-09
-code:
-  - public/js/game.js
-  - tools/check/parallel-slots.test.js
--->
+---
+### Requirement: Unlimited running agents
+
+Parallel mode SHALL NOT have a slot count. The opening modal SHALL NOT offer a slot picker in either mode. Dispatching from the dispatch panel, one-click dispatch and batch dispatch SHALL NOT be refused because of how many agents are running; the other rules (0.2 hours of clock per dispatch, one local-GPU agent at a time, vendor outages, client bans, billing, quota and wallet checks) SHALL still apply. PR review load (`1 + 0.25 ×` other agents still running) and merge-conflict chance SHALL keep reading the number of agents actually running. A dispatch's tokens SHALL NOT depend on the number of running agents.
+
+#### Scenario: Seventh agent
+
+- **WHEN** 6 agents are running in parallel mode, the clock has 2 hours left and the player dispatches a seventh ticket with Claude Code / Sonnet・公司 API
+- **THEN** the dispatch succeeds, 7 agents are running and the clock advances by 0.2 hours
+
+#### Scenario: No slot picker
+
+- **WHEN** the opening modal is shown with parallel mode selected
+- **THEN** no slot buttons are shown
+
+##### Example: PR review load by agents running
+
+| Other agents still running | PR review load |
+| -------------------------- | -------------- |
+| 1 | 1.25 |
+| 5 | 2.25 |
+| 9 | 3.25 |
+
+---
+### Requirement: Parallel receipt title
+
+The month-end receipt title for a parallel run SHALL read 月底結算・<company name>・平行模式, with no agent count.
+
+#### Scenario: Receipt title
+
+- **WHEN** a Laravel 後端 parallel run ends
+- **THEN** the receipt title is 月底結算・Laravel 後端・平行模式

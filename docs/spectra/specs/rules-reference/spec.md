@@ -32,7 +32,7 @@ The rules modal SHALL be titled 遊戲規則 and SHALL show six tab buttons in t
 
 The tabs SHALL cover, at minimum:
 
-- 基本: days, weeks and hours; starting wallet, company budget and trust; Monday quota reset and subscription changes; single-line and parallel mode including slot choices, PR review time and merge conflicts; the 進階模式 reasoning-effort table.
+- 基本: days, weeks and hours; starting wallet, company budget and trust; Monday quota reset and subscription changes; single-line and parallel mode, including that parallel mode has no limit on agents running at once, PR review time, and merge conflicts with their cap (`CONFLICT_MAX`); the 進階模式 reasoning-effort table.
 - 派工與成功率: the success-rate table by ability minus complexity; that investment bonuses reduce the remaining failure chance; the big-codebase gap adjustment; the self-review table with the catch rate depending on the same gap; stack effects; presets and 一鍵派工; the per-dispatch SDD choice (不用 or an owned level, presets remembering it and falling back to the highest owned level).
 - 付費與稽核: the billing methods; company API daily limit and overdraft penalties; audit odds and penalty; team seats; client bans on Chinese models.
 - 工單與陷阱: complexity with base tokens and KPI; incident tickets; late penalties; unfamiliar stacks; traps, 評估架構 and 找主管重新評估, including the trap-stop fraction for each SDD level; research tickets with their rate, direct-dispatch token premium, agent and self research costs and split table; outsourcing.
@@ -45,6 +45,11 @@ Lines that apply only to 平行模式, 進階模式 or 接外包 SHALL be labele
 
 - **WHEN** the player opens the rules modal for the first time after the page loads
 - **THEN** six tab buttons appear in the listed order and 基本 is selected
+
+#### Scenario: Parallel mode in the basics tab
+
+- **WHEN** the player opens 基本
+- **THEN** the parallel-mode lines state there is no limit on agents running at once, give the PR review load +25% per other running agent, and give the merge-conflict chance +10% per other running agent capped at 90%, all taken from the game constants, with no slot range
 
 #### Scenario: Switching tabs
 
@@ -103,7 +108,7 @@ Every rate, multiplier, cost, penalty, threshold of trust and score weight in th
 ---
 ### Requirement: Closing returns to the opening context
 
-When the rules modal is opened from the header, 關閉 SHALL hide the overlay and leave the game screen as it was. When it is opened from the setup modal, 關閉 SHALL show the setup modal again with every unconfirmed choice kept (work content, mode, slot count, 接外包, 進階模式, plans and seat request) and its buttons working. Opening and closing the rules modal SHALL NOT change the run state, write a save, or send an analytics event.
+When the rules modal is opened from the header, 關閉 SHALL hide the overlay and leave the game screen as it was. When it is opened from the setup modal, 關閉 SHALL show the setup modal again with every unconfirmed choice kept (work content, mode, 接外包, 進階模式, plans and seat request) and its buttons working. Opening and closing the rules modal SHALL NOT change the run state, write a save, or send an analytics event.
 
 #### Scenario: Close from the header
 
