@@ -16,10 +16,12 @@
 
 部署：push 到 `main` 後 `.github/workflows/pages.yml` 跑兩個互不相依的 job，同一份蓋好版號的 `public/` 發佈到兩個地方（Spectra change `gh-59-01-cloudflare-pages`，#59）。只有 `public/` 會公開。
 
-- `deploy` job → GitHub Pages，https://token-not-enough.youareright.app/ （主網址）。自訂網域設在 repo 的 Pages 設定（用 Actions 部署時 `CNAME` 檔不會生效），DNS 是 Cloudflare 上 `youareright.app` 的 CNAME `token-not-enough` → `fripig.github.io`（DNS only），舊網址 `fripig.github.io/token-not-enough/` 會轉址過來。
-- `cloudflare` job → Cloudflare Pages 專案 `token-not-enough`（`cloudflare/wrangler-action` 跑 `pages deploy public`），https://token-not-enough-2.youareright.app/ （Pages 的自訂網域，Cloudflare 自動建的 CNAME `token-not-enough-2`），也可以從 `token-not-enough.pages.dev` 連。要 repo secrets `CLOUDFLARE_API_TOKEN`（只給 Account → Cloudflare Pages → Edit）與 `CLOUDFLARE_ACCOUNT_ID`。這份失敗不影響 GitHub Pages。
+- `cloudflare` job → Cloudflare Pages 專案 `token-not-enough`（`cloudflare/wrangler-action` 跑 `pages deploy public`），https://token-not-enough.youareright.app/ （主網址）。主網址與 `token-not-enough-2.youareright.app` 都是 Pages 的自訂網域，DNS 是 Cloudflare 上 `youareright.app` 的 CNAME → `token-not-enough.pages.dev`（Proxied）；也可以從 `token-not-enough.pages.dev` 連。要 repo secrets `CLOUDFLARE_API_TOKEN`（只給 Account → Cloudflare Pages → Edit）與 `CLOUDFLARE_ACCOUNT_ID`。
+- `deploy` job → GitHub Pages，https://fripig.github.io/token-not-enough/ （備用網址，repo 的 Pages 設定沒有自訂網域）。兩個 job 互不影響，一邊失敗另一邊照常發佈。
 
-第二份是因為有人回報連不上主網址（#59，2026-10-13 從開發機連 8 次都正常、沒重現），給連不上 GitHub Pages 的人用；換了能不能連，要看回報的人試過的結果（記在 #59）。兩份檔案完全相同：canonical、Open Graph、JSON-LD、`robots.txt`、`sitemap.xml` 都指向主網址，搜尋引擎把第二份當成主網址的副本；GA 是同一個 property，用頁面的 hostname 分辨。
+主網址原本是 GitHub Pages（CNAME → `fripig.github.io`，DNS only），Cloudflare 那份只在 `-2` 網址，因為有人回報連不上主網址（#59，2026-10-13 從開發機連 8 次都正常、沒重現）。2026-10-14 使用者選了把主網址整個搬到 Cloudflare Pages、GitHub Pages 退成備用（#61，推翻 #59「不搬主網域」）。兩份檔案完全相同：canonical、Open Graph、JSON-LD、`robots.txt`、`sitemap.xml` 都指向主網址，搜尋引擎把其他網址當成主網址的副本；GA 是同一個 property，用頁面的 hostname 分辨。
+
+`youareright.app` zone 的 Browser Cache TTL 會把 Pages 的 `max-age=0` 蓋成 4 小時，部署後玩家可能拿到新舊混用的模組（#60）。所以 zone 有一條 Cache Rule「Pages respect origin TTL」（hostname 是主網址與 `-2`，Browser TTL 選 Respect origin），兩個網址的 JS 都是 `cache-control: public, max-age=0, must-revalidate`。新增 Pages 自訂網域時要一起加進這條規則。wrangler 登入（OAuth）只有 Pages 寫入與 zone 唯讀，DNS 與 Cache Rules 要在 Dashboard 改。
 
 用 wrangler 4.150 建 Pages 專案（`wrangler pages project create`）時，指令會被轉到 Workers 而失敗，要加 `--force` 才會建出 Pages 專案；專案建好後 `pages deploy` 不受影響。
 

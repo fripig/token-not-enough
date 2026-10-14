@@ -4,7 +4,7 @@
 
 Play online: https://token-not-enough.youareright.app/
 
-If that address does not load for you, try the backup: https://token-not-enough-2.youareright.app/
+If that address does not load for you, try the backup on GitHub Pages: https://fripig.github.io/token-not-enough/
 
 A 20-working-day management game. You are an engineer who picks one or two work roles at the start (Laravel backend, Rails backend, Rust infrastructure, App development, SRE, DevOps). New tickets come in every day, and you decide which code agent to send each one to, which model it uses, and who pays for the tokens: a personal subscription, personal API, company API, a company team seat, or a local GPU.
 
@@ -56,8 +56,8 @@ All game text lives in the dictionaries under `public/js/i18n/`, keyed by Englis
 
 Pushing to `main` runs `.github/workflows/pages.yml`, which deploys `public/` to two places:
 
-- GitHub Pages: https://token-not-enough.youareright.app/ (main address). The first time, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions** in the repo.
-- Cloudflare Pages project `token-not-enough`: https://token-not-enough-2.youareright.app/ , for people who cannot reach GitHub Pages. Needs repository secrets `CLOUDFLARE_API_TOKEN` (permission Account → Cloudflare Pages → Edit) and `CLOUDFLARE_ACCOUNT_ID`.
+- Cloudflare Pages project `token-not-enough`: https://token-not-enough.youareright.app/ (main address), also reachable at https://token-not-enough-2.youareright.app/ . Needs repository secrets `CLOUDFLARE_API_TOKEN` (permission Account → Cloudflare Pages → Edit) and `CLOUDFLARE_ACCOUNT_ID`.
+- GitHub Pages: https://fripig.github.io/token-not-enough/ (backup address). The first time, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions** in the repo.
 
 ## Project layout
 
