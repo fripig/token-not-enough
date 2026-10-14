@@ -1,43 +1,39 @@
 // parallel-slots 的規則檢查：docs/spectra/specs/parallel-slots/spec.md
-import {ok,near,section,newRun,ticket} from './lib.js';
+import {ok,near,section,newRun,ticket,job} from './lib.js';
 import {els} from '../fake-dom.js';
 import {start} from '../../public/js/main.js';
 import {KPI,model} from '../../public/js/data.js';
 import {S,fresh,sel} from '../../public/js/state.js';
 import {advance,canEvaluate,dispatch,endDay} from '../../public/js/actions.js';
 import {render} from '../../public/js/view.js';
+import {est} from '../../public/js/calc.js';
 import {showEnd,showSetup} from '../../public/js/modals.js';
 import * as A from '../../public/js/actions.js';
 import * as M from '../../public/js/modals.js';
 
-section("parallel-slots：開局選工作槽數",()=>{
-  /* parallel-slots：開局選工作槽數 */
+section("parallel-slots：開局沒有工作槽數",()=>{
+  /* #63：拿掉工作槽數設定，兩種模式、週一調整都不顯示 */
   const clickModal=(ds)=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
-  start(); S.slots=3; fresh(); ok(S.slots===3,'預設 3 個工作槽');
-  start(); clickModal({mode:'parallel'});
-  ok(els.mo.innerHTML.includes('data-slots="2"')&&els.mo.innerHTML.includes('data-slots="6"')&&!els.mo.innerHTML.includes('data-slots="7"'),'平行模式顯示 2–6 的選項');
-  ok(/class="sb sel" data-slots="3"/.test(els.mo.innerHTML),'預設選 3');
-  ok(/data-slots="4">同時 4 個 agent<small>審 PR 最多 ×1\.75・衝突最多 30%/.test(els.mo.innerHTML),'4 個工作槽按鈕：審 PR 最多 ×1.75、衝突最多 30%');
-  { const pb=els.mo.innerHTML.match(/data-mode="parallel">(.*?)<\/button>/)[1]; ok(pb.includes('審 PR')&&!/token/i.test(pb),'平行模式按鈕講審 PR，不提 token',pb); }
+  start(); fresh(); ok(!('slots' in S),'新的一局 S 沒有 slots');
+  start(); clickModal({mode:'parallel'}); ok(!els.mo.innerHTML.includes('data-slots'),'平行模式不顯示工作槽選項');
+  { const pb=els.mo.innerHTML.match(/data-mode="parallel">(.*?)<\/button>/)[1]; ok(pb.includes('審 PR')&&pb.includes('沒有上限')&&!/token/i.test(pb),'平行模式按鈕講審 PR、沒有上限，不提 token',pb); }
   clickModal({mode:'serial'}); ok(!els.mo.innerHTML.includes('data-slots'),'單線模式不顯示工作槽選項');
-  clickModal({mode:'parallel'}); clickModal({slots:'5'}); ok(els.mo.innerHTML.includes('最多 5 個 agent 在背景同時跑'),'模式說明跟著選的數量');
-  clickModal({act:'confirm'});
-  ok(S.slots===5&&els.app.innerHTML.includes('0 / 5 個工作槽'),'選 5 個：背景 agent 顯示 0 / 5');
+  clickModal({mode:'parallel'}); clickModal({act:'confirm'}); ok(S.mode==='parallel'&&!('slots' in S),'確認平行模式後 S 仍沒有 slots');
   showSetup(true); ok(!els.mo.innerHTML.includes('data-slots'),'週一調整不顯示工作槽選項');
-  S.slots=6; start(); ok(/class="sb sel" data-slots="6"/.test(els.mo.innerHTML),'再玩一個月預選上次的 6');
-  S.slots=9; fresh(); ok(S.slots===3,'不合法的工作槽數退回 3');
 });
 
-section("parallel-slots：派工上限、token 加成、結算標題",()=>{
-  /* parallel-slots：派工上限、token 加成、結算標題 */
-  newRun('laravel','parallel'); S.slots=2; S.hours=8;
-  for(let i=0;i<3;i++){const is=ticket('fe',1); S.issues.push(is); sel.issue=is.id; sel.v='anthropic'; sel.m='sonnet'; sel.b='api'; dispatch();}
-  ok(S.jobs.length===2,'2 個工作槽時第三張派不出去',S.jobs.length);
+section("parallel-slots：同時跑沒有上限、審 PR 倍率、結算標題",()=>{
+  /* #63：沒有工作槽數，第 7 個照派，代價看實際在跑的數量 */
+  newRun('laravel','parallel'); S.hours=2; S.jobs=Array.from({length:6},()=>job(ticket('fe',1),'anthropic','haiku','corp',{left:5,hrs:5}));
+  {const is=ticket('fe',1); S.issues.push(is); sel.issue=is.id; sel.v='anthropic'; sel.m='sonnet'; sel.b='corp'; dispatch();}
+  ok(S.jobs.length===7&&near(S.hours,1.8),'已有 6 個在跑、剩 2h：第 7 張照派，時鐘走 0.2h',[S.jobs.length,S.hours].join());
   const pend=ticket('fe',1); S.issues.push(pend); sel.issue=pend.id; render();
-  ok(/data-act="go" disabled/.test(els.app.innerHTML)&&els.app.innerHTML.includes('工作槽都滿了，先等一個 agent 跑完。'),'工作槽滿了：派工按鈕停用並顯示警告');
-  for(const [n,exp] of [[2,1.25],[4,1.75],[6,2.25]]){newRun('laravel','parallel'); S.slots=n; S.jobs=Array(n-1).fill({left:1}); ok(near(A.reviewLoad(),exp),`${n} 個工作槽、其他 ${n-1} 個還在跑 → 審 PR ×${exp}`);}
-  newRun('laravel','parallel'); S.slots=4; S.day=20; showEnd();
-  ok(els.mo.innerHTML.includes('月底結算・Laravel 後端・平行模式（4 個 agent）'),'結算標題顯示 4 個 agent');
+  ok(!/data-act="go" disabled/.test(els.app.innerHTML),'7 個在跑時派工按鈕仍可按');
+  for(const [n,exp] of [[1,1.25],[5,2.25],[9,3.25]]){newRun('laravel','parallel'); S.jobs=Array(n).fill({left:1}); ok(near(A.reviewLoad(),exp),`其他 ${n} 個還在跑 → 審 PR ×${exp}（線性、沒有上限）`);}
+  {newRun('laravel','parallel'); const tk=ticket('laravel',3), t0=est(tk,'anthropic','sonnet',1).tk;
+   S.jobs=Array.from({length:7},()=>job(ticket('fe',1),'anthropic','haiku','corp',{left:5,hrs:5}));
+   ok(est(tk,'anthropic','sonnet',1).tk===t0,'派工的 token 不受在跑數量影響（0 個與 7 個在跑相同）',[t0,est(tk,'anthropic','sonnet',1).tk].join());}
+  newRun('laravel','parallel'); S.day=20; showEnd(); ok(els.mo.innerHTML.includes('月底結算・Laravel 後端・平行模式</h2>'),'結算標題寫平行模式、沒有 agent 數');
   newRun('laravel','serial'); S.day=20; showEnd(); ok(els.mo.innerHTML.includes('月底結算・Laravel 後端・單線模式</h2>'),'單線模式標題不變');
 });
 
@@ -81,5 +77,13 @@ section("合併衝突留下「解決衝突」工單",()=>{
     const lateOne=ticket('laravel',2,{merge:true,title:'解決衝突：x',due:S.day}), lost0=S.st.kpiLost;
     S.trust=70; S.issues=[lateOne]; Math.random=()=>.99; endDay(); Math.random=realRand; // .99 不會抽到改信任的隨機事件
     ok(S.st.kpiLost-lost0===Math.ceil(KPI[2]*.5)&&S.st.late===1&&S.trust===66,'解決衝突工單到期沒解完照一般逾期扣分（信任 −4）',S.st.kpiLost-lost0);
+  }
+});
+
+section("合併衝突機率上限",()=>{
+  /* 每個其他還在跑的 agent +0.1，CI 減半，最多 CONFLICT_MAX（減半之後才套） */
+  for(const [n,ci,exp] of [[2,false,.2],[5,false,.5],[9,false,.9],[12,false,.9],[12,true,.6],[20,true,.9]]){
+    newRun('laravel','parallel'); S.inv.ci=ci; S.jobs=Array(n).fill({left:1});
+    ok(near(A.conflictRate(),exp),`其他 ${n} 個在跑${ci?'、有 CI':''} → 衝突 ${exp}`,A.conflictRate());
   }
 });

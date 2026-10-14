@@ -48,12 +48,18 @@ section("dispatch-outcome：成功率表",()=>{
   const warn=h=>h.match(/<div class="warnline">([^<]*)<\/div>/)[1];
   const wq=(sens,hours)=>{newRun('laravel'); S.hours=hours; S.subs.anthropic='pro'; S.used.sub.anthropic={d:445,w:445}; const t=ticket('fe',3,{sens}); S.issues=[t]; sel.issue=t.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'sub',rv:0}); render(); return warn(els.app.innerHTML);};
   ok(wq(true,8).startsWith('機敏工單用個人帳號')&&wq(false,1).startsWith('剩餘額度可能不夠'),'dispatch-outcome：機敏先於額度、額度先於工時');
-  newRun('laravel','parallel'); S.slots=2; S.hours=1; const tz=ticket('fe',5,{due:S.day}); S.issues=[tz]; sel.issue=tz.id; Object.assign(sel,{v:'anthropic',m:'opus',b:'corp',rv:0}); render();
+  newRun('laravel','parallel'); S.hours=1; const tz=ticket('fe',5,{due:S.day}); S.issues=[tz]; sel.issue=tz.id; Object.assign(sel,{v:'anthropic',m:'opus',b:'corp',rv:0}); render();
   ok(warn(els.app.innerHTML)==='這張今天到期，但下班前跑不完，會逾期。','dispatch-outcome：今天到期跑不完先於跑過夜');
   S.jobs=[job(ticket('fe',1),'anthropic','haiku','corp',{left:5,hrs:5}),job(ticket('fe',1),'anthropic','haiku','corp',{left:5,hrs:5})]; render();
-  ok(warn(els.app.innerHTML)==='工作槽都滿了，先等一個 agent 跑完。','dispatch-outcome：工作槽滿先於到期');
+  ok(warn(els.app.innerHTML)==='這張今天到期，但下班前跑不完，會逾期。','dispatch-outcome：有 agent 在跑也照樣是到期警告（沒有工作槽滿的警告，#63）');
   tz.due=S.day+2; S.jobs=[]; render(); ok(warn(els.app.innerHTML)==='今天跑不完，agent 會跑過夜，明早才有結果。','dispatch-outcome：跑過夜警告');
   }
+});
+
+section("dispatch-outcome：很多 agent 在跑也沒有警告（#63）",()=>{
+  newRun('laravel','parallel'); S.hours=8; S.jobs=Array.from({length:6},()=>job(ticket('fe',1),'anthropic','haiku','corp',{left:5,hrs:5}));
+  const t=ticket('fe',1,{due:S.day+3}); S.issues=[t]; sel.issue=t.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0}); render();
+  ok(!/class="warnline">[^<]/.test(els.app.innerHTML)&&!/data-act="go" disabled/.test(els.app.innerHTML),'6 個在跑：沒有警告、派工按鈕可按');
 });
 
 section("dispatch-outcome：能力差距不是 10 的倍數時線性內插",()=>{

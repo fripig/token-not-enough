@@ -1,5 +1,4 @@
 import {CONF,HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,lv,normCompanies,objOf,pick,pickClient,presetsOf,rnd,validReviewer} from './data.js';
-import {SLOT_CHOICES} from './actions.js';
 import {t,tl} from './i18n.js';
 
 /* ===== 狀態 ===== */
@@ -11,7 +10,7 @@ export const resetIds=()=>{uid=0;};
 export const START={wallet:8000,corp:12000,trust:70,hours:8};
 export function fresh(){
   uid=0;
-  S={day:1,hours:START.hours,wallet:START.wallet,corp:START.corp,trust:START.trust,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),slots:SLOT_CHOICES.includes(S?.slots)?S.slots:3,outsource:S?.outsource===true,advanced:S?.advanced===true,presets:presetsOf(S?.presets),jobs:[],
+  S={day:1,hours:START.hours,wallet:START.wallet,corp:START.corp,trust:START.trust,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),outsource:S?.outsource===true,advanced:S?.advanced===true,presets:presetsOf(S?.presets),jobs:[],
     inv:{md:{},...objOf(INV_KEYS,()=>0),ai:0},
     subs:objOf(APIV,()=>'none'),
     used:{sub:objOf(APIV,()=>({d:0,w:0})),seat:objOf(SEAT.vendors,()=>({d:0,w:0}))},
@@ -31,7 +30,7 @@ export const daySnap=()=>({kpi:S.kpi,trust:S.trust,wallet:S.wallet,corp:S.corp})
 export function track(name,extra={}){
   try{
     if(typeof gtag!=='function') return;
-    gtag('event',name,{game_version:GAME_VERSION,game_mode:S.mode,companies:S.companies.join('+'),slots:S.mode==='parallel'?S.slots:1,advanced:S.advanced,outsource:S.outsource,day:S.day,...extra});
+    gtag('event',name,{game_version:GAME_VERSION,game_mode:S.mode,companies:S.companies.join('+'),advanced:S.advanced,outsource:S.outsource,day:S.day,...extra});
   }catch(e){}
 }
 

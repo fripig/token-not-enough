@@ -16,17 +16,17 @@ section("GA 遊戲事件（gh-10-01-play-analytics）",()=>{
   const clickMo=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
   const ev=[]; globalThis.gtag=(kind,name,p)=>ev.push({kind,name,p});
   const names=()=>ev.map(e=>e.name).join();
-  /* 開局參數：單線 Rails（存著 5 個工作槽也送 1） */
-  newRun('rails','parallel'); S.slots=5; S.advanced=false; S.outsource=false; showSetup(false); clickMo({mode:'serial'}); ev.length=0; clickMo({act:'confirm'});
+  /* 開局參數：單線 Rails（#63 起不送 slots） */
+  newRun('rails','parallel'); S.advanced=false; S.outsource=false; showSetup(false); clickMo({mode:'serial'}); ev.length=0; clickMo({act:'confirm'});
   ok(names()==='game_start,subscription,day_reached'&&ev.every(e=>e.kind==='event'&&e.p.day===1),'play-analytics：開局確認送 game_start、subscription、第 1 天 day_reached',names());
   ok(ev[1].p.vendor==='none'&&ev[1].p.plan==='none','play-analytics：沒有訂閱時送一筆 vendor none、plan none',JSON.stringify(ev[1].p));
   const p0=ev[0].p;
-  ok(p0.game_version==='dev'&&p0.game_mode==='serial'&&p0.companies==='rails'&&p0.slots===1&&p0.advanced===false&&p0.outsource===false,'play-analytics：單線 Rails 的共同參數',JSON.stringify(p0));
-  /* 開局參數：平行 Laravel＋Rust、4 個工作槽、進階、接外包 */
-  newRun('laravel','parallel'); S.slots=3; S.advanced=false; S.outsource=false; showSetup(false);
-  clickMo({company:'rust'}); clickMo({slots:'4'}); clickMo({out:'1'}); clickMo({adv:'1'}); ev.length=0; clickMo({act:'confirm'});
+  ok(p0.game_version==='dev'&&p0.game_mode==='serial'&&p0.companies==='rails'&&!('slots' in p0)&&p0.advanced===false&&p0.outsource===false,'play-analytics：單線 Rails 的共同參數',JSON.stringify(p0));
+  /* 開局參數：平行 Laravel＋Rust、進階、接外包 */
+  newRun('laravel','parallel'); S.advanced=false; S.outsource=false; showSetup(false);
+  clickMo({company:'rust'}); clickMo({out:'1'}); clickMo({adv:'1'}); ev.length=0; clickMo({act:'confirm'});
   const p1=ev[0]?.p||{};
-  ok(ev[0]?.name==='game_start'&&p1.game_mode==='parallel'&&p1.companies==='laravel+rust'&&p1.slots===4&&p1.advanced===true&&p1.outsource===true,'play-analytics：平行雙選的共同參數',JSON.stringify(p1));
+  ok(ev[0]?.name==='game_start'&&p1.game_mode==='parallel'&&p1.companies==='laravel+rust'&&!('slots' in p1)&&p1.advanced===true&&p1.outsource===true,'play-analytics：平行雙選的共同參數',JSON.stringify(p1));
   /* 整個月：第 1–20 天各一次 day_reached，第 20 天結束送 game_end，不送第 21 天 */
   for(let i=0;i<20;i++)endDay();
   const days=ev.filter(e=>e.name==='day_reached').map(e=>e.p.day).join();
@@ -76,7 +76,7 @@ section("派工與結果事件（gh-14-01-choice-analytics）",()=>{
   const ev=[]; globalThis.gtag=(kind,name,p)=>ev.push({name,p});
   const of=n=>ev.filter(e=>e.name===n);
   /* 手動派工：平行、Laravel 複雜度 2、Sonnet、公司 API、自審 */
-  newRun('laravel','parallel'); S.slots=3; const d1=ticket('laravel',2); S.issues=[d1];
+  newRun('laravel','parallel'); const d1=ticket('laravel',2); S.issues=[d1];
   Object.assign(sel,{issue:d1.id,v:'anthropic',m:'sonnet',b:'corp',rv:1,ef:1}); ev.length=0; dispatch();
   const dp=of('dispatch')[0]?.p||{};
   ok(of('dispatch').length===1&&dp.vendor==='anthropic'&&dp.model==='sonnet'&&dp.bill==='corp'&&dp.review==='self'&&dp.effort==='mid'&&dp.via==='panel'&&dp.preset==='none'&&dp.cx===2&&dp.stack==='laravel'&&dp.incident===false&&dp.sensitive===false&&dp.gig===false&&dp.merge===false&&dp.day===S.day,'choice-analytics：派工按鈕送 dispatch 與選擇參數',JSON.stringify(dp));
@@ -85,7 +85,7 @@ section("派工與結果事件（gh-14-01-choice-analytics）",()=>{
   const qp=of('dispatch')[0]?.p||{}, A0=S.presets[0];
   ok(of('dispatch').length===1&&qp.via==='quick'&&qp.preset==='A'&&qp.vendor===A0.v&&qp.model===A0.m&&qp.bill===A0.b&&qp.review===['none','self','strict'][A0.rv],'choice-analytics：一鍵派工送 via quick、preset A',JSON.stringify(qp));
   /* 批次派工：兩張都送 via batch */
-  newRun('laravel','parallel'); S.slots=3; S.inv.skills=true; S.issues=[ticket('laravel',1),ticket('laravel',2)]; ev.length=0; batch();
+  newRun('laravel','parallel'); S.inv.skills=true; S.issues=[ticket('laravel',1),ticket('laravel',2)]; ev.length=0; batch();
   ok(of('dispatch').length===2&&of('dispatch').every(e=>e.p.via==='batch'),'choice-analytics：批次派工每張送 via batch',JSON.stringify(of('dispatch').map(e=>e.p.via)));
   /* 被拒絕的派工不送 */
   newRun('laravel','parallel'); const g0=ticket('laravel',1,{out:true}); S.issues=[g0];
@@ -138,10 +138,7 @@ section("派工與結果事件（gh-14-01-choice-analytics）",()=>{
     ok(res(job(),{conflict:1}).outcome==='conflict','choice-analytics：合併衝突 → conflict');
     const sj=job(); sj.issue.store=true; ok(res(sj).outcome==='rejected','choice-analytics：上架被退 → rejected');
     Math.random=rr;}
-  /* 工作槽滿、本地 GPU 忙：派工不送 */
-  newRun('laravel','parallel'); S.slots=2; const fz=ticket('laravel',1); S.issues=[fz]; S.jobs=[{left:5},{left:5}];
-  Object.assign(sel,{issue:fz.id,v:'anthropic',m:'sonnet',b:'api',rv:0}); ev.length=0; dispatch();
-  ok(ev.length===0,'choice-analytics：工作槽滿不送 dispatch');
+  /* 本地 GPU 忙：派工不送（#63 起沒有工作槽滿） */
   newRun('laravel','parallel'); const lz=ticket('laravel',1); S.issues=[lz]; S.jobs=[{b:'local',left:5,issue:ticket('fe',1)}];
   Object.assign(sel,{issue:lz.id,v:'local',m:'gemma',b:'local',rv:0}); ev.length=0; dispatch();
   ok(ev.length===0,'choice-analytics：本地 GPU 忙不送 dispatch');

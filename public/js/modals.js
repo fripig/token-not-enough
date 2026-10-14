@@ -1,7 +1,7 @@
 import {COMPANIES,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
 import {S,addGigs,clearSave,daySnap,loadGame,modeKpi,saveGame,sel,track} from './state.js';
 import {log,prefBill} from './calc.js';
-import {PAR,REVIEW_LOAD,SLOT_CHOICES,invCount,sumDelta} from './actions.js';
+import {PAR,invCount,sumDelta} from './actions.js';
 import {app,langSwitch,mo,ov,render} from './view.js';
 import {firstIssues,start} from './main.js';
 import {showRules} from './rules.js';
@@ -41,7 +41,7 @@ export function toggleCompany(cs,k){
 }
 export function showSetup(adjust){
   const rulesBtn=`<div class="actions"><button class="btn ghost" data-act="rules">${t('ui.setup.rules')}</button></div>`;
-  draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],slots:S.slots,outsource:S.outsource,advanced:S.advanced};
+  draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],outsource:S.outsource,advanced:S.advanced};
   const draw=()=>{
     mo.innerHTML=`<h2>${adjust?t('ui.setup.titleAdj'):t('ui.setup.title')}</h2>
     <div class="mlang">${langSwitch()}</div>
@@ -61,10 +61,9 @@ export function showSetup(adjust){
       <button class="sb ${draft.advanced?'sel':''}" data-adv="1"><b>${t('ui.setup.advOn')}</b><small>${t('ui.setup.advOnSub')}</small></button>
     </div></div>
     <div class="sec"><label>${t('ui.setup.mode')}</label><div class="modes">
-      <button class="sb ${draft.mode==='parallel'?'sel':''}" data-mode="parallel"><b>${t('ui.setup.par')}</b><small>${t('ui.setup.parSub',{n:draft.slots})}</small></button>
+      <button class="sb ${draft.mode==='parallel'?'sel':''}" data-mode="parallel"><b>${t('ui.setup.par')}</b><small>${t('ui.setup.parSub')}</small></button>
       <button class="sb ${draft.mode==='serial'?'sel':''}" data-mode="serial"><b>${t('ui.setup.serial')}</b><small>${t('ui.setup.serialSub')}</small></button>
-    </div></div>
-    ${draft.mode==='parallel'?`<div class="sec"><label>${t('ui.setup.slots')}</label><div class="seg">${SLOT_CHOICES.map(n=>`<button class="sb ${draft.slots===n?'sel':''}" data-slots="${n}">${t('ui.setup.slotN',{n})}<small>${t('ui.setup.slotSub',{x:(1+REVIEW_LOAD*(n-1)).toFixed(2),c:Math.round(10*(n-1))})}</small></button>`).join('')}</div></div>`:''}`}
+    </div></div>`}
     <div class="plans">${planPicker(adjust)}</div>
     <div class="actions"><button class="btn primary" data-act="confirm" ${planShort(adjust)?'disabled':''}>${adjust?t('ui.setup.confirmAdj'):t('ui.setup.confirm')}</button>${adjust?`<button class="btn ghost" data-act="close">${t('ui.setup.cancel')}</button>`:''}</div>`;
   };
@@ -76,7 +75,6 @@ export function showSetup(adjust){
     else if(bt.dataset.seat!==undefined){draft.seat=bt.dataset.seat;draw();}
     else if(bt.dataset.mode){draft.mode=bt.dataset.mode;draw();}
     else if(bt.dataset.company){draft.companies=toggleCompany(draft.companies,bt.dataset.company);draw();}
-    else if(bt.dataset.slots){draft.slots=+bt.dataset.slots;draw();}
     else if(bt.dataset.out){draft.outsource=bt.dataset.out==='1';draw();}
     else if(bt.dataset.adv){draft.advanced=bt.dataset.adv==='1';draw();}
     else if(bt.dataset.act==='close'){ov.hidden=true;}
@@ -88,10 +86,10 @@ export function showSetup(adjust){
       if(!adjust){
         const outChanged=draft.outsource!==S.outsource, modeChanged=draft.mode!==S.mode; S.outsource=draft.outsource;
         /* 模式先定下來，第 1 天工單的 KPI 才會照確認的模式算（難線 ×1.3 只在單線） */
-        S.mode=draft.mode; S.slots=draft.slots; S.advanced=draft.advanced;
+        S.mode=draft.mode; S.advanced=draft.advanced;
         if(draft.companies.join()!==S.companies.join()){S.companies=draft.companies;firstIssues();}
         else{ if(outChanged){S.issues=S.issues.filter(i=>!i.out);const g=addGigs();if(g)log('dim',t('log.setup.gigs',{n:g}));} if(modeChanged) modeKpi(); }
-        log('dim',t('log.setup.mode',{company:companyName(),mode:PAR()?t('ui.modePar',{n:S.slots}):t('ui.modeSerial'),adv:S.advanced?t('sep')+t('ui.setup.advOn'):''}));
+        log('dim',t('log.setup.mode',{company:companyName(),mode:PAR()?t('ui.modePar'):t('ui.modeSerial'),adv:S.advanced?t('sep')+t('ui.setup.advOn'):''}));
       }
       const changed=SUBV.filter(v=>draft.subs[v]!==S.subs[v]);
       for(const v of changed) S.subs[v]=draft.subs[v];
@@ -131,7 +129,7 @@ export function showResume(d){
   const s=d.S;
   const sp=t('sep');
   mo.innerHTML=`<h2>${t('ui.resume.title')}</h2>
-  <p class="lead">${t('ui.day.title',{d:s.day})}${sp}${companyName(s.companies)}${sp}${s.mode==='parallel'?t('ui.modePar',{n:s.slots}):t('ui.modeSerial')}</p>
+  <p class="lead">${t('ui.day.title',{d:s.day})}${sp}${companyName(s.companies)}${sp}${s.mode==='parallel'?t('ui.modePar'):t('ui.modeSerial')}</p>
   <div class="actions"><button class="btn primary" data-act="resume">${t('ui.resume.go')}</button><button class="btn ghost" data-act="new">${t('ui.resume.new')}</button></div>`;
   ov.hidden=false;
   mo.onclick=e=>{const bt=e.target.closest('button');if(!bt)return;
@@ -173,7 +171,7 @@ export function showEnd(){
   const vendorLines=Object.keys(S.st.tk).filter(v=>S.st.tk[v]>0).map(v=>`<div><span>${VENDORS[v].name}</span><span>${kt(S.st.tk[v])} tokens${t('sep')}${Math.round(S.st.tk[v]/tot*100)}%</span></div>`).join('')||`<div><span>${t('end.noAgent')}</span><span>—</span></div>`;
   const conf=S.conf.went.length||S.conf.req;
   const sp=t('sep'), row=(k,v)=>`<div><span>${t(k)}</span><span>${v}</span></div>`;
-  mo.innerHTML=`<h2>${t('end.title')}${sp}${companyName()}${sp}${PAR()?t('end.modePar',{n:S.slots}):t('end.modeSerial')}</h2>
+  mo.innerHTML=`<h2>${t('end.title')}${sp}${companyName()}${sp}${PAR()?t('end.modePar'):t('end.modeSerial')}</h2>
   <div class="grade"><span class="g">${g}</span><div class="gt"><b>${title}</b><span>${desc}</span></div></div>
   <div class="rc">
     ${row('end.subFee',nt(S.st.subFee))}

@@ -17,9 +17,9 @@ import * as Vw from '../../public/js/view.js';
 section("game-modes：模式選擇",()=>{
   /* game-modes：模式選擇 */
   {
-  S.slots=3; start(); S.mode='parallel'; showSetup(false);
+  start(); S.mode='parallel'; showSetup(false);
   ok(/class="sb sel" data-mode="parallel"/.test(els.mo.innerHTML)&&els.mo.innerHTML.includes('data-mode="serial"'),'game-modes：開局可選平行或單線，選中平行');
-  clickMo({act:'confirm'}); ok(S.log.some(l=>l.msg.includes('遊戲模式：平行（同時 3 個 agent）')),'game-modes：開局紀錄寫平行與工作槽數');
+  clickMo({act:'confirm'}); ok(S.log.some(l=>l.msg.endsWith('· Laravel 後端・遊戲模式：平行')),'game-modes：開局紀錄寫平行、沒有 agent 數',S.log.map(l=>l.msg).join('|'));
   pristine.fresh(); ok(pristine.S.mode==='parallel','game-modes：第一次開局預設平行模式');
   S.mode='serial'; fresh(); ok(S.mode==='serial','game-modes：模式跨局保留');
   start(); clickMo({act:'confirm'}); ok(S.log.some(l=>l.msg.endsWith('遊戲模式：單線')),'game-modes：開局紀錄寫單線');
@@ -29,9 +29,9 @@ section("game-modes：模式選擇",()=>{
   withRand(.5,dispatch); ok(near(S.hours,6.4)&&!S.issues.includes(ts)&&S.log[0].msg.startsWith('D01 ✓'),'game-modes：單線派工當場結算、扣 1.6h');
   render(); ok(els.app.innerHTML.includes('今日剩餘工時')&&els.app.innerHTML.includes('6.4<small style="font-size:13px"> / 8h')&&!els.app.innerHTML.includes('data-act="wait1"')&&!els.app.innerHTML.includes('背景 agent'),'game-modes：單線顯示剩餘工時、沒有等待按鈕與背景 agent');
   /* 平行時鐘 */
-  newRun('laravel','parallel'); S.slots=3; S.hours=8; const tp=ticket('fe',2), tq=ticket('fe',3); S.issues=[tp,tq]; sel.issue=tp.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0});
+  newRun('laravel','parallel'); S.hours=8; const tp=ticket('fe',2), tq=ticket('fe',3); S.issues=[tp,tq]; sel.issue=tp.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0});
   withRand(.5,dispatch); ok(near(S.hours,7.8)&&A.clock(8-S.hours)==='9:12'&&S.jobs.length===1&&tp.running,'game-modes：派到背景花 0.2h、時鐘 9:12');
-  render(); ok(els.app.innerHTML.includes('9:12')&&els.app.innerHTML.includes('背景 agent 1 / 3')&&!els.app.innerHTML.includes(`data-iss="${tp.id}"`),'game-modes：平行顯示時鐘、背景 agent 數，跑的工單不在佇列');
+  render(); ok(els.app.innerHTML.includes('9:12')&&/背景 agent 1</.test(els.app.innerHTML)&&els.app.innerHTML.includes('1 個在跑')&&!els.app.innerHTML.includes(`data-iss="${tp.id}"`),'game-modes：平行顯示時鐘、背景 agent 數，跑的工單不在佇列');
   A.wait(false); ok(near(S.hours,6.8),'game-modes：等 1 小時');
   A.wait(true); ok(!S.jobs.length&&!S.issues.includes(tp),'game-modes：等到下一個 agent 完成');
   render(); ok(/data-act="waitn" disabled/.test(els.app.innerHTML),'game-modes：沒有 agent 時不能等下一個');
@@ -160,7 +160,7 @@ section("玩家中止背景 agent（gh-32-01-abort-agent）",()=>{
 
 section("下班前的浮點殘值歸零（gh-55-01-sim-hang-strong-outsource）",()=>{
   /* advance() 停在 ≤1e-9 時剩下的浮點殘值要歸零，否則等待按鈕可按卻不會推進（#55） */
-  newRun('laravel','parallel'); S.slots=6; const ts=[1,2,3].map(()=>ticket('fe',3,{running:true})); S.issues=ts;
+  newRun('laravel','parallel'); const ts=[1,2,3].map(()=>ticket('fe',3,{running:true})); S.issues=ts;
   S.jobs=ts.map((is,i)=>job(is,'deepseek','chat','api',{left:2+i*.3,hrs:3}));
   S.hours=1+5e-16; A.wait(false);
   ok(S.hours===0,'game-modes：等完剩下的浮點殘值歸零',S.hours);

@@ -2,7 +2,7 @@
 // 用法：node tools/sim.js
 // 載入遊戲模組，用假的 DOM 跑自動玩家：兩種模式 × 六種工作內容 × 三種審核等級各跑 N 個月（預設 100，可用 SIM_N 調整），
 // 印出抽樣結果，最後每個模式 × 工作內容印一行平均分、對照同模式 Laravel 的差距與評等分布。
-// SIM_TRAP=<比例> 可覆寫陷阱題比例（例如 SIM_TRAP=0 關掉陷阱）；SIM_SLOTS=2..6 指定平行模式工作槽數。
+// SIM_TRAP=<比例> 可覆寫陷阱題比例（例如 SIM_TRAP=0 關掉陷阱）；SIM_SLOTS=2..6 指定平行模式自動玩家自己最多同時跑幾個 agent（遊戲本身沒有上限），SIM_SLOTS=0 表示能派就派。
 // SIM_INVEST=1 讓自動玩家做工程投資：每天開工時依序買 CLAUDE.md（每條主技術線）、單元測試、CI 流水線與 pre-commit hook（只在平行模式）、導入 SDD 裡下一項付得起的。
 // SIM_INVEST=2 再加買上架自動化（有選 App 才買）、監控告警、secret scanning，量新投資的效果；SIM_INV_EXTRA=monitor,scan 之類可只加買指定的幾項（fastlane、monitor、scan），拿來逐項量。
 // SIM_CONF=1 讓自動玩家去國內研討會（要搭配 SIM_INVEST）：第 1、6、11 天報名第一個付得起的場次（涵蓋第一條主技術線的技術線場、台灣人工智慧年會、HWDC、HITCON、其他），
@@ -76,9 +76,9 @@ const hwModel=is=>{
   const ok=m=>{const M=model('local',m), h=est(is,'local',m,sel.rv).hrs;return !hwBlock(M)&&!cnBlock(is,'local',M)&&(PAR()?!(is.due<=S.day&&h+.2>S.hours):h<=S.hours);};
   return [...(is.cx>=4?['glm53']:[]),'qcnext','gemma4'].find(ok);
 };
-// SIM_SLOTS=2..6 指定平行模式的工作槽數（預設 3）
+// SIM_SLOTS=2..6 自動玩家平行模式最多同時跑幾個 agent（預設 3），0 = 不限（遊戲本身沒有上限，#63）
 const SLOTS=process.env.SIM_SLOTS===undefined?3:Number(process.env.SIM_SLOTS);
-if(![2,3,4,5,6].includes(SLOTS)){ console.error(`SIM_SLOTS 必須是 2–6 的整數，收到「${process.env.SIM_SLOTS}」`); process.exit(1); }
+if(![0,2,3,4,5,6].includes(SLOTS)||(process.env.SIM_SLOTS!==undefined&&!/^\s*\d\s*$/.test(process.env.SIM_SLOTS))){ console.error(`SIM_SLOTS 必須是 0 或 2–6 的整數，收到「${process.env.SIM_SLOTS}」`); process.exit(1); }
 // SIM_SEATS=1..3 給幾個團隊席位（預設 0 = 不給）
 const SEATS=process.env.SIM_SEATS===undefined?0:Number(process.env.SIM_SEATS);
 if(![0,1,2,3].includes(SEATS)||(process.env.SIM_SEATS!==undefined&&!['1','2','3'].includes(process.env.SIM_SEATS.trim()))){ console.error(`SIM_SEATS 必須是 1–3 的整數，收到「${process.env.SIM_SEATS}」`); process.exit(1); }
@@ -108,7 +108,7 @@ function sim(){
       for(let g=0;g<N*3;g++){
         /* 先設模式再產生第 1 天工單：難線 KPI ×1.3 只在單線（gh-53） */
         start(); S.companies=company.split('+'); S.outsource=OUT; S.advanced=EFF;
-        S.mode=mode; if(mode==='parallel')S.slots=SLOTS; firstIssues();
+        S.mode=mode; firstIssues();
         if(SUB){ S.subs.openai=SUB; S.wallet-=SUB_PRICE; S.st.subFee+=SUB_PRICE; }
         else{ S.subs.anthropic='max5'; S.wallet-=3300; S.st.subFee+=3300; }
         let guard=0;
@@ -140,7 +140,7 @@ function sim(){
           let acted=true;
           while(acted){acted=false;
             const free=S.issues.filter(i=>!i.running&&!skip.has(i.id)&&!(UPG_STOP&&i.out&&S.subs.openai==='pro500'));
-            if(free.length&&S.hours>.3&&(!PAR()||S.jobs.length<S.slots)){
+            if(free.length&&S.hours>.3&&(!PAR()||!SLOTS||S.jobs.length<SLOTS)){
               sel.issue=free[0].id; sel.rv=g%3;
               if(SDD_PICK) sel.sdd=free[0].cx<=2?0:2;
               const dsOk=!cnBlock(free[0],'deepseek',model('deepseek','chat'));

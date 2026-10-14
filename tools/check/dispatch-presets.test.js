@@ -71,9 +71,11 @@ section("一鍵派工",()=>{
   newRun('laravel'); S.hours=8; S.presets=presetsOf();
   const sens=ticket('fe',2,{sens:true}); S.issues=[sens]; render();
   ok(!/ disabled>/.test(qb(sens.id,0))&&qb(sens.id,0).includes('稽核 60%'),'機敏工單：方案 A（個人 API）可按，寫稽核 60%',qb(sens.id,0));
-  newRun('laravel','parallel'); S.hours=8; S.slots=2; const fj=()=>({v:'anthropic',M:model('anthropic','sonnet'),b:'api',left:1,hrs:1,issue:{title:'x',due:20}}); S.jobs=[fj(),fj()];
-  const full=ticket('fe',2); S.issues=[full]; render();
-  ok([0,1,2].every(p=>/ disabled>/.test(qb(full.id,p)))&&!quick(full.id)&&!quick(full.id,'quick',1),'工作槽滿了三顆都停用');
+  newRun('laravel','parallel'); S.hours=8; S.presets=presetsOf(); const fj=()=>({v:'anthropic',M:model('anthropic','sonnet'),b:'api',left:1,hrs:1,issue:{title:'x',due:20}}); S.jobs=Array.from({length:6},fj);
+  const many=ticket('fe',2); S.issues=[many]; render();
+  ok(!/ disabled>/.test(qb(many.id,0))&&quick(many.id,'quick',0)&&S.jobs.length===7,'6 個在跑：方案 A 可按，派出第 7 個（#63）',S.jobs.length);
+  newRun('laravel','parallel'); S.hours=.1; S.presets=presetsOf(); const oot=ticket('fe',2); S.issues=[oot]; render();
+  ok([0,1,2].every(p=>/ disabled>/.test(qb(oot.id,p))),'不到 0.2h：三顆都停用');
   newRun('laravel'); S.hours=.1; const late=ticket('fe',1); S.issues=[late]; ok(!quick(late.id)&&!quick(late.id,'quick',1),'不到 0.2h 不能一鍵派工');
   /* 不指定方案時（批次派工走這條）照舊 A→B→C 往下找、寫略過原因 */
   newRun('laravel'); S.presets=presetsOf(); S.hours=8; const f4=fin(); S.issues=[f4];

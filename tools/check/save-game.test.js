@@ -15,7 +15,7 @@ section("save-game（gh-11-01-save-game）",()=>{
   {
   const SV=St.SAVE_KEY;
   /* 平行模式第 4 天、一個 agent 跑著的局面，存檔後回傳原始字串 */
-  const savedRun=()=>{newRun(['laravel','rust'],'parallel'); S.slots=4; S.day=4; const t=ticket('laravel',2,{running:true}), q=ticket('rails',1);
+  const savedRun=()=>{newRun(['laravel','rust'],'parallel'); S.day=4; const t=ticket('laravel',2,{running:true}), q=ticket('rails',1);
     S.issues=[t,q]; S.jobs=[{issue:t,v:'anthropic',b:'api',M:model('anthropic','sonnet'),mul:1,rv:1,tk:100,hrs:3,ok:true,caught:false,left:2,hidden:false,stop:false,sdd:false}];
     resetStore(); St.saveGame({rep:['早上報告'],ev:['事件標題','事件內容'],monday:false}); return store[SV];};
   const raw=savedRun(), base=JSON.parse(raw);
@@ -99,12 +99,12 @@ section("Resume on page load",()=>{
   const SV=St.SAVE_KEY;
   const clickMo=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
   const ev=[]; globalThis.gtag=(kind,name,p)=>ev.push(name);
-  /* 平行第 7 天、Laravel＋Rust、4 個 agent，一個 agent 過夜 */
-  newRun(['laravel','rust'],'parallel'); S.slots=4; S.day=7; const t2=ticket('rust',3,{running:true}); S.issues=[t2,ticket('laravel',1)];
+  /* 平行第 7 天、Laravel＋Rust，一個 agent 過夜 */
+  newRun(['laravel','rust'],'parallel'); S.day=7; const t2=ticket('rust',3,{running:true}); S.issues=[t2,ticket('laravel',1)];
   S.jobs=[{issue:t2,v:'anthropic',b:'api',M:model('anthropic','sonnet'),mul:1,rv:1,tk:100,hrs:3,ok:true,caught:false,left:2,hidden:false,stop:false,sdd:false}];
   resetStore(); St.saveGame({rep:['2 個 agent 跑了一整晚'],ev:['事件標題','事件內容'],monday:false}); fresh();
   ev.length=0; boot();
-  ok(els.mo.innerHTML.includes('繼續上一局')&&els.mo.innerHTML.includes(`第 7 天・${dataModule.companyName(['laravel','rust'])}・平行（同時 4 個 agent）`)&&!els.ov.hidden,'save-game：開頁有存檔時顯示繼續彈窗與第 7 天・公司・平行（同時 4 個 agent）');
+  ok(els.mo.innerHTML.includes('繼續上一局')&&els.mo.innerHTML.includes(`第 7 天・${dataModule.companyName(['laravel','rust'])}・平行</p>`)&&!els.ov.hidden,'save-game：開頁有存檔時顯示繼續彈窗與第 7 天・公司・平行（沒有 agent 數）');
   clickMo({act:'resume'});
   ok(S.day===7&&S.jobs.length===1&&S.jobs[0].issue===S.issues.find(i=>i.id===t2.id)&&els.app.innerHTML.includes(t2.title),'save-game：繼續後第 7 天、過夜 agent 還在、job 的工單就是佇列裡那張');
   ok(els.mo.innerHTML.includes('第 7 天')&&els.mo.innerHTML.includes('2 個 agent 跑了一整晚')&&els.mo.innerHTML.includes('事件標題')&&!els.ov.hidden,'save-game：繼續後打開存下來的早上報告');
@@ -126,4 +126,16 @@ section("Resume on page load",()=>{
   clickMo({act:'new'}); ok(els.mo.innerHTML.includes('月初：決定這個月怎麼付 token'),'save-game：讀不到提示的按鈕開開局設定');
   delete globalThis.gtag;
   }
+});
+
+section("Resume on page load：#63 之前存的 slots 直接忽略",()=>{
+  const clickMo=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+  newRun('laravel','parallel'); S.day=5; S.hours=8;
+  const ta=ticket('fe',2,{running:true}), tb=ticket('fe',2,{running:true}), tc=ticket('fe',1,{due:8});
+  S.issues=[ta,tb,tc]; S.jobs=[job(ta,'anthropic','sonnet','corp',{left:3,hrs:3}),job(tb,'anthropic','sonnet','corp',{left:3,hrs:3})];
+  S.slots=4; resetStore(); St.saveGame(null); fresh(); boot(); clickMo({act:'resume'});
+  ok(S.day===5&&S.jobs.length===2&&els.app.innerHTML.includes('背景 agent 2'),'舊存檔（slots: 4、兩個 agent）讀得進來，顯示背景 agent 2',S.jobs.length);
+  sel.issue=tc.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0}); dispatch();
+  ok(S.jobs.length===3,'讀檔後第三張照派，沒有工作槽上限',S.jobs.length);
+  delete S.slots;
 });

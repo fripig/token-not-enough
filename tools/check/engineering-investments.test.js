@@ -208,16 +208,24 @@ section("導入 SDD 效果",()=>{
 
 section("批次派工",()=>{
   /* 批次派工 */
-  newRun('laravel','parallel'); S.hours=8; S.slots=3; S.presets=presetsOf(DEFAULT_PRESETS);
+  newRun('laravel','parallel'); S.hours=8; S.presets=presetsOf(DEFAULT_PRESETS);
   render(); ok(!els.app.innerHTML.includes('data-act="batch"'),'沒做 skills 不顯示批次派工');
   S.inv.skills=true; const bt=[1,2,3,2].map(cx=>ticket('fe',cx,{due:5})); S.issues=[...bt]; render();
   ok(els.app.innerHTML.includes('data-act="batch"'),'做了 skills 顯示批次派工');
   batch();
   ok(S.jobs.length===3&&S.jobs.every(j=>j.issue.cx<=2)&&S.issues.includes(bt[2])&&!bt[2].running,'批次派工：派出三張 ≤2，複雜度 3 留在佇列',S.jobs.length);
   ok(S.log.some(l=>l.msg.includes('批次派工：派出 3 張，略過 0 張')),'批次派工紀錄張數');
-  newRun('laravel','parallel'); S.inv.skills=true; S.hours=8; S.slots=2; S.presets=presetsOf(DEFAULT_PRESETS);
+  newRun('laravel','parallel'); S.inv.skills=true; S.hours=8; S.presets=presetsOf(DEFAULT_PRESETS);
   const oA=ticket('fe',1,{due:5,kpi:3}), oB=ticket('fe',2,{due:3,kpi:6}), oC=ticket('fe',1,{due:3,kpi:10}); S.issues=[oA,oB,oC]; batch();
-  ok(S.jobs.map(j=>j.issue).join()===[oC,oB].join()&&S.jobs[0].issue===oC&&S.jobs[1].issue===oB&&!oA.running,'批次派工順序：期限早的先，同期限 KPI 高的先（C、B，A 等下一輪）');
+  ok(S.jobs.length===3&&S.jobs[0].issue===oC&&S.jobs[1].issue===oB&&S.jobs[2].issue===oA,'批次派工順序：期限早的先，同期限 KPI 高的先（C、B、A）');
+  /* parallel-slots（#63）：同時跑幾個不會擋批次派工，只看剩下的時間 */
+  newRun('laravel','parallel'); S.inv.skills=true; S.hours=8; S.presets=presetsOf(DEFAULT_PRESETS);
+  S.jobs=Array.from({length:6},()=>job(ticket('fe',1),'anthropic','haiku','corp',{left:5,hrs:5}));
+  {const m2=[ticket('fe',1,{due:5}),ticket('fe',1,{due:5})]; S.issues=[...m2]; batch();
+   ok(S.jobs.length===8&&m2.every(x=>x.running),'已有 6 個在跑，批次派工照樣派出兩張（共 8 個）',S.jobs.length);}
+  newRun('laravel','parallel'); S.inv.skills=true; S.hours=.3; S.presets=presetsOf(DEFAULT_PRESETS);
+  {const m2=[ticket('fe',1,{due:5}),ticket('fe',1,{due:5})]; S.issues=[...m2]; batch();
+   ok(S.jobs.length===1&&m2[0].running&&!m2[1].running,'剩 0.3h：批次派工派出一張，另一張留在佇列',S.jobs.length);}
   newRun('laravel'); S.inv.skills=true; S.hours=.5; const slow=ticket('fe',2); S.issues=[slow]; batch();
   ok(S.issues.includes(slow)&&near(S.hours,.5),'單線模式工時不夠時批次派工停下來');
 });
@@ -284,7 +292,7 @@ section("派工台的 SDD 選項與派工方案（gh-33-01-sdd-levels）",()=>{
   /* 紀錄與 GA 的 SDD 等級 */
   {const ge=[]; globalThis.gtag=(k,n,p)=>ge.push({n,p});
   for(const [own,req,want,seg] of [[0,2,'none',''],[1,2,'md','・SDD markdown'],[2,2,'framework','・SDD 框架'],[2,0,'none','']]){
-    newRun('laravel','parallel'); S.hours=8; S.slots=3; S.inv.sdd=own; const tx=ticket('laravel',2); S.issues=[tx];
+    newRun('laravel','parallel'); S.hours=8; S.inv.sdd=own; const tx=ticket('laravel',2); S.issues=[tx];
     Object.assign(sel,{issue:tx.id,v:'anthropic',m:'sonnet',b:'corp',rv:1,sdd:req}); ge.length=0; dispatch();
     const d=ge.find(e=>e.n==='dispatch');
     ok(d&&d.p.sdd===want,`play-analytics：買 ${own} 級、選 ${req} → dispatch sdd ${want}`,JSON.stringify(d?.p));
@@ -377,7 +385,7 @@ section("國內研討會（gh-22-01-domestic-conference）",()=>{
   newRun('laravel'); S.inv.tests=2; ok(near(est(ticket('fe',4),'anthropic','sonnet',1).c,.4),'domestic-conference：單元測試 Lv2 讓 Sonnet 複雜度 4 自審抓錯率 0.4');
   ok(near(est(ticket('fe',4),'google','flash',1).c,.2),'domestic-conference：單元測試 Lv2 讓 Gemini Flash 複雜度 4 自審抓錯率 0.2');
   for(const [l,a,d] of [[1,.175,.30],[2,.0875,.15]]){newRun('laravel'); S.inv.scan=l; ok(near(auditOdds('anthropic'),a)&&near(auditOdds('deepseek'),d),`domestic-conference：secret scanning Lv${l} 稽核機率 ${a}／${d}`);}
-  newRun('laravel','parallel'); S.inv.skills=2; S.hours=8; S.slots=4; S.presets=presetsOf(DEFAULT_PRESETS);
+  newRun('laravel','parallel'); S.inv.skills=2; S.hours=8; S.presets=presetsOf(DEFAULT_PRESETS);
   {const b2=[1,3,4,2].map(cx=>ticket('fe',cx,{due:5})); S.issues=[...b2]; batch();
    ok(S.jobs.length===3&&S.jobs.every(j=>j.issue.cx<=3)&&!b2[2].running&&S.issues.includes(b2[2]),'domestic-conference：skills Lv2 批次派工到複雜度 3，複雜度 4 留著',S.jobs.map(j=>j.issue.cx).join());}
   newRun('laravel'); S.inv.skills=1; render(); ok(els.app.innerHTML.includes('批次派工（複雜度 ≤2）'),'domestic-conference：skills Lv1 批次派工按鈕寫 ≤2');

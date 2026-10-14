@@ -30,7 +30,7 @@ section("執行紀錄（gh-25-01-log-history）",()=>{
   ok(S.log[1].msg.startsWith('D02 → 派出 t（複雜度 1・今天到期）｜Claude Code / Sonnet・個人 API・不審核｜成功率 ')&&S.log[1].msg.includes('｜派工台｜')&&S.log[0].msg.startsWith('D02 ✓ t'),'action-log：單線派出那行在結果前面',S.log[1].msg);
   newRun('laravel','parallel'); S.hours=8; S.inv.skills=true; S.presets=DEFAULT_PRESETS.map(p=>({...p})); S.issues=[ticket('laravel',1)];
   batch(); ok(line('→ 派出').includes('｜批次派工方案 A｜'),'action-log：批次派工寫出方案',line('→ 派出'));
-  newRun('laravel','parallel'); S.day=3; S.slots=6; S.hours=8; pick('anthropic','sonnet','api');
+  newRun('laravel','parallel'); S.day=3; S.hours=8; pick('anthropic','sonnet','api');
   const tg=[[ticket('laravel',3,{due:3,inc:true}),'（複雜度 3・今天到期・事故）'],[ticket('laravel',2,{due:9,sens:true}),'（複雜度 2・第 9 天到期・機敏）'],[ticket('laravel',1,{due:5,out:true,pay:400}),'（複雜度 1・第 5 天到期・外包）']];
   for(const [is,want] of tg){S.issues.push(is); sel.issue=is.id; dispatch(); ok(S.log.some(l=>l.msg.includes(`→ 派出 t${want}｜`)),`action-log：標籤 ${want}`,line('→ 派出'));}
   newRun('laravel','parallel'); S.hours=8; pick('deepseek','chat','api');

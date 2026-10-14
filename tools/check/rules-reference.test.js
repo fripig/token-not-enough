@@ -1,9 +1,9 @@
 // rules-reference 的規則檢查：docs/spectra/specs/rules-reference/spec.md
-import {ok,section,newRun} from './lib.js';
+import {ok,section,newRun,ticket,job} from './lib.js';
 import {els,store} from '../fake-dom.js';
 import {KPI,SEAT} from '../../public/js/data.js';
 import * as dataModule from '../../public/js/data.js';
-import {S} from '../../public/js/state.js';
+import {S,sel} from '../../public/js/state.js';
 import {render} from '../../public/js/view.js';
 import {showEnd,showSetup} from '../../public/js/modals.js';
 import * as A from '../../public/js/actions.js';
@@ -33,6 +33,8 @@ section("rules-reference（gh-20-01-rules-modal）",()=>{
   press({rtab:'invest'}); press({act:'close'}); ok(els.ov.hidden,'rules-reference：從標頭打開，關閉後隱藏彈窗');
   Ru.showRules(); ok(selTab()==='invest','rules-reference：同一次開頁記住上次的分頁');
   ok(Ru.rulesTab('dispatch').includes('Rust、App、DevOps 的工單期限多 1 天；單線模式另有 KPI ×1.3（平行模式沒有）'),'rules-reference：派工分頁寫難線 KPI ×1.3 只在單線模式（gh-53）');
+  {const b=Ru.rulesTab('basic');
+   ok(b.includes('同時跑幾個 agent 沒有上限')&&b.includes('+25%')&&b.includes('增加 10% 合併衝突機率')&&b.includes('最多 90%')&&!/[2２]–6 個 agent/.test(b),'rules-reference：基本分頁寫同時跑沒有上限、審 PR +25%、衝突 +10% 最多 90%（#63）');}
   ok(Ru.rulesTab('nope')===Ru.rulesTab('basic'),'rules-reference：未知分頁退回基本');
   ok(Ru.rulesTab('basic').includes('天數 × 7')&&Ru.rulesTab('basic').includes('第 6 天前'),'rules-reference：基本分頁說明主管事件的 KPI 門檻與第一週只提醒');
   press({rtab:'nope'}); ok(selTab()==='basic','rules-reference：點到未知分頁 id 時選中基本');
@@ -90,4 +92,10 @@ section("rules-reference：交叉審核工具（gh-48-01-cross-model-review）",
   const h0=dataModule.INVEST.xreview.hrs; dataModule.INVEST.xreview.hrs=3;
   ok(Ru.rulesTab('dispatch').includes('交叉審核工具（3h'),'改工時常數，規則跟著寫 3h');
   dataModule.INVEST.xreview.hrs=h0;
+});
+
+section("rules-reference：英文也寫平行沒有上限、衝突最多 90%（#63）",()=>{
+  setLang('en'); const be=Ru.rulesTab('basic');
+  newRun('laravel','parallel'); S.hours=8; S.jobs=[job(ticket('fe',1),'anthropic','haiku','corp',{left:5,hrs:5})]; const hp=ticket('fe',1); S.issues=[hp]; sel.issue=hp.id; render(); const ph=els.app.innerHTML; setLang('zh-TW');
+  ok(be.includes('No limit on how many agents run at once')&&be.includes('+25%')&&be.includes('adds 10% merge-conflict chance')&&be.includes('up to 90%')&&ph.includes('(up to 90%)'),'rules-reference：英文基本分頁與派工台平行提示也寫沒有上限、衝突最多 90%',be.slice(0,300));
 });

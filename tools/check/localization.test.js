@@ -136,7 +136,7 @@ section("字典一致性：key 集合、程式裡寫死的 key、題庫長度",(
       endDay(); chk('day',els.mo.innerHTML);
     }
     ok(S.day===20&&els.mo.innerHTML.includes('Month-end report'),`i18n：英文整局（${mode}）玩到月底結算`,S.day);
-    M.showResume({S:{day:5,companies:['laravel'],mode,slots:3}}); chk('resume',els.mo.innerHTML);
+    M.showResume({S:{day:5,companies:['laravel'],mode}}); chk('resume',els.mo.innerHTML);
     M.showBadSave(); chk('badsave',els.mo.innerHTML);
     for(const l of S.log) chk('log',l.msg);
     Math.random=rnd0;
@@ -195,11 +195,11 @@ section("字典一致性：key 集合、程式裡寫死的 key、題庫長度",(
     /* 開局視窗也能換語言，已選的項目保留 */
     I.setLang('zh-TW'); resetStore(); start(); const g0=ge.length;
     const clickMo=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
-    clickMo({company:'rust'}); clickMo({company:'laravel'}); clickMo({mode:'parallel'}); clickMo({slots:'4'});
+    clickMo({company:'rust'}); clickMo({company:'laravel'}); clickMo({mode:'parallel'}); clickMo({out:'1'});
     ok(/class="on" data-lang="zh-TW"/.test(els.mo.innerHTML),'i18n：開局視窗有語言按鈕');
     clickMo({lang:'en'});
     const mh=els.mo.innerHTML;
-    ok(mh.includes('Start of the month')&&/sel" data-company="rust"/.test(mh)&&/sel" data-mode="parallel"/.test(mh)&&/sel" data-slots="4"/.test(mh)&&!/sel" data-company="laravel"/.test(mh),'i18n：開局視窗切到英文，Rust、平行、4 個 agent 保留');
+    ok(mh.includes('Start of the month')&&/sel" data-company="rust"/.test(mh)&&/sel" data-mode="parallel"/.test(mh)&&/sel" data-out="1"/.test(mh)&&!mh.includes('data-slots')&&!/sel" data-company="laravel"/.test(mh),'i18n：開局視窗切到英文，Rust、平行、接外包保留');
     ok(store[I.LANG_KEY]==='en'&&ge.length===g0&&els.app.innerHTML.includes('Ticket queue'),'i18n：開局視窗切換存偏好、不送 GA、背後畫面也換');
     showSetup(true); clickMo({lang:'zh-TW'}); ok(els.mo.innerHTML.includes('週一：調整訂閱'),'i18n：週一調整訂閱也能切回繁中');
     delete globalThis.gtag; I.setLang('zh-TW'); resetStore();}

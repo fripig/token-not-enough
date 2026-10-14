@@ -154,7 +154,7 @@ export const RETRY={tk:.7,hrs:.8};                                  // 失敗後
 export const MANUAL_HRS=2.2, UNFAMILIAR_HRS=2;                      // 手寫每單位複雜度的時數、不熟的倍率
 export const STACK_HRS={rust:1.2,app:1.15,devops:1.25};             // 技術線執行時間倍率
 export const STORE_RATE=.4, INC_KPI=1.6, HARD_KPI=1.3, LATE_KPI=.5; // 需上架審核比例、事故 KPI、難線 KPI、逾期扣 KPI 比例
-export const CONFLICT=.1, CI_CONFLICT=.5, PR_HRS=.2, PR_REVIEWED=.5, EVAL_HRS=.5; // 每個還在跑的 agent 衝突機率與 CI 倍率、審 PR 每單位複雜度時數與自審倍率、評估時數
+export const CONFLICT=.1, CI_CONFLICT=.5, CONFLICT_MAX=.9, PR_HRS=.2, PR_REVIEWED=.5, EVAL_HRS=.5; // 每個還在跑的 agent 衝突機率、CI 倍率與上限（CI 減半之後才套）、審 PR 每單位複雜度時數與自審倍率、評估時數
 export const RESCOPE={ok:5,no:3,days:2};                            // 找主管：同意與拒絕各扣多少信任、延幾天
 /* 研究單：直接派工 token 倍率；agent 研究的 token（× 模型 token 倍率）與時數（× 模型速度）；自己研究的時數；拆成哪兩個複雜度 */
 export const RESEARCH_DIRECT_TK=4, RESEARCH_TK=40, RESEARCH_HRS=.5, RESEARCH_SELF_HRS=1.5;

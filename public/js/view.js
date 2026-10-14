@@ -1,4 +1,4 @@
-import {CAP_SCALE,RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
+import {CAP_SCALE,CONFLICT_MAX,RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
 import {GIG_LATE,S,issueTitle,sel,unfamiliar} from './state.js';
 import {REVIEW,reviewer,reviewCost,rvModelBlock,sddLevel,bills,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetBlock,quotaLeft,stackHint} from './calc.js';
 import {ABANDON_TRUST,canAbandon,INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
@@ -22,7 +22,7 @@ export function render(){
 
   const meters=`
   <div class="meters">
-    ${PAR()?`<div class="m"><label>${t('ui.meter.now')}</label><span class="v">${clock(8-S.hours)}<small style="font-size:13px"> / 17:00</small></span><div class="bar"><i style="width:${S.hours/8*100}%"></i></div><span class="s">${t('ui.meter.agents',{n:S.jobs.length,slots:S.slots})}</span></div>`
+    ${PAR()?`<div class="m"><label>${t('ui.meter.now')}</label><span class="v">${clock(8-S.hours)}<small style="font-size:13px"> / 17:00</small></span><div class="bar"><i style="width:${S.hours/8*100}%"></i></div><span class="s">${t('ui.meter.agents',{n:S.jobs.length})}</span></div>`
     :`<div class="m"><label>${t('ui.meter.hoursLeft')}</label><span class="v">${h1(S.hours)}<small style="font-size:13px"> / 8h</small></span><div class="bar"><i style="width:${S.hours/8*100}%"></i></div></div>`}
     <div class="m"><label>${t('ui.meter.wallet')}</label><span class="v ${S.wallet<0?'neg':''}">${nt(S.wallet)}</span><span class="s">${t('ui.meter.walletSub',{sub:nt(S.st.subFee),api:nt(S.st.api)})}</span></div>
     <div class="m"><label>${t('ui.meter.corp')}</label><span class="v">${nt(S.corp)}</span><span class="s">${t('ui.meter.corpDay',{n:nt(S.corpDay)})}</span></div>
@@ -42,7 +42,7 @@ export function render(){
   if(S.hwReq) qs+=`<div class="q none">${t('ui.q.hwReq',{name:HW[S.hwReq.k].name,d:S.hwReq.day+HW[S.hwReq.k].days})}</div>`;
   if(!qs) qs=`<div class="q none">${t('ui.q.none')}</div>`;
 
-  const jobsHtml=!PAR()?'':`<div class="ph" style="margin-top:6px"><h2>${t('ui.jobs.title')}</h2><span>${t('ui.jobs.slots',{n:S.jobs.length,slots:S.slots})}</span></div>
+  const jobsHtml=!PAR()?'':`<div class="ph" style="margin-top:6px"><h2>${t('ui.jobs.title')}</h2><span>${t('ui.jobs.slots',{n:S.jobs.length})}</span></div>
     <div class="jobs">${S.jobs.map(j=>{const sh=j.shownHrs??j.hrs, el=j.hrs-j.left, over=el>=sh, pr=over?1:Math.max(0,el/sh);const lbl=BILL_LABEL[j.b];
       return `<div class="job" style="--vc:${vc(j.v)}"><div class="jt"><b>${issueTitle(j.issue)}</b><span class="num">${over?t('ui.jobs.over'):t('ui.jobs.done',{t:clock(8-S.hours+sh-el)})}</span>${cancelBtn(j.issue.id)}</div>
       <div class="jm">${VENDORS[j.v].agent} / ${j.M.name}${sp}${lbl}${j.issue.due<=S.day?`${sp}<span style="color:var(--bad)">${t('ui.dueToday')}</span>`:''}</div>
@@ -198,7 +198,6 @@ export function dispatchPanel(){
   else if(rr&&is.sens&&(rr.b==='sub'||rr.b==='api')) warn=t('why.rv',{w:t(VENDORS[rr.v].cn?'ui.warn.sensCn':'ui.warn.sensPersonal',{p:Math.round(auditOdds(rr.v)*100)})});
   else if((sel.b==='sub'||sel.b==='seat')&&cl.hi>quotaLeft(sel.b,sel.v)) warn=t('ui.warn.quota');
   else if(rr&&(rr.b==='sub'||rr.b==='seat')&&rcl.hi+(rr.v===sel.v&&rr.b===sel.b?cl.hi:0)>quotaLeft(rr.b,rr.v)) warn=t('why.rv',{w:t('ui.warn.quota')});
-  else if(PAR()&&S.jobs.length>=S.slots) warn=t('ui.warn.slots');
   else if(PAR()&&is.due<=S.day&&e.hrs+.2>S.hours) warn=t('ui.warn.late');
   else if(PAR()&&S.day>=20&&e.hrs+.2>S.hours) warn=t('ui.warn.monthEnd');
   else if(PAR()&&e.hrs+.2>S.hours) warn=t('ui.warn.overnight');
@@ -218,10 +217,10 @@ export function dispatchPanel(){
   </div>
   ${stackHint(is)?`<p class="hint">${stackHint(is)}</p>`:''}
   ${invHint(is)?`<p class="hint">${invHint(is)}</p>`:''}
-  ${PAR()&&S.jobs.length?`<p class="hint">${t('ui.dp.parHint',{n:S.jobs.length,x:reviewLoad().toFixed(2)})}</p>`:''}
+  ${PAR()&&S.jobs.length?`<p class="hint">${t('ui.dp.parHint',{n:S.jobs.length,x:reviewLoad().toFixed(2),max:Math.round(CONFLICT_MAX*100)})}</p>`:''}
   <div class="warnline">${warn}</div>
   <div class="actions">
-    <button class="btn primary" data-act="go" ${blocked||S.hours<.2||(PAR()&&S.jobs.length>=S.slots)?'disabled':''}>${t(PAR()?'ui.dp.goPar':'ui.dp.go',{agent:VENDORS[sel.v].agent})}</button>
+    <button class="btn primary" data-act="go" ${blocked||S.hours<.2?'disabled':''}>${t(PAR()?'ui.dp.goPar':'ui.dp.go',{agent:VENDORS[sel.v].agent})}</button>
     <button class="btn ghost" data-act="manual" ${mh>S.hours||manualBlocked()?'disabled':''}>${manualBlocked()?t('ui.dp.manualBlocked'):t('ui.dp.manual',{h:h1(mh)})}</button>
     ${is.research?`<button class="btn ghost" data-act="research" ${researchBlock(is,'agent')?'disabled':''}>${t('ui.dp.research',{tk:kt(rc.tk),h:h1(rc.hrs)})}</button>
     <button class="btn ghost" data-act="selfresearch" ${researchBlock(is,'self')?'disabled':''}>${t('ui.dp.selfResearch',{h:h1(selfResearchHrs(is))})}</button>`:''}

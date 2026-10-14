@@ -1,4 +1,4 @@
-import {CAP_SCALE,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
+import {CAP_SCALE,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,CONFLICT_MAX,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
 import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardKpi,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks,issueTitle} from './state.js';
 import {REVIEW,reviewer,reviewerBlock,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetBlock,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
 import {render,setTab} from './view.js';
@@ -8,7 +8,6 @@ import {t} from './i18n.js';
 /* ===== 動作 ===== */
 export const PAR=()=>S.mode==='parallel';
 export const queueOrder=(a,b)=>a.due-b.due||b.kpi-a.kpi;
-export const SLOT_CHOICES=[2,3,4,5,6];
 export const clock=el=>{const m=Math.round((9+el)*60);return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;};
 /* 還沒曝光的陷阱題照真實複雜度跑；模型能力不夠就做到一半停下來 */
 export const TRAP_STOP=.4;
@@ -39,7 +38,7 @@ export const billOk=is=>bills(sel.v,is).some(b=>b.id===sel.b&&b.ok);
 export function dispatch(via='panel',preset='none'){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is||!billOk(is)||hwBlock(model(sel.v,sel.m))||reviewerBlock(is,reviewer(),sel.v)) return;
   const pe=est(is,sel.v,sel.m).pe, j=makeJob(is);
-  if(PAR()&&(S.jobs.length>=S.slots||((j.b==='local'||j.rvb==='local')&&localBusy()))) return;
+  if(PAR()&&(j.b==='local'||j.rvb==='local')&&localBusy()) return;
   useHw(j.v,j.m); if(j.rvb==='local') useHw(j.rvv,j.rvm);
   track('dispatch',{...jobChoice(j),via,preset,cx:is.cx,stack:is.stack,incident:!!is.inc,sensitive:!!is.sens,gig:!!is.out,merge:!!is.merge,research:!!is.research});
   /* 復盤用：記下派工當下看到的條件（成功率是派工台顯示的，陷阱照顯示的複雜度） */
@@ -57,7 +56,7 @@ export function dispatch(via='panel',preset='none'){
   render();
 }
 /* 一鍵派工：照派工台的流程派出去；用哪個方案見 quick() 的 pi */
-export const canQuick=()=>S.hours>=.2&&(!PAR()||S.jobs.length<S.slots);
+export const canQuick=()=>S.hours>=.2;
 /* pi：卡片上按的方案（0–2），只用那個方案、不往下找；不給 pi（批次派工）照 A→B→C 用第一個能用的 */
 export function quick(id,via='quick',pi=null){
   const is=S.issues.find(i=>i.id===id); if(!is||is.running||!canQuick()) return false;
@@ -75,7 +74,7 @@ export function savePreset(i){
 }
 /* 平行模式：推進時鐘，背景 agent 跑完就結算，成功的要花時間審 PR */
 /* 合併衝突機率：每個還在跑的 agent +10%，CI 流水線減半 */
-export const conflictRate=()=>CONFLICT*S.jobs.length*(S.inv.ci?CI_CONFLICT:1);
+export const conflictRate=()=>Math.min(CONFLICT_MAX,CONFLICT*S.jobs.length*(S.inv.ci?CI_CONFLICT:1));
 /* 審 PR 時數：有自我審核減半，有 pre-commit hook 再減半；其他還在跑的 agent 越多，切換成本越高 */
 export const REVIEW_LOAD=.25;
 export const reviewLoad=()=>1+REVIEW_LOAD*S.jobs.length;
