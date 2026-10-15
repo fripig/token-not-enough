@@ -1,5 +1,6 @@
-import {CONF,HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,lv,normCompanies,objOf,pick,pickClient,presetsOf,rnd,validReviewer} from './data.js';
+import {CONF,HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,lv,normCompanies,objOf,pick,pickClient,presetsOf,rnd,validReviewer,INVEST} from './data.js';
 import {t,tl} from './i18n.js';
+import {monOn} from './calc.js';
 
 /* ===== 狀態 ===== */
 export let S, sel, uid=0;
@@ -12,6 +13,7 @@ export function fresh(){
   uid=0;
   S={day:1,hours:START.hours,wallet:START.wallet,corp:START.corp,trust:START.trust,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),outsource:S?.outsource===true,advanced:S?.advanced===true,presets:presetsOf(S?.presets),jobs:[],
     inv:{md:{},...objOf(INV_KEYS,()=>0),ai:0},
+    invQ:{md:{}},
     subs:objOf(APIV,()=>'none'),
     used:{sub:objOf(APIV,()=>({d:0,w:0})),seat:objOf(SEAT.vendors,()=>({d:0,w:0}))},
     capMod:objOf(APIV,()=>1),priceMod:objOf(Object.keys(VENDORS),()=>1),cnBan:false,
@@ -62,6 +64,8 @@ export function loadGame(d){
   /* 舊存檔的投資是 true／false，轉成等級；沒有研討會欄位就補空的 */
   for(const k of INV_KEYS) S.inv[k]=lv(S.inv[k]);
   for(const st in S.inv.md) S.inv.md[st]=lv(S.inv.md[st]);
+  /* 投資工單之前的存檔沒有品質：已有的等級都當 100% */
+  S.invQ??={md:{}}; S.invQ.md??={};
   S.conf??={req:null,went:[]}; S.st.confFee??=0; S.st.abandoned??=0;
   /* 舊存檔沒有 SDD 選擇：當 2（用已買的最高級） */
   if(![0,1,2].includes(sel.sdd)) sel.sdd=2;
@@ -104,7 +108,7 @@ export function makeIssue(inc,st){
   let cx;
   if(inc) cx=4; else { const r=Math.random()+S.day/20*.38; cx=r<.28?1:r<.6?2:r<.9?3:r<1.12?4:5; }
   const base=BASE[cx]*R(.85,1.15);
-  let due=inc?S.day+(S.inv.monitor?1:0):S.day+(cx<=2?1+rnd(3):2+rnd(4));
+  let due=inc?S.day+(monOn()?1:0):S.day+(cx<=2?1+rnd(3):2+rnd(4));
   const stack=st||(inc?pick(S.companies):pickStack());
   const trap=!inc&&cx<=2&&Math.random()<TRAP_RATE, trueCx=Math.random()<.6?4:5;
   /* 記下題庫位置（src），顯示時照目前語言查；亂數呼叫和原本的 pick 一樣 */
@@ -114,7 +118,7 @@ export function makeIssue(inc,st){
     store:stack==='app'&&cx>=2&&Math.random()<STORE_RATE,
     sens:Math.random()<(inc?.55:.25),big:cx>=3&&Math.random()<.45,
     client:inc?CLIENTS[0]:pickClient(),
-    due:due+(!inc&&hardStack(stack)?1:0),kpi:Math.round(KPI[cx]*(inc?(S.inv.monitor?MONITOR_KPI:INC_KPI):1)*hardKpi(stack)),tries:0};
+    due:due+(!inc&&hardStack(stack)?1:0),kpi:Math.round(KPI[cx]*(inc?(monOn()?MONITOR_KPI:INC_KPI):1)*hardKpi(stack)),tries:0};
   /* 複雜度 6 在研究單之前擲（6 也可能是研究單）；沿用已抽的 token 倍率與標題位置，比例是 0 時不擲 */
   if(SIX_RATE>0&&!inc&&cx===5&&S.day>=SIX_DAY&&Math.random()<SIX_RATE){ const p6=STACKS[stack].pool['6'], i6=i%p6.length, b6=base*BASE[6]/BASE[5];
     Object.assign(is,{cx:6,base:b6,trueCx:6,trueBase:b6,kpi:Math.round(KPI[6]*hardKpi(stack)),title:p6[i6],src:{k:stack,g:'6',i:i6}}); }
@@ -123,8 +127,13 @@ export function makeIssue(inc,st){
   return is;
 }
 
-/* 顯示用的工單標題：照目前語言查題庫位置（研究單拆單看 p），合併衝突單加前綴；沒有位置（舊存檔）或查不到就用存的 title */
+/* 到期日 ≤ d 的工單；投資工單沒有到期日（due 是 null，JS 的 null<=d 會是 true，所以要先排除） */
+export const dueBy=(i,d)=>i.due!=null&&i.due<=d;
+/* 投資工單的標題：投資名稱（有兩級時加 Lv），CLAUDE.md 加技術線；照目前語言 */
+export const invTitle=({k,st,L})=>`${INVEST[k].name}${INVEST[k].lv2?` Lv${L}`:''}${k==='md'?t('log.paren',{x:STACKS[st].name}):''}`;
+/* 顯示用的工單標題：照目前語言查題庫位置（研究單拆單看 p），合併衝突單加前綴；沒有位置（舊存檔）或查不到就用存的 title；投資工單寫投資名稱 */
 export function issueTitle(is){
+  if(is.inv) return invTitle(is.inv);
   const s=is.src, e=s?tl(`pool.${s.k}.${s.g}`)[s.i]:null, x=!s?null:s.g==='research'?(s.p!=null?e?.parts?.[s.p]:e?.t):e;
   if(typeof x!=='string'||!x) return is.title;
   return is.merge?t('ui.mergeTitle',{title:x}):x;

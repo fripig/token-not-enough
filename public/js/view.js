@@ -1,7 +1,7 @@
-import {CAP_SCALE,CONFLICT_MAX,RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL} from './data.js';
-import {GIG_LATE,S,issueTitle,sel,unfamiliar} from './state.js';
-import {REVIEW,reviewer,reviewCost,rvModelBlock,sddLevel,bills,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetBlock,quotaLeft,stackHint} from './calc.js';
-import {ABANDON_TRUST,canAbandon,INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax} from './actions.js';
+import {CAP_SCALE,CONFLICT_MAX,RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL,INV_CX} from './data.js';
+import {GIG_LATE,S,issueTitle,sel,unfamiliar,dueBy} from './state.js';
+import {REVIEW,reviewer,reviewCost,rvModelBlock,sddLevel,bills,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetBlock,quotaLeft,stackHint,skillsLv,invQ,sddP,sddStop} from './calc.js';
+import {ABANDON_TRUST,canAbandon,INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax,invTicketBlock,invSelfBlock,lvCost} from './actions.js';
 import {LANGS,LANG_SWITCH,lang,t} from './i18n.js';
 
 /* ===== 畫面 ===== */
@@ -12,7 +12,7 @@ export const cancelBtn=id=>cancelArm===id?`<button class="btn ghost jx armed" da
 /* 退單也是兩段式：第一次按變成「確定退單？」，點別處恢復 */
 export let abandonArm=null;
 export const armAbandon=id=>{abandonArm=id;};
-export const abandonBtn=is=>abandonArm===is.id?`<button class="btn ghost armed" data-abandon="${is.id}">${t('ui.dp.abandonConfirm')}</button>`:`<button class="btn ghost" data-abandon="${is.id}">${is.out?t('ui.dp.abandonGig',{pen:nt(Math.round(is.pay*GIG_LATE))}):t('ui.dp.abandon',{n:ABANDON_TRUST})}</button>`;
+export const abandonBtn=is=>abandonArm===is.id?`<button class="btn ghost armed" data-abandon="${is.id}">${t(is.inv?'ui.dp.invCancelConfirm':'ui.dp.abandonConfirm')}</button>`:`<button class="btn ghost" data-abandon="${is.id}">${is.inv?t('ui.dp.invCancel'):is.out?t('ui.dp.abandonGig',{pen:nt(Math.round(is.pay*GIG_LATE))}):t('ui.dp.abandon',{n:ABANDON_TRUST})}</button>`;
 export const app=document.getElementById('app'), ov=document.getElementById('ov'), mo=document.getElementById('mo');
 
 export function render(){
@@ -45,10 +45,17 @@ export function render(){
   const jobsHtml=!PAR()?'':`<div class="ph" style="margin-top:6px"><h2>${t('ui.jobs.title')}</h2><span>${t('ui.jobs.slots',{n:S.jobs.length})}</span></div>
     <div class="jobs">${S.jobs.map(j=>{const sh=j.shownHrs??j.hrs, el=j.hrs-j.left, over=el>=sh, pr=over?1:Math.max(0,el/sh);const lbl=BILL_LABEL[j.b];
       return `<div class="job" style="--vc:${vc(j.v)}"><div class="jt"><b>${issueTitle(j.issue)}</b><span class="num">${over?t('ui.jobs.over'):t('ui.jobs.done',{t:clock(8-S.hours+sh-el)})}</span>${cancelBtn(j.issue.id)}</div>
-      <div class="jm">${VENDORS[j.v].agent} / ${j.M.name}${sp}${lbl}${j.issue.due<=S.day?`${sp}<span style="color:var(--bad)">${t('ui.dueToday')}</span>`:''}</div>
+      <div class="jm">${VENDORS[j.v].agent} / ${j.M.name}${sp}${lbl}${dueBy(j.issue,S.day)?`${sp}<span style="color:var(--bad)">${t('ui.dueToday')}</span>`:''}</div>
       <div class="bar"><i style="width:${pr*100}%;background:var(--vc)"></i></div></div>`;}).join('')
       ||`<div class="empty" style="padding:14px">${t('ui.jobs.empty')}</div>`}</div>`;
+  const pips=i=>`<span class="pips" title="${t('ui.card.cx',{cx:i.cx})}">${Array.from({length:Math.max(5,i.cx)},(_,n)=>`<i class="${n<i.cx?'on':''}"></i>`).join('')}</span>`;
+  /* 投資工單：只寫投資名稱、投資標籤、複雜度與 token，沒有 KPI、到期、案主 */
+  const invCard=i=>`<div class="issw"><button class="iss ${sel.issue===i.id?'sel':''}" data-iss="${i.id}">
+      <span class="t">${issueTitle(i)}</span><span class="k"></span>
+      <span class="meta">${pips(i)}<span class="num">~${kt(i.base)} tokens</span><span class="chip inv">${t('ui.chip.inv')}</span></span>
+    </button>${quickBtn(i)}</div>`;
   const list=S.issues.filter(i=>!i.running).sort(queueOrder).map(i=>{
+    if(i.inv) return invCard(i);
     const left=i.due-S.day;
     return `<div class="issw"><button class="iss ${sel.issue===i.id?'sel':''}" data-iss="${i.id}">
       <span class="t">${issueTitle(i)}</span><span class="k">${i.out?nt(i.pay):`+${i.kpi}`}</span>
@@ -69,7 +76,7 @@ export function render(){
   ${meters}
   <div class="quotas">${qs}</div>
   <div class="main">
-    <section class="panel"><div class="ph"><h2>${t('ui.queue.title')}</h2><span>${t('ui.queue.count',{n:S.issues.filter(i=>!i.running).length})}</span></div>${S.inv.skills?`<button class="btn ghost" data-act="batch" ${canQuick()?'':'disabled'}>${t('ui.batch',{cx:SKILLS_CX[lv(S.inv.skills)]})}</button>`:''}<div class="issues">${list}</div>${jobsHtml}</section>
+    <section class="panel"><div class="ph"><h2>${t('ui.queue.title')}</h2><span>${t('ui.queue.count',{n:S.issues.filter(i=>!i.running).length})}</span></div>${skillsLv()?`<button class="btn ghost" data-act="batch" ${canQuick()?'':'disabled'}>${t('ui.batch',{cx:SKILLS_CX[skillsLv()]})}</button>`:''}<div class="issues">${list}</div>${jobsHtml}</section>
     ${tabPanel()}
   </div>
   <section class="panel">
@@ -90,7 +97,7 @@ export const langSwitch=()=>LANG_SWITCH?`<div class="lang" role="group" aria-lab
 export function sddRow(){
   const own=lv(S.inv.sdd); if(!own) return '';
   const cur=sddLevel(), pc=x=>`${Math.round(x*100)}%`;
-  const b=L=>`<button class="sb ${cur===L?'sel':''}" data-sdd="${L}">${L?t('ui.sdd.lv',{name:SDD_NAME[L],L}):SDD_NAME[0]}<small>${L?t('ui.sdd.desc',{eg:SDD_EG[L],tk:SDD_TK[L],p:pc(SDD_P[L]),stop:pc(SDD_TRAP_STOP[L])}):t('ui.sdd.off',{stop:pc(TRAP_STOP)})}</small></button>`;
+  const b=L=>`<button class="sb ${cur===L?'sel':''}" data-sdd="${L}">${L?t('ui.sdd.lv',{name:SDD_NAME[L],L}):SDD_NAME[0]}<small>${L?t('ui.sdd.desc',{eg:SDD_EG[L],tk:SDD_TK[L],p:pc(sddP(L)),stop:pc(sddStop(L))}):t('ui.sdd.off',{stop:pc(TRAP_STOP)})}</small></button>`;
   return `<div class="sec"><label>${t('ui.sdd.title')}</label><div class="seg"><span class="seglbl">SDD</span>${[0,1,2].filter(L=>L<=own).map(b).join('')}</div></div>`;
 }
 /* 工單卡片上的一鍵派工：A／B／C 各一顆，不能用的停用並寫原因；機敏單用個人付費的寫稽核機率 */
@@ -102,9 +109,12 @@ export function quickBtn(is){
 }
 export function invPanel(){
   /* 有等級的投資按鈕寫下一級（買滿寫最高級）；鎖住時寫要先做什麼 */
-  const btn=(k,st)=>{const I=invCost(k,st), why=investBlock(k,st), cur=invLevel(k,st), max=invMax(k), L=Math.min(cur+1,max);
+  /* 平行模式寫東西的投資：按了開投資工單（不花錢、不花時間），拒絕原因不看工時與預算 */
+  const btn=(k,st)=>{const I=invCost(k,st), tk=PAR()&&INV_CX[k], why=tk?invTicketBlock(k,st):investBlock(k,st), cur=invLevel(k,st), max=invMax(k), L=Math.min(cur+1,max);
     const tag=max>1&&(cur>=1||k==='ai')?` Lv${L}`:'';
-    return `<button class="sb" data-inv="${k}" ${st?`data-st="${st}"`:''} ${why?'disabled':''}><b>${k==='md'?STACKS[st].name:INVEST[k].name}${tag}</b><small>${why||t('ui.inv.cost',{h:I.hrs,cost:nt(I.cost)})}</small></button>`;};
+    /* 已有的最高級品質不到 100%：多一顆重做 */
+    const redo=tk&&cur>0&&invQ(k,st,cur)<1&&!invTicketBlock(k,st,cur)?`<button class="sb" data-invredo="${k}" ${st?`data-st="${st}"`:''}><b>${k==='md'?STACKS[st].name:INVEST[k].name}${max>1?` Lv${cur}`:''}</b><small>${t('ui.inv.redo',{q:Math.round(invQ(k,st,cur)*100)})}</small></button>`:'';
+    return `<button class="sb" data-inv="${k}" ${st?`data-st="${st}"`:''} ${why?'disabled':''}><b>${k==='md'?STACKS[st].name:INVEST[k].name}${tag}</b><small>${why||(tk?t('ui.inv.ticket',{h:I.hrs,cost:nt(I.cost)}):t('ui.inv.cost',{h:I.hrs,cost:nt(I.cost)}))}</small></button>${redo}`;};
   const row=(k,body)=>{const I=INVEST[k];
     return `<div class="inv"><div><b>${I.name}</b><span>${I.desc}${k==='md'?t('ui.inv.mdCost',{h:I.hrs,cost:nt(I.cost)}):''}${I.lv2?t('ui.inv.lv2',{desc:I.lv2.desc,h:I.lv2.hrs,cost:nt(I.lv2.cost)}):''}</span></div><div class="seg">${body}</div></div>`;};
   return `<p class="hint">${t('ui.inv.note')}</p>
@@ -154,7 +164,8 @@ export function capBar(cap){
   const full=Math.floor(cap/CAP_SCALE), half=cap%CAP_SCALE>=CAP_SCALE/2?1:0;
   return `${'●'.repeat(full)}${'◐'.repeat(half)}${'○'.repeat(Math.max(0,5-full-half))} ${cap}`;
 }
-const costTxt=c=>c.unit==='q'?`${kt(c.lo)}–${kt(c.hi)}`:c.hi?`${nt(c.lo)}–${nt(c.hi)}`:'NT$0';
+/* 上下限一樣（投資工單的預估不擲亂數）時只寫一個數字 */
+const costTxt=c=>c.unit==='q'?(c.lo===c.hi?kt(c.hi):`${kt(c.lo)}–${kt(c.hi)}`):c.hi?(c.lo===c.hi?nt(c.hi):`${nt(c.lo)}–${nt(c.hi)}`):'NT$0';
 /* 選的審核模型不能用、或那家沒有能用的付費方式就回到同一個；審核付費方式不能用就換第一個能用的 */
 export function fixReviewer(is){
   if(sel.rvv==null) return;
@@ -174,6 +185,30 @@ export function reviewerRows(is){
 }
 /* 目前選擇跟方案一樣時，載入方案按鈕亮起來；強度只在進階模式比 */
 export const presetIs=p=>p.v===sel.v&&p.m===sel.m&&p.b===sel.b&&p.rv===sel.rv&&(!S.advanced||p.ef===sel.ef)&&sddLevel(p.sdd)===sddLevel()&&JSON.stringify(reviewer(p))===JSON.stringify(reviewer());
+/* 投資工單的派工台：方案、預估（品質取代成功率）、派出、自己做、取消投資；不顯示審核、SDD、交叉審核、評估、研究 */
+export function invDispatch(is,{e,cl,segs,rows,warn,blocked}){
+  const sp=t('sep'), why=invSelfBlock(is), {k,L}=is.inv, I=lvCost(k,L), q=Math.round(e.q*100);
+  return `<p class="dpt">${issueTitle(is)}</p>
+  <div class="sec"><label>${t('ui.dp.presets')}</label><div class="seg">${S.presets.map((p,i)=>`<button class="sb ${presetIs(p)?'sel':''}" data-load="${i}">${t('ui.dp.load',{p:PN[i]})}<small>${model(p.v,p.m).name}${S.advanced&&p.ef!==1?`${sp}${t('ui.dp.effortTag',{name:EFFORT[p.ef].name})}`:''}${sp}${BILL_LABEL[p.b]}</small></button>`).join('')}</div></div>
+  <div class="est">
+    <div><label>${t('ui.dp.estTk')}</label><b>${kt(e.tk)}</b></div>
+    <div><label>${cl.t}</label><b>${costTxt(cl)}</b></div>
+    <div><label>${t('ui.dp.invQ')}</label><b class="${q>=100?'good':q>=60?'meh':'bad'}">${q}%</b></div>
+    <div><label>${t('ui.dp.runHrs')}</label><b>${h1(e.hrs)}h</b></div>
+  </div>
+  <p class="hint">${t('ui.dp.invHint',{cx:is.cx})}</p>
+  ${S.jobs.length?`<p class="hint">${t('ui.dp.parHint',{n:S.jobs.length,x:reviewLoad().toFixed(2),max:Math.round(CONFLICT_MAX*100)})}</p>`:''}
+  <div class="warnline">${warn}</div>
+  <div class="actions">
+    <button class="btn primary" data-act="go" ${blocked||S.hours<.2?'disabled':''}>${t('ui.dp.goPar',{agent:VENDORS[sel.v].agent})}</button>
+    <button class="btn ghost" data-act="invself" ${why?'disabled':''}>${why?`${t('ui.dp.invSelfShort')}${sp}${why}`:t('ui.dp.invSelf',{h:h1(I.hrs),cost:nt(I.cost)})}</button>
+    ${abandonBtn(is)}
+  </div>
+  <p class="dptune">${t('ui.dp.tune')}</p>
+  <div class="sec"><label>${t('ui.dp.pick')}</label>${rows}</div>
+  <div class="sec"><label>${t('ui.dp.bill')}</label><div class="seg">${segs}</div></div>
+  ${S.advanced?`<div class="sec"><label>${t('ui.dp.effort')}</label><div class="seg">${EFFORT.map((f,i)=>`<button class="sb ${sel.ef===i?'sel':''}" data-ef="${i}">${f.name}<small>${f.cap?t('ui.dp.effortDesc',{sign:f.cap>0?'+':'−',n:Math.abs(f.cap),tk:f.tk,hrs:f.hrs}):t('ui.dp.effortMid')}</small></button>`).join('')}</div></div>`:''}`;
+}
 export function dispatchPanel(){
   const is=S.issues.find(i=>i.id===sel.issue), sp=t('sep'), ls=t('sep.list');
   if(!is) return `<div class="empty">${t('ui.dp.empty1')}<br>${t('ui.dp.empty2')}</div>${S.log.length?`<div class="recent"><label>${t('ui.dp.recent')}</label>${logLines(S.log.slice(0,DP_RECENT))}</div>`:''}`;
@@ -198,7 +233,7 @@ export function dispatchPanel(){
   else if(rr&&is.sens&&(rr.b==='sub'||rr.b==='api')) warn=t('why.rv',{w:t(VENDORS[rr.v].cn?'ui.warn.sensCn':'ui.warn.sensPersonal',{p:Math.round(auditOdds(rr.v)*100)})});
   else if((sel.b==='sub'||sel.b==='seat')&&cl.hi>quotaLeft(sel.b,sel.v)) warn=t('ui.warn.quota');
   else if(rr&&(rr.b==='sub'||rr.b==='seat')&&rcl.hi+(rr.v===sel.v&&rr.b===sel.b?cl.hi:0)>quotaLeft(rr.b,rr.v)) warn=t('why.rv',{w:t('ui.warn.quota')});
-  else if(PAR()&&is.due<=S.day&&e.hrs+.2>S.hours) warn=t('ui.warn.late');
+  else if(PAR()&&dueBy(is,S.day)&&e.hrs+.2>S.hours) warn=t('ui.warn.late');
   else if(PAR()&&S.day>=20&&e.hrs+.2>S.hours) warn=t('ui.warn.monthEnd');
   else if(PAR()&&e.hrs+.2>S.hours) warn=t('ui.warn.overnight');
   else if(!PAR()&&e.hrs*1.2>S.hours) warn=t('ui.warn.hours');
@@ -206,6 +241,7 @@ export function dispatchPanel(){
   else if(rr&&rr.b==='api'&&rcl.hi+(sel.b==='api'?cl.hi:0)>S.wallet) warn=t('why.rv',{w:t('ui.warn.wallet')});
   const mh=manualHrs(is), ec=evalCost(model(sel.v,sel.m),sel.v), rc=researchCost(model(sel.v,sel.m),sel.v);
   const blocked=S.outage===sel.v||!!cnBlock(is,sel.v,model(sel.v,sel.m))||!!hwBlock(model(sel.v,sel.m))||(sel.b==='local'&&localBusy());
+  if(is.inv) return invDispatch(is,{e,cl,segs,rows,warn,blocked});
   return `<p class="dpt">${issueTitle(is)}</p>
   <div class="sec"><label>${t('ui.dp.presets')}</label><div class="seg">${S.presets.map((p,i)=>`<button class="sb ${presetIs(p)?'sel':''}" data-load="${i}">${t('ui.dp.load',{p:PN[i]})}<small>${model(p.v,p.m).name}${S.advanced&&p.ef!==1?`${sp}${t('ui.dp.effortTag',{name:EFFORT[p.ef].name})}`:''}${sp}${BILL_LABEL[p.b]}${sp}${REVIEW[p.rv].name}${lv(S.inv.sdd)?`${sp}SDD ${SDD_NAME[sddLevel(p.sdd)]}`:''}${reviewer(p)?`${sp}${t('ui.dp.rvTag',{m:model(p.rvv,p.rvm).name})}`:''}</small></button>`).join('')}</div></div>
   <div class="est">

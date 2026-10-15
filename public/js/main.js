@@ -1,10 +1,11 @@
 import {S,addGigs,clearSave,fresh,makeIssue,readSave,resetIds,sel} from './state.js';
 import {log,prefBill,rvPrefBill} from './calc.js';
-import {abandon,batch,cancelJob,dispatch,endDay,evaluate,research,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait,registerConf,dayStartLine} from './actions.js';
+import {abandon,batch,cancelJob,dispatch,endDay,evaluate,research,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait,registerConf,dayStartLine,openInvTicket,PAR,invSelf,invLevel} from './actions.js';
 import {abandonArm,app,armAbandon,armCancel,cancelArm,render,scrollToDispatch,setTab} from './view.js';
 import {showBadSave,showResume,showSetup} from './modals.js';
 import {showRules} from './rules.js';
 import {initLang,setLang} from './i18n.js';
+import {INV_CX} from './data.js';
 
 /* ===== 事件 ===== */
 app.addEventListener('click',e=>{
@@ -25,7 +26,8 @@ app.addEventListener('click',e=>{
   else if(t.dataset.ef){sel.ef=+t.dataset.ef;render();}
   else if(t.dataset.sdd){sel.sdd=+t.dataset.sdd;render();}
   else if(t.dataset.quick)quick(+t.dataset.quick,'quick',+t.dataset.p);
-  else if(t.dataset.inv){invest(t.dataset.inv,t.dataset.st);render();}
+  else if(t.dataset.inv){const k=t.dataset.inv; if(PAR()&&INV_CX[k])openInvTicket(k,t.dataset.st); else invest(k,t.dataset.st); render();}
+  else if(t.dataset.invredo){const k=t.dataset.invredo;openInvTicket(k,t.dataset.st,invLevel(k,t.dataset.st));render();}
   else if(t.dataset.hw){requestHw(t.dataset.hw);render();}
   else if(t.dataset.conf){registerConf(t.dataset.conf);render();}
   else if(t.dataset.act==='batch'){batch();render();}
@@ -33,6 +35,7 @@ app.addEventListener('click',e=>{
   else if(t.dataset.save){savePreset(+t.dataset.save);render();}
   else if(t.dataset.act==='go')dispatch();
   else if(t.dataset.act==='manual')manual();
+  else if(t.dataset.act==='invself'){invSelf(sel.issue);render();}
   else if(t.dataset.act==='eval')evaluate();
   else if(t.dataset.act==='research')research('agent');
   else if(t.dataset.act==='selfresearch')research('self');

@@ -124,6 +124,17 @@ export const INVEST={
 };
 /* CLAUDE.md 以外的投資，面板照這個順序 */
 export const INV_KEYS=['tests','ci','hook','scan','fastlane','monitor','skills','mcp','sdd','xreview','ai'];
+/* 投資工單（平行模式）：寫東西的投資各級的複雜度；派 agent 時品質看能力差距（gh-64-01） */
+export const INV_CX={md:[4,5],tests:[4,5],ci:[3],hook:[2],scan:[3,5],fastlane:[3],monitor:[4],skills:[4,5],mcp:[3],sdd:[5,5]};
+/* 品質錨點 [能力差距, 品質]，中間線性內插、兩端截平；開關類效果（skills 批次派工、監控告警）品質要到 INV_ON */
+export const INV_Q=[[0,1],[-10,.6],[-20,.3],[-30,.1]], INV_ON=.6;
+export const invCx=(k,L)=>INV_CX[k][L-1];
+export function invQuality(cap,cx){
+  const gap=cap-cx*CAP_SCALE;
+  if(gap>=INV_Q[0][0]) return INV_Q[0][1];
+  for(let i=1;i<INV_Q.length;i++){const [g0,q0]=INV_Q[i-1],[g1,q1]=INV_Q[i]; if(gap>=g1) return q1+(q0-q1)*(gap-g1)/(g0-g1);}
+  return INV_Q[INV_Q.length-1][1];
+}
 /* 有 Lv2 的投資：數值依等級查表（0 沒買、1、2） */
 export const MD_TK=.85, MD_P=[0,.06,.15], TEST_CATCH=[0,.1,.2], MCP_REVEAL=.2, MCP_EVAL_HRS=.5;
 export const HOOK_PR=.5, SCAN_AUDIT=[1,.5,.25], SKILLS_CX=[0,2,3], FASTLANE_REJECT=.1, MONITOR_LATE=4, MONITOR_KPI=1.2;

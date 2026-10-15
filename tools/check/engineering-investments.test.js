@@ -435,3 +435,9 @@ section("國內研討會（gh-22-01-domestic-conference）",()=>{
   globalThis.gtag=g0;
   }
 });
+
+section('engineering-investments：平行模式的投資按鈕開投資工單',()=>{
+  newRun('laravel','parallel'); S.hours=8; S.corp=12000;
+  els.app.on.click({target:{closest:()=>({dataset:{inv:'tests'},disabled:false})}});
+  ok(S.hours===8&&S.corp===12000&&!S.inv.tests&&S.issues.filter(i=>i.inv&&i.inv.k==='tests').length===1,'平行模式按單元測試：8h、NT$12,000、還沒買、佇列多一張單元測試投資工單');
+});

@@ -1,6 +1,6 @@
-import {BIG,CATCH,MANUAL_HRS,RESEARCH_DIRECT_TK,RETRY,STACK_HRS,UNFAMILIAR_HRS,FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,CAP_SCALE,WEAK_CAP,P_TOP,cnBlock,effModel,efOf,kt,model,planOf,AI_P,CONF_MANUAL,lv} from './data.js';
+import {BIG,CATCH,MANUAL_HRS,RESEARCH_DIRECT_TK,RETRY,STACK_HRS,UNFAMILIAR_HRS,FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,CAP_SCALE,WEAK_CAP,P_TOP,cnBlock,effModel,efOf,kt,model,planOf,AI_P,CONF_MANUAL,lv,INV_ON,CI_CONFLICT,HOOK_PR,SCAN_AUDIT,MCP_REVEAL,MCP_EVAL_HRS,SDD_TRAP_STOP,invQuality} from './data.js';
 import {S,sel,unfamiliar,confStacks} from './state.js';
-import {PAR} from './actions.js';
+import {PAR,TRAP_STOP,invLevel} from './actions.js';
 import {t} from './i18n.js';
 
 /* ===== 計算 ===== */
@@ -14,11 +14,11 @@ export function useQuota(kind,v,x){const u=S.used[kind][v];u.d+=x;u.w+=x;}
 /* 自我審核：多花 token 與時間，agent 改壞時有機會當場抓到並修正，避免整單重做 */
 export const REVIEW=[{get name(){return t('review.0');},tk:1,hrs:1},{get name(){return t('review.1');},tk:1.3,hrs:1.2},{get name(){return t('review.2');},tk:1.6,hrs:1.35}];
 /* 抓錯率看跟成功率同一個能力差距：模型做不到的單，也比較抓不到自己的錯 */
-export const catchRate=(rv,gap)=>rv===0?0:Math.min(CATCH.max,Math.max(0,CATCH.base+CATCH.per*gap/CAP_SCALE+(rv===2?CATCH.strict:0)+TEST_CATCH[lv(S.inv.tests)]));
+export const catchRate=(rv,gap)=>rv===0?0:Math.min(CATCH.max,Math.max(0,CATCH.base+CATCH.per*gap/CAP_SCALE+(rv===2?CATCH.strict:0)+testCatch()));
 /* 技術線效果：只看技術線本身的特性，不替各家模型設「誰比較會」的分數 */
 export const conventional=is=>(is.stack==='laravel'||is.stack==='rails')&&is.cx<=3; // 框架慣例多
 export const STORE_REJECT=.2;                                                       // App Store 退件機率
-export const storeReject=()=>S.inv.fastlane?FASTLANE_REJECT:STORE_REJECT;          // 有上架自動化時降低
+export const storeReject=()=>invVal('fastlane',null,[STORE_REJECT,FASTLANE_REJECT]);          // 有上架自動化時降低
 export function stackGap(is,M){
   if(conventional(is)) return CAP_SCALE;
   if(is.stack==='rust'&&M.cap<WEAK_CAP) return -CAP_SCALE;                            // borrow checker
@@ -51,18 +51,49 @@ export function pStep(gap){
 }
 /* 大型 codebase：長 context 的模型能力差距 +BIG.gap，能力低於 WEAK_CAP 的其他模型 −BIG.gap */
 export const bigGap=(is,M)=>!is.big?0:M.ctx?BIG.gap:M.cap<WEAK_CAP?-BIG.gap:0;
+/* 投資各級的品質（0–1，沒記錄就是 100%）；l 是第幾級（1 起算） */
+export const invQ=(k,st,l)=>(k==='md'?S.invQ.md[st]:S.invQ[k])?.[l-1]??1;
+export function setInvQ(k,st,l,q){ const a=k==='md'?(S.invQ.md[st]??=[]):(S.invQ[k]??=[]); a[l-1]=q; }
+/* 投資效果照各級品質內插：V[0] 是沒買，V[l] 是第 l 級滿效果；L 預設是已買的等級（invLevel）。全部 100% 時直接回 V[L]（不累加，免得浮點誤差改到固定種子結果） */
+export function invVal(k,st,V,L=invLevel(k,st)){
+  let x=V[0], full=true;
+  for(let l=1;l<=L;l++){ const q=invQ(k,st,l); if(q!==1) full=false; x+=(V[l]-V[l-1])*q; }
+  return full?V[L]:x;
+}
+/* 開關類效果：該級品質到 INV_ON 才算 */
+export const invOn=(k,st,l=1)=>invLevel(k,st)>=l&&invQ(k,st,l)>=INV_ON;
+export const mdTk=st=>invVal('md',st,[1,MD_TK,MD_TK]);
+export const mdP=st=>invVal('md',st,MD_P);
+export const testCatch=()=>invVal('tests',null,TEST_CATCH);
+export const ciMul=()=>invVal('ci',null,[1,CI_CONFLICT]);
+export const hookMul=()=>invVal('hook',null,[1,HOOK_PR]);
+export const scanMul=()=>invVal('scan',null,SCAN_AUDIT);
+export const mcpReveal=()=>invVal('mcp',null,[0,MCP_REVEAL]);
+export const mcpEvalHrs=()=>invVal('mcp',null,[1,MCP_EVAL_HRS]);
+/* SDD 看這張單套用的等級 a */
+export const sddP=a=>invVal('sdd',null,SDD_P,a);
+export const sddStop=a=>invVal('sdd',null,[TRAP_STOP,SDD_TRAP_STOP[1],SDD_TRAP_STOP[2]],a);
+export const monOn=()=>invOn('monitor');
+/* 批次派工可用的最高等級（品質到 INV_ON 的那幾級） */
+export const skillsLv=()=>invOn('skills',null,2)?2:invOn('skills',null,1)?1:0;
 /* SDD 套用的等級：選的等級（沒選當 2）和已買的等級取小的 */
 export const sddLevel=(req=sel.sdd)=>Math.min(req??2,lv(S.inv.sdd));
 /* 交叉審核：實際生效的審核模型。沒買交叉審核工具、不審核或選同一個時回傳 null（照原本同一個模型審） */
 export const reviewer=(o=sel)=>!lv(S.inv.xreview)||!o.rv||o.rvv==null?null:{v:o.rvv,m:o.rvm,b:o.rvb};
+/* 投資工單派 agent：token 是 BASE[cx] × 用量倍率、時間是 cx × 速度（本地有顯卡 PC 再乘），不擲亂數；品質看能力差距 */
+export function invEst(is,v,mid,ef=sel.ef){
+  const M=effModel(model(v,mid),efOf(ef)), tk=is.base*M.verb;
+  return {M,tk,lo:tk,hi:tk,p:1,c:0,pe:1,q:invQuality(M.cap,is.cx),hrs:is.cx*M.speed*localSpeed(v),rv:null,R:null,rtk:0,rlo:0,rhi:0};
+}
 export function est(is,v,mid,rv=sel.rv,ef=sel.ef,sd=sel.sdd,rr=reviewer({...sel,rv})){
+  if(is.inv) return invEst(is,v,mid,ef);
   const M0=model(v,mid), M=effModel(M0,efOf(ef)), raw=M.cap-is.cx*CAP_SCALE, diff=raw+stackGap(is,M)+bigGap(is,M);
-  const md=lv(S.inv.md[is.stack]), sdd=sddLevel(sd);
+  const sdd=sddLevel(sd);
   /* 交叉審核時寫的那段照不審核算，審核那段另外算 */
   const rw=rr?0:rv;
-  const tk=is.base*M.verb*(is.big&&M.ctx?BIG.tk:1)*(M0.cap-is.cx*CAP_SCALE>=CAP_SCALE?.85:1)*REVIEW[rw].tk*(md?MD_TK:1)*SDD_TK[sdd]*(is.research?RESEARCH_DIRECT_TK:1);
+  const tk=is.base*M.verb*(is.big&&M.ctx?BIG.tk:1)*(M0.cap-is.cx*CAP_SCALE>=CAP_SCALE?.85:1)*REVIEW[rw].tk*mdTk(is.stack)*SDD_TK[sdd]*(is.research?RESEARCH_DIRECT_TK:1);
   /* 投資把剩下的失敗打折，不直接加百分點 */
-  const f=(1-pStep(diff))*(1-MD_P[md])*(is.cx>=3?1-SDD_P[sdd]:1)*(1-AI_P)**lv(S.inv.ai);
+  const f=(1-pStep(diff))*(1-mdP(is.stack))*(is.cx>=3?1-sddP(sdd):1)*(1-AI_P)**lv(S.inv.ai);
   const p=Math.max(.05,Math.min(.97,1-f));
   let c=catchRate(rv,diff), R=null, rtk=0, rhrs=0;
   if(rr){
@@ -135,6 +166,7 @@ export function costLine(b,M,v,e){
 }
 
 /* 派工方案對這張工單能不能用；不能用時回傳原因（工作槽與工時不算方案的問題） */
+/* 投資工單不套審核、SDD、交叉審核 */
 export function presetBlock(is,p){
   const M=model(p.v,p.m);
   if(S.outage===p.v) return t('ui.q.down');
@@ -143,7 +175,7 @@ export function presetBlock(is,p){
   if(p.b==='seat'&&!S.seats.includes(p.v)) return t('why.noSeat');
   const bl=bills(p.v,is).find(b=>b.id===p.b); if(!bl) return t('why.bill'); if(!bl.ok) return bl.note;
   if(p.b==='local'&&PAR()&&localBusy()) return t('why.localBusy');
-  const rr=reviewer(p), e=est(is,p.v,p.m,p.rv,p.ef,p.sdd,rr), cl=costLine(p.b,M,p.v,e);
+  const rr=is.inv?null:reviewer(p), e=est(is,p.v,p.m,p.rv,p.ef,p.sdd,rr), cl=costLine(p.b,M,p.v,e);
   if((p.b==='sub'||p.b==='seat')&&cl.hi>quotaLeft(p.b,p.v)) return t('why.quota');
   if(p.b==='api'&&cl.hi>S.wallet) return t('why.wallet');
   /* 交叉審核：審核模型照同樣的順序檢查，原因前面加「審核：」；同一家同一種額度時兩段加起來比 */

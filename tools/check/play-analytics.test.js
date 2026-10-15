@@ -186,3 +186,20 @@ section("play-analytics：交叉審核參數（gh-48-01-cross-model-review）",(
   ok(of('job_result')[1]?.p.rv_vendor==='same','舊 job 沒有審核欄位：送 same');
   delete globalThis.gtag;
 });
+
+section('play-analytics：投資工單的 invest 事件',()=>{
+  const ev=[]; globalThis.gtag=(kind,name,p)=>ev.push({kind,name,p});
+  newRun('laravel','parallel'); S.hours=8; S.wallet=8000; ev.length=0;
+  A.openInvTicket('md','laravel'); const is=S.issues.find(i=>i.inv);
+  ok(ev.length===0,'開投資工單不送事件');
+  Object.assign(sel,{issue:is.id,v:'deepseek',m:'chat',b:'api',ef:1}); A.dispatch();
+  ok(ev.length===0,'派投資工單不送 dispatch');
+  A.wait(true);
+  const names=ev.map(e=>e.name).join();
+  ok(names==='invest','跑完只送 invest，不送 job_result',names);
+  const p=ev[0]?.p||{};
+  ok(p.investment==='md'&&p.stack==='laravel'&&p.via==='agent'&&p.quality===60&&p.vendor==='deepseek'&&p.model==='chat'&&p.bill==='api','invest 帶 via agent、quality 60、vendor／model／bill',JSON.stringify(p));
+  newRun('laravel','serial'); S.hours=8; ev.length=0; invest('monitor');
+  const q=ev[0]?.p||{};
+  ok(q.investment==='monitor'&&q.via==='self'&&q.quality===100&&q.vendor==='none'&&q.model==='none'&&q.bill==='none','單線直接買監控告警：via self、quality 100、none',JSON.stringify(q));
+});

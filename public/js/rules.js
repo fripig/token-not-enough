@@ -1,7 +1,7 @@
-import {CAP_SCALE,WEAK_CAP,P_TOP,RESEARCH_DIRECT_TK,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,APIV,BIG,BILL_LABEL,CATCH,CI_CONFLICT,CONFLICT_MAX,CLIENTS,CONFLICT,EFFORT,EVAL_HRS,FASTLANE_REJECT,HARD_KPI,HOOK_PR,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INC_KPI,INVEST,INV_KEYS,KPI,BASE,LATE_KPI,MANUAL_HRS,MCP_EVAL_HRS,MCP_REVEAL,MONITOR_KPI,MONITOR_LATE,PN,PR_HRS,PR_REVIEWED,RESCOPE,RETRY,REVEAL,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_TRAP_STOP,SEAT,STACK_HRS,STORE_RATE,UNFAMILIAR_HRS,VENDORS,kt,nt,AI_MAX,AI_P,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL,MD_P,SKILLS_CX,TEST_CATCH,STACKS} from './data.js';
-import {GIG_LATE,GIG_PAY,RESEARCH_RATE,SIX_DAY,SIX_RATE,START,TRAP_RATE} from './state.js';
-import {P_STEP,REVIEW,STORE_REJECT,pStep} from './calc.js';
-import {ABANDON_TRUST,CANCEL_MIN,AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_TRUST,DOUBT_TRUST,EVAL_TK,EVENT_RATE,INC_LATE_TRUST,INC_RAMP,INC_RATE,LATE_TRUST,OVERDRAFT_TRUST,OVERNIGHT_HRS,PACE_KPI,PRAISE_TRUST,RESCOPE_TRUST,REVIEW_LOAD,TRAP_STOP} from './actions.js';
+import {CAP_SCALE,WEAK_CAP,P_TOP,RESEARCH_DIRECT_TK,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,APIV,BIG,BILL_LABEL,CATCH,CI_CONFLICT,CONFLICT_MAX,CLIENTS,CONFLICT,EFFORT,EVAL_HRS,FASTLANE_REJECT,HARD_KPI,HOOK_PR,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INC_KPI,INVEST,INV_KEYS,KPI,BASE,LATE_KPI,MANUAL_HRS,MCP_EVAL_HRS,MCP_REVEAL,MONITOR_KPI,MONITOR_LATE,PN,PR_HRS,PR_REVIEWED,RESCOPE,RETRY,REVEAL,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_TRAP_STOP,SEAT,STACK_HRS,STORE_RATE,UNFAMILIAR_HRS,VENDORS,kt,nt,AI_MAX,AI_P,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL,MD_P,SKILLS_CX,TEST_CATCH,STACKS,INV_Q,INV_CX,INV_ON} from './data.js';
+import {GIG_LATE,GIG_PAY,RESEARCH_RATE,SIX_DAY,SIX_RATE,START,TRAP_RATE,S} from './state.js';
+import {P_STEP,REVIEW,STORE_REJECT,pStep,invQ,mdTk,mdP,testCatch,ciMul,hookMul,scanMul,storeReject,monOn,skillsLv,mcpReveal,mcpEvalHrs,sddP,sddStop} from './calc.js';
+import {ABANDON_TRUST,CANCEL_MIN,AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_TRUST,DOUBT_TRUST,EVAL_TK,EVENT_RATE,INC_LATE_TRUST,INC_RAMP,INC_RATE,LATE_TRUST,OVERDRAFT_TRUST,OVERNIGHT_HRS,PACE_KPI,PRAISE_TRUST,RESCOPE_TRUST,REVIEW_LOAD,TRAP_STOP,invLevel} from './actions.js';
 import {GRADES,SCORE} from './modals.js';
 import {mo,ov} from './view.js';
 import {t} from './i18n.js';
@@ -16,6 +16,20 @@ export const rtag=s=>`<span class="rtag">${s}</span>`;
 export const rtable=(head,rows)=>`<div class="rtw"><table class="rt"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td data-h="${head[i]}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 export const rlist=items=>`<ul class="rules">${items.map(i=>`<li>${i}</li>`).join('')}</ul>`;
 export const rsec=(title,body)=>`<div class="rsec"><h3>${title}</h3>${body}</div>`;
+/* 投資表的「目前」那行：已買但有一級品質不到 100% 時，寫各級品質與打折後實際生效的數值（gh-64-01） */
+const r2=x=>Math.round(x*100)/100;
+export function invNow(k){
+  const lvq=(k,st)=>{const L=invLevel(k,st); if(!L) return null; const qs=Array.from({length:L},(_,i)=>invQ(k,st,i+1)); return qs.every(q=>q===1)?null:qs.map((q,i)=>r('nowLv',{l:i+1,q:pct(q)})).join(t('sep.list'));};
+  const line=(q,eff)=>`<br><small class="invnow">${r('now',{q,eff})}</small>`;
+  const sw=on=>on?r('now.on'):r('now.off',{on:pct(INV_ON)});
+  if(k==='md') return Object.keys(S.inv.md).map(st=>{const q=lvq('md',st); return q?line(q,r('now.md',{st:STACKS[st].name,tk:r2(mdTk(st)),p:pct(mdP(st))})):'';}).join('');
+  const q=INV_CX[k]?lvq(k,null):null; if(!q) return '';
+  const eff={tests:()=>r('now.tests',{p:pct(testCatch())}),ci:()=>r('now.ci',{x:r2(ciMul())}),hook:()=>r('now.hook',{x:r2(hookMul())}),scan:()=>r('now.scan',{x:r2(scanMul())}),
+    fastlane:()=>r('now.fastlane',{p:pct(storeReject())}),monitor:()=>sw(monOn()),skills:()=>skillsLv()?r('now.skills',{cx:SKILLS_CX[skillsLv()]}):sw(false),
+    mcp:()=>r('now.mcp',{p:pct(mcpReveal()),x:r2(mcpEvalHrs())}),
+    sdd:()=>Array.from({length:invLevel('sdd',null)},(_,i)=>r('now.sdd',{name:SDD_NAME[i+1],p:pct(sddP(i+1)),s:pct(sddStop(i+1))})).join(t('sep.semi'))}[k];
+  return line(q,eff());
+}
 const banText=ban=>t(`rules.ban.${ban}`);
 /* 字典裡的規則句子；tag 是平行模式、接外包這類標籤 */
 const r=(k,p)=>t(`rules.${k}`,p);
@@ -75,11 +89,16 @@ export function rulesTab(id){
     +rsec(`${r('h.gig')} ${tag('gig')}`,rlist([
       r('gig1',{pay:GIG_PAY}),
       r('gig2',{p:pct(GIG_LATE)})]));
-  case 'invest': return rsec(r('h.invest'),`${rtable([r('th.inv'),r('th.hrs'),r('th.corp'),r('th.effect')],['md',...INV_KEYS].flatMap(k=>{const I=INVEST[k];return [[`${I.name}${k==='md'?r('mdEach'):''}${k==='ai'?r('aiEach',{n:AI_MAX}):''}`,`${I.hrs}h`,nt(I.cost),I.desc],
+  case 'invest': return rsec(r('h.invest'),`${rtable([r('th.inv'),r('th.hrs'),r('th.corp'),r('th.effect')],['md',...INV_KEYS].flatMap(k=>{const I=INVEST[k];return [[`${I.name}${k==='md'?r('mdEach'):''}${k==='ai'?r('aiEach',{n:AI_MAX}):''}`,`${I.hrs}h`,nt(I.cost),I.desc+invNow(k)],
       ...(I.lv2?[[`${I.name} Lv2`,`${I.lv2.hrs}h`,nt(I.lv2.cost),I.lv2.desc]]:[])];}))}
     ${rlist([r('inv1'),
       r('inv2',{sdd:INVEST.sdd.name,scan:INVEST.scan.name,skills:INVEST.skills.name,tests:INVEST.tests.name,md:pct(MD_P[2]),tc:pct(TEST_CATCH[2]),sa:SCAN_AUDIT[2],cx:SKILLS_CX[2]}),
       r('inv3',{ai:INVEST.ai.name,p:pct(AI_P)})])}`)
+    +rsec(`${r('h.invTicket')} ${tag('par')}`,rlist([
+      r('invT1'),
+      r('invT2',{q:INV_Q.slice(1).map(([g,q])=>r('invTq',{g:-g,q:pct(q)})).join(ls),cx:Object.keys(INV_CX).map(k=>`${INVEST[k].name} ${INV_CX[k].join(r('invTlv'))}`).join(ls),d:CAP_SCALE}),
+      r('invT3',{on:pct(INV_ON)}),
+      r('invT4')]))
     +rsec(r('h.conf'),`${rtable([r('th.conf'),r('th.cat'),r('th.stacks'),r('th.fee')],CONF_KEYS.map(k=>{const C=CONF[k];return [C.name,CONF_CATS[C.cat],C.stacks.map(st=>STACKS[st].name).join(ls)||'—',nt(C.fee)];}))}
     ${rlist([r('conf1',{last:CONF_LAST_DAY}),
       r('conf2'),

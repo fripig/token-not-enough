@@ -7,6 +7,8 @@
 // SIM_INVEST=2 再加買上架自動化（有選 App 才買）、監控告警、secret scanning，量新投資的效果；SIM_INV_EXTRA=monitor,scan 之類可只加買指定的幾項（fastlane、monitor、scan），拿來逐項量。
 // SIM_CONF=1 讓自動玩家去國內研討會（要搭配 SIM_INVEST）：第 1、6、11 天報名第一個付得起的場次（涵蓋第一條主技術線的技術線場、台灣人工智慧年會、HWDC、HITCON、其他），
 // 每天先買開放了的 Lv2（已買 Lv1 的 CLAUDE.md、單元測試、secret scanning、做 skills）和下一級提升 agent 能力，再買 SIM_INVEST 的投資。
+// SIM_INVAGENT=1（要搭配 SIM_INVEST）讓自動玩家在平行模式把寫東西的投資開成投資工單、派 agent 做（gh-64-01）：能力夠的模型（複雜度 5 用 Opus，其他用 Sonnet），
+// 付費照派工台預設（席位、訂閱額度夠就用），否則公司 API、公司預算用完改個人 API；SIM_INVAGENT=cheap 一律派 DeepSeek Chat 個人 API（錢包見底改 Sonnet 公司 API）。單線模式照舊自己買。
 // SIM_SDD2=1（要搭配 SIM_INVEST）讓自動玩家在 SIM_INVEST 的投資都買完、已有導入 SDD Lv1 之後，買 SDD 框架（Lv2）。
 // SIM_XREVIEW=1（要搭配 SIM_INVEST）讓自動玩家在 SIM_INVEST 的投資都買完後買交叉審核工具，之後寫的模型做不到這張單（能力差距 ≤ −10）、又有自審或嚴格審核時，
 // 改用 Claude Opus 審：付費方式照遊戲的預設（額度夠的席位、訂閱，否則公司 API，再不行個人 API）；審核模型不能用時照舊同一個模型審。
@@ -34,10 +36,10 @@ import {els} from './fake-dom.js';
 import './sim-seed.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {firstIssues,start} from '../public/js/main.js';
-import {CAP_SCALE,COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model,CONF,CONF_KEYS,CONF_LAST_DAY} from '../public/js/data.js';
-import {START,S,sel,setResearchRate,setSixRate,setTrapRate} from '../public/js/state.js';
-import {est,hwBlock,localBusy,quotaLeft,reviewerBlock,rvPrefBill} from '../public/js/calc.js';
-import {PAR,abandon,canAbandon,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
+import {INV_CX,CAP_SCALE,COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model,CONF,CONF_KEYS,CONF_LAST_DAY} from '../public/js/data.js';
+import {START,S,dueBy,sel,setResearchRate,setSixRate,setTrapRate} from '../public/js/state.js';
+import {est,hwBlock,localBusy,prefBill,quotaLeft,reviewerBlock,rvPrefBill} from '../public/js/calc.js';
+import {isInvTicket,openInvTicket,PAR,abandon,canAbandon,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
 import {dispatchPanel} from '../public/js/view.js';
 import {subCost} from '../public/js/modals.js';
 // 自動玩家不記最高分（和改成模組前一樣）
@@ -58,6 +60,8 @@ if(!EXTRA.every(k=>['fastlane','monitor','scan'].includes(k))){ console.error(`S
 const CONFSIM=process.env.SIM_CONF==='1';
 const SDD2=process.env.SIM_SDD2==='1', SDD_PICK=process.env.SIM_SDD_PICK==='1';
 if(CONFSIM&&!INV){ console.error('SIM_CONF 要搭配 SIM_INVEST=1 或 2'); process.exit(1); }
+const INVAG=process.env.SIM_INVAGENT==='1'?'fit':process.env.SIM_INVAGENT==='cheap'?'cheap':'';
+if(INVAG&&!INV){ console.error('SIM_INVAGENT 要搭配 SIM_INVEST=1 或 2'); process.exit(1); }
 if(SDD2&&!INV){ console.error('SIM_SDD2 要搭配 SIM_INVEST=1 或 2'); process.exit(1); }
 const XREV=process.env.SIM_XREVIEW==='1';
 if(XREV&&!INV){ console.error('SIM_XREVIEW 要搭配 SIM_INVEST=1 或 2'); process.exit(1); }
@@ -97,6 +101,17 @@ const LOG=process.env.SIM_LOG==='1', logs={};
 /* SIM_ABANDON=1：下班前把今天到期、沒在跑的公司單退掉（−2 信任，比逾期的 −4 與扣 KPI 一半划算） */
 const ABANDON=process.env.SIM_ABANDON==='1';
 
+/* SIM_INVAGENT：開（或找回）這項投資的投資工單，派給能力夠的模型或 DeepSeek Chat */
+function invAgent(k,st){
+  const L=invLevel(k,st)+1;
+  if(!S.issues.some(i=>isInvTicket(i,k,st,L))) openInvTicket(k,st);
+  const is=S.issues.find(i=>isInvTicket(i,k,st,L)&&!i.running); if(!is||S.hours<.2) return;
+  const sel0={...sel};
+  if(INVAG==='cheap'&&S.wallet>0&&!cnBlock(is,'deepseek',model('deepseek','chat'))) Object.assign(sel,{v:'deepseek',m:'chat',b:'api'});
+  else{ const m=INVAG==='cheap'?'sonnet':is.cx>=5?'opus':'sonnet'; Object.assign(sel,{v:'anthropic',m,b:prefBill('anthropic',is,m)??(S.corp>0?'corp':'api')}); if(sel.b==='api'&&S.wallet<=0) sel.b='corp'; }
+  sel.ef=1; sel.issue=is.id; dispatch();
+  Object.assign(sel,{v:sel0.v,m:sel0.m,b:sel0.b,ef:sel0.ef,issue:null});
+}
 function sim(){
   if(TRAP!==undefined) setTrapRate(TRAP);
   if(RRATE!==undefined) setResearchRate(RRATE);
@@ -133,13 +148,14 @@ function sim(){
             const list=[...S.companies.map(k=>['md',k]),['tests'],...(PAR()?[['ci'],['hook']]:[]),['sdd'],
               ...(INV===2?EXTRA.filter(k=>k!=='fastlane'||S.companies.includes('app')).map(k=>[k]):[])];
             const next=list.find(([k,st])=>!(k==='md'?S.inv.md[st]:S.inv[k]));
-            if(next) invest(...next);
+            if(next&&INVAG&&PAR()&&INV_CX[next[0]]) invAgent(...next);
+            else if(next) invest(...next);
             else if(SDD2&&invLevel('sdd')===1&&!investBlock('sdd')) invest('sdd');
             else if(XREV&&!S.inv.xreview&&!investBlock('xreview')) invest('xreview');
           }
           let acted=true;
           while(acted){acted=false;
-            const free=S.issues.filter(i=>!i.running&&!skip.has(i.id)&&!(UPG_STOP&&i.out&&S.subs.openai==='pro500'));
+            const free=S.issues.filter(i=>!i.inv&&!i.running&&!skip.has(i.id)&&!(UPG_STOP&&i.out&&S.subs.openai==='pro500'));
             if(free.length&&S.hours>.3&&(!PAR()||!SLOTS||S.jobs.length<SLOTS)){
               sel.issue=free[0].id; sel.rv=g%3;
               if(SDD_PICK) sel.sdd=free[0].cx<=2?0:2;
@@ -172,7 +188,7 @@ function sim(){
               if(PAR()&&S.jobs.length===n0&&S.hours===before) skip.add(free[0].id);
             } else if(PAR()&&S.jobs.length&&S.hours>0){ wait(true); acted=true; }
           }
-          if(ABANDON) for(const is of S.issues.filter(i=>!i.out&&i.due<=S.day&&canAbandon(i))) abandon(is.id);
+          if(ABANDON) for(const is of S.issues.filter(i=>!i.out&&dueBy(i,S.day)&&canAbandon(i))) abandon(is.id);
           const d=S.day; endDay(); if(d===20)break;
         }
         const html=els.mo.innerHTML;

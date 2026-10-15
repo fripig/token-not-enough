@@ -75,7 +75,8 @@ section('game-layout：派工台與工程投資是同一欄的兩個分頁',()=>
   ok(!h().includes('data-act="invfold"'),'game-layout：沒有投資面板收合按鈕');
   clickApp({tab:'invest'});
   ok(active()==='invest'&&panelHidden('dispatch')&&!panelHidden('invest'),'game-layout：點工程投資分頁切過去');
-  clickApp({inv:'tests'});
+  /* 平行模式寫東西的投資會開投資工單（agent-investments），這裡用直接買的交叉審核工具 */
+  clickApp({inv:'xreview'});
   ok(active()==='invest'&&/data-tab="invest"[^>]*>[^<]*<small>已做 1 項<\/small>/.test(h()),'game-layout：買了投資留在投資分頁，標籤寫已做 1 項');
   S.day=2; clickApp({conf:'coscup'}); ok(active()==='invest'&&S.conf.req==='coscup','game-layout：報名研討會留在投資分頁');
   S.trust=70; clickApp({hw:'pc'}); ok(active()==='invest'&&S.hwReq?.k==='pc','game-layout：申請採購電腦留在投資分頁');

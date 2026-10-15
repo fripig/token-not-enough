@@ -1,13 +1,14 @@
-import {CAP_SCALE,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,CONFLICT_MAX,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv} from './data.js';
-import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardKpi,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks,issueTitle} from './state.js';
-import {REVIEW,reviewer,reviewerBlock,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetBlock,presetFor,quotaLeft,storeReject,useQuota,gigBlocked} from './calc.js';
+import {CAP_SCALE,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,CONFLICT_MAX,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv,INV_CX,invCx,CLIENTS} from './data.js';
+import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardKpi,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks,issueTitle,dueBy,invTitle} from './state.js';
+import {REVIEW,reviewer,reviewerBlock,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetBlock,presetFor,quotaLeft,storeReject,useQuota,gigBlocked,sddStop,ciMul,hookMul,scanMul,mcpEvalHrs,mcpReveal,skillsLv,mdTk,mdP,sddP,testCatch,monOn,invQ,setInvQ} from './calc.js';
 import {render,setTab} from './view.js';
 import {showDay,showEnd} from './modals.js';
 import {t} from './i18n.js';
 
 /* ===== 動作 ===== */
 export const PAR=()=>S.mode==='parallel';
-export const queueOrder=(a,b)=>a.due-b.due||b.kpi-a.kpi;
+/* 投資工單排在一般工單後面 */
+export const queueOrder=(a,b)=>(!!a.inv-!!b.inv)||a.due-b.due||b.kpi-a.kpi;
 export const clock=el=>{const m=Math.round((9+el)*60);return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;};
 /* 還沒曝光的陷阱題照真實複雜度跑；模型能力不夠就做到一半停下來 */
 export const TRAP_STOP=.4;
@@ -18,7 +19,7 @@ export const trueView=is=>hiddenTrap(is)?{...is,cx:is.trueCx,base:is.trueBase}:i
 export function reveal(is){ if(!hiddenTrap(is)) return; is.shownCx=is.cx; is.cx=is.trueCx; is.base=is.trueBase; is.revealed=true; }
 export function makeJob(is){
   const hidden=hiddenTrap(is), e=est(trueView(is),sel.v,sel.m);
-  const sdd=sddLevel(), stop=hidden&&e.M.cap<is.trueCx*CAP_SCALE, f=stop?(sdd?SDD_TRAP_STOP[sdd]:TRAP_STOP):1;
+  const sdd=sddLevel(), stop=hidden&&e.M.cap<is.trueCx*CAP_SCALE, f=stop?sddStop(sdd):1;
   const ok=!stop&&Math.random()<e.p, k=R(.7,1.3), tk=e.tk*f*k, n=R(.8,1.2), rr=e.rv;
   /* shownHrs：畫面與紀錄看到的預估，陷阱曝光前照顯示的複雜度算，才不會從時間看出陷阱；實際跑 hrs */
   return {issue:is,v:sel.v,m:sel.m,ef:efOf(sel.ef),b:sel.b,M:e.M,rv:sel.rv,tk,hrs:e.hrs*f*n,shownHrs:(hidden?est(is,sel.v,sel.m).hrs:e.hrs*f)*n,ok,caught:!stop&&!ok&&Math.random()<e.c,left:0,hidden,stop,sdd,research:!!is.research,rvv:rr?.v??null,rvm:rr?.m??null,rvb:rr?.b??null,rtk:e.rtk*f*k};
@@ -36,7 +37,9 @@ export const who=(v,M,b)=>t('log.who',{agent:VENDORS[v].agent,model:M.name,bill:
 export const billOk=is=>bills(sel.v,is).some(b=>b.id===sel.b&&b.ok);
 /* via：panel（派工按鈕）、quick（一鍵派工）、batch（批次派工）；preset 是方案字母 */
 export function dispatch(via='panel',preset='none'){
-  const is=S.issues.find(i=>i.id===sel.issue); if(!is||!billOk(is)||hwBlock(model(sel.v,sel.m))||reviewerBlock(is,reviewer(),sel.v)) return;
+  const is=S.issues.find(i=>i.id===sel.issue); if(!is||!billOk(is)||hwBlock(model(sel.v,sel.m))) return;
+  if(is.inv) return dispatchInv(is,via,preset);
+  if(reviewerBlock(is,reviewer(),sel.v)) return;
   const pe=est(is,sel.v,sel.m).pe, j=makeJob(is);
   if(PAR()&&(j.b==='local'||j.rvb==='local')&&localBusy()) return;
   useHw(j.v,j.m); if(j.rvb==='local') useHw(j.rvv,j.rvm);
@@ -74,11 +77,11 @@ export function savePreset(i){
 }
 /* 平行模式：推進時鐘，背景 agent 跑完就結算，成功的要花時間審 PR */
 /* 合併衝突機率：每個還在跑的 agent +10%，CI 流水線減半 */
-export const conflictRate=()=>Math.min(CONFLICT_MAX,CONFLICT*S.jobs.length*(S.inv.ci?CI_CONFLICT:1));
+export const conflictRate=()=>Math.min(CONFLICT_MAX,CONFLICT*S.jobs.length*ciMul());
 /* 審 PR 時數：有自我審核減半，有 pre-commit hook 再減半；其他還在跑的 agent 越多，切換成本越高 */
 export const REVIEW_LOAD=.25;
 export const reviewLoad=()=>1+REVIEW_LOAD*S.jobs.length;
-export const prHrs=(cx,rv)=>cx*PR_HRS*(rv?PR_REVIEWED:1)*(S.inv.hook?HOOK_PR:1)*reviewLoad();
+export const prHrs=(cx,rv)=>cx*PR_HRS*(rv?PR_REVIEWED:1)*hookMul()*reviewLoad();
 export function advance(dt){
   while(dt>1e-9&&S.hours>1e-9){
     const next=S.jobs.length?Math.min(...S.jobs.map(j=>j.left)):Infinity;
@@ -125,7 +128,7 @@ export const spendText=(b,q,c,s)=>b==='sub'||b==='seat'?t('log.spend.quota',{n:k
 export const auditRisk=(is,b)=>is.sens&&(b==='sub'||b==='api');
 /* 資安稽核、公司帳單、逾期的信任扣分 */
 export const AUDIT_ODDS={base:.35,cn:.6}, AUDIT_TRUST=12, OVERDRAFT_TRUST=8, CORP_DAY_LIMIT=1500, CORP_DAY_TRUST=6, LATE_TRUST=4, INC_LATE_TRUST=8;
-export const auditOdds=v=>(VENDORS[v].cn?AUDIT_ODDS.cn:AUDIT_ODDS.base)*SCAN_AUDIT[lv(S.inv.scan)];
+export const auditOdds=v=>(VENDORS[v].cn?AUDIT_ODDS.cn:AUDIT_ODDS.base)*scanMul();
 export function auditRoll(is,b,v){
   if(auditRisk(is,b)&&Math.random()<auditOdds(v)){
     S.trust=Math.max(0,S.trust-AUDIT_TRUST); S.st.audits++;
@@ -139,6 +142,7 @@ export function reward(is){
   S.kpi+=is.kpi;S.st.done++;return `KPI +${is.kpi}`;
 }
 export function settle(j,o={}){
+  if(j.inv) return settleInv(j,o);
   const is=j.issue,v=j.v,b=j.b,M=j.M,frac=o.frac??1;
   if(!o.cancel&&j.hidden&&hiddenTrap(is)){ reveal(is); S.st.trapHit++; }
   let tk=j.tk*frac, hrs=j.hrs*frac, ok=j.ok&&!o.fail, note=o.note||'', spend='', conflict=false, fixed=false, rejected=false;
@@ -222,9 +226,9 @@ export function manual(){
 
 /* 評估架構：先花少量 token 讓 agent 讀架構，模型越強越容易識破陷阱 */
 export const EVAL_TK=40;
-export const canEvaluate=is=>!is.inc&&!is.merge&&!is.research&&!is.evaluated&&!is.revealed;
-export const evalCost=(M,v=sel.v)=>({tk:EVAL_TK*M.verb,hrs:EVAL_HRS*M.speed*localSpeed(v)*(S.inv.mcp?MCP_EVAL_HRS:1)});
-export const revealRate=M=>Math.min(REVEAL.max,REVEAL.base+REVEAL.per*M.cap/CAP_SCALE+(S.inv.mcp?MCP_REVEAL:0));
+export const canEvaluate=is=>!is.inv&&!is.inc&&!is.merge&&!is.research&&!is.evaluated&&!is.revealed;
+export const evalCost=(M,v=sel.v)=>({tk:EVAL_TK*M.verb,hrs:EVAL_HRS*M.speed*localSpeed(v)*mcpEvalHrs()});
+export const revealRate=M=>Math.min(REVEAL.max,REVEAL.base+REVEAL.per*M.cap/CAP_SCALE+mcpReveal());
 export function evaluate(){
   const is=S.issues.find(i=>i.id===sel.issue); if(!is||!canEvaluate(is)||!billOk(is)) return;
   const M=model(sel.v,sel.m), {tk,hrs}=evalCost(M,sel.v), cx=is.cx; if(hwBlock(M)) return;
@@ -247,6 +251,8 @@ export const ABANDON_TRUST=2;
 export const canAbandon=is=>!!is&&S.issues.includes(is)&&!is.running&&!is.inc;
 export function abandon(id){
   const is=S.issues.find(i=>i.id===id); if(!canAbandon(is)) return;
+  /* 投資工單：取消投資，不扣分、不算退單、不送事件 */
+  if(is.inv){ S.issues=S.issues.filter(i=>i!==is); if(sel.issue===is.id) sel.issue=null; log('dim',t('log.invCancel',{name:issueTitle(is)})); render(); return; }
   const title=issueTitle(is), tags=[t('ui.card.cx',{cx:is.cx}),...(is.out?[t('ui.chip.gig')]:[])].join(t('sep'));
   if(is.out){ const pen=Math.round(is.pay*GIG_LATE); S.wallet-=pen; S.st.outPenalty+=pen; log('warn',t('log.abandonGig',{title,tags,pen:nt(pen)})); }
   else { S.trust=Math.max(0,S.trust-ABANDON_TRUST); log('warn',t('log.abandon',{title,tags,n:ABANDON_TRUST})); }
@@ -320,7 +326,7 @@ export const invCount=()=>Object.values(S.inv.md).reduce((n,x)=>n+lv(x),0)+INV_K
 /* 投資等級：目前幾級、最高幾級、下一級的工時與預算、下一級要先去過哪種研討會 */
 export const invLevel=(k,st)=>lv(k==='md'?S.inv.md[st]:S.inv[k]);
 export const invMax=k=>k==='ai'?AI_MAX:INVEST[k].lv2?2:1;
-export const invCost=(k,st)=>invLevel(k,st)>=1&&INVEST[k].lv2?INVEST[k].lv2:INVEST[k];
+export const invCost=(k,st)=>lvCost(k,invLevel(k,st)+1);
 export function invLock(k,st,L){
   if(k==='ai') return confCount()>=L?'':t('why.needConfs',{n:L});
   if(L<2||k==='sdd') return '';  // SDD 框架不用研討會
@@ -338,15 +344,102 @@ export function investBlock(k,st,want){
   if(S.corp<I.cost) return t('why.corp');
   return '';
 }
+/* 第 L 級的工時與公司預算；扣款照購買的算法（計入當天公司花費與月底公司帳單） */
+export const lvCost=(k,L)=>L>=2&&INVEST[k].lv2?INVEST[k].lv2:INVEST[k];
+export function payInv(I){ S.corp-=I.cost; S.corpDay+=I.cost; S.st.corp+=I.cost; }
 export function invest(k,st,want){
   if(!INVEST[k]||(k==='md'&&!STACKS[st])||investBlock(k,st,want)) return false;
   const I=invCost(k,st), L=invLevel(k,st)+1, name=INVEST[k].name+(invMax(k)>1?` Lv${L}`:'');
-  S.corp-=I.cost; S.corpDay+=I.cost; S.st.corp+=I.cost;
+  payInv(I);
   if(k==='md') S.inv.md[st]=L; else S.inv[k]=L;
-  track('invest',{investment:k==='ai'?`ai${L}`:L>=2?`${k}2`:k,stack:k==='md'?st:'none'});
+  track('invest',{investment:k==='ai'?`ai${L}`:L>=2?`${k}2`:k,stack:k==='md'?st:'none',...INV_SELF});
   if(PAR()) advance(I.hrs); else S.hours-=I.hrs;
   log('ok',t('log.invest',{name,extra:k==='md'?t('log.paren',{x:STACKS[st].name}):k==='sdd'?t('log.paren',{x:SDD_EG[L]}):'',h:h1(I.hrs),cost:nt(I.cost)}));
   return true;
+}
+/* 投資工單（平行模式）：寫東西的投資按了先進佇列，自己做或派 agent（gh-64-01） */
+export const isInvTicket=(i,k,st,L)=>!!i.inv&&i.inv.k===k&&(i.inv.st??null)===(st??null)&&i.inv.L===L;
+export const invTicketOpen=(k,st,L)=>S.issues.some(i=>isInvTicket(i,k,st,L));
+/* 開工單的拒絕原因：L 是要做的等級，等於已有等級時是重做（品質不到 100% 才能重做） */
+export function invTicketBlock(k,st,L=invLevel(k,st)+1){
+  const cur=invLevel(k,st);
+  if(invTicketOpen(k,st,L)) return t('why.invOpen');
+  if(L===cur&&cur>0) return invQ(k,st,L)<1?'':t('why.done');
+  if(cur>=invMax(k)||L<cur) return t('why.done');
+  if(L>cur+1) return t('why.needLv',{n:cur+1});
+  return invLock(k,st,L);
+}
+export function openInvTicket(k,st,L=invLevel(k,st)+1){
+  if(!PAR()||!INV_CX[k]||(k==='md'&&!STACKS[st])||invTicketBlock(k,st,L)) return false;
+  const cx=invCx(k,L), inv={k,st:k==='md'?st:null,L};
+  const is={id:nextId(),inv,title:invTitle(inv),cx,base:BASE[cx],kpi:0,due:null,client:CLIENTS[0],stack:k==='md'?st:'fe',tries:0,inc:false,sens:false,big:false,store:false};
+  S.issues.push(is);
+  log('dim',t('log.invOpen',{name:issueTitle(is)}));
+  return true;
+}
+/* 投資工單派 agent：只有平行模式，不送 dispatch 事件；job 不審核、不套 SDD、不會失敗 */
+export function dispatchInv(is,via,preset){
+  if(!PAR()||S.hours<.2) return;
+  const e=est(is,sel.v,sel.m), b=sel.b;
+  if(b==='local'&&localBusy()) return;
+  useHw(sel.v,sel.m);
+  const j={issue:is,inv:is.inv,v:sel.v,m:sel.m,ef:efOf(sel.ef),b,M:e.M,rv:0,sdd:0,tk:e.tk,hrs:e.hrs,shownHrs:e.hrs,q:e.q,ok:true,caught:false,left:e.hrs,hidden:false,stop:false,research:false,rvv:null,rvm:null,rvb:null,rtk:0};
+  const how=via==='quick'?t('log.via.quick',{p:preset}):t('log.via.panel');
+  log('dim',t('log.invDispatch',{title:issueTitle(is),cx:is.cx,who:who(j.v,j.M,b),q:Math.round(j.q*100),how,h:h1(j.hrs)}));
+  is.running=true; S.jobs.push(j); sel.issue=null;
+  advance(.2); render();
+}
+/* 套上投資等級：比已有等級高就升級，同一級（重做）取較高的品質 */
+export function applyInv({k,st,L},q){
+  const cur=invLevel(k,st);
+  if(L>cur){ if(k==='md') S.inv.md[st]=L; else S.inv[k]=L; setInvQ(k,st,L,q); }
+  else setInvQ(k,st,L,Math.max(invQ(k,st,L),q));
+}
+/* 投資工單的結算：中止（玩家、當機、月底）與付不出來時工單回佇列、不套等級；不審 PR、不衝突 */
+export function settleInv(j,o={}){
+  const is=j.issue,v=j.v,b=j.b,M=j.M,frac=o.frac??1;
+  let tk=j.tk*frac, hrs=j.hrs*frac;
+  const ch=charge(b,v,M,tk); if(ch.short){ tk*=ch.frac; hrs*=Math.max(.3,ch.frac); }
+  S.st.tk[v]+=tk; S.st.byBill[b]+=tk;
+  const w=who(v,M,b), title=issueTitle(is);
+  if(o.cancel) log('warn',t(o.monthEnd?'log.monthEnd':'log.cancel',{title,who:w,tk:kt(tk),spend:ch.spend,h:h1(hrs)}));
+  /* 當機中止：照一般工單寫原因，工單一樣回佇列 */
+  else if(o.fail) log('bad',t('log.fail',{title,who:w,note:o.note||t('log.note.fail'),tk:kt(tk),spend:ch.spend,h:h1(hrs)}));
+  else if(ch.short) log('bad',t('log.fail',{title,who:w,note:t(b==='api'?'log.note.wallet':'log.note.quota'),tk:kt(tk),spend:ch.spend,h:h1(hrs)}));
+  else{
+    applyInv(j.inv,j.q); S.issues=S.issues.filter(i=>i!==is); if(sel.issue===is.id) sel.issue=null;
+    track('invest',{investment:invKey(j.inv),stack:j.inv.k==='md'?j.inv.st:'none',via:'agent',quality:Math.round(j.q*100),vendor:v,model:j.m,bill:b});
+    log('ok',t('log.invDone',{title,who:w,q:Math.round(j.q*100),tk:kt(tk),spend:ch.spend,h:h1(hrs)}));
+  }
+  checkOverdraft();
+  return {ok:false,hrs,rejected:false};
+}
+/* GA：直接買、自己做、採購申請、研討會報名都是 self、品質 100 */
+export const INV_SELF={via:'self',quality:100,vendor:'none',model:'none',bill:'none'};
+/* GA 的 investment：Lv1 是 key，Lv2 是 key 加 2 */
+export const invKey=({k,L})=>L>=2?`${k}2`:k;
+/* 投資工單自己做：照原本的工時與公司預算，品質 100%；重做同一級時一樣付那一級的價錢 */
+export function invSelf(id){
+  const is=S.issues.find(i=>i.id===id&&i.inv); if(!is||is.running) return false;
+  const {k,st,L}=is.inv, cur=invLevel(k,st);
+  if(L>cur){ if(!invest(k,st,L)) return false; setInvQ(k,st,L,1); }
+  else{
+    const I=lvCost(k,L);
+    if(invSelfBlock(is)) return false;
+    payInv(I); setInvQ(k,st,L,1);
+    track('invest',{investment:invKey(is.inv),stack:k==='md'?st:'none',...INV_SELF});
+    if(PAR()) advance(I.hrs); else S.hours-=I.hrs;
+    log('ok',t('log.invRedo',{name:issueTitle(is),h:h1(I.hrs),cost:nt(I.cost)}));
+  }
+  S.issues=S.issues.filter(i=>i!==is); if(sel.issue===id) sel.issue=null;
+  return true;
+}
+/* 自己做的拒絕原因（工時、預算、鎖住） */
+export function invSelfBlock(is){
+  const {k,st,L}=is.inv, cur=invLevel(k,st);
+  if(L>cur) return investBlock(k,st,L);
+  const I=lvCost(k,L);
+  return S.hours<I.hrs-1e-9?t('why.hours'):S.corp<I.cost?t('why.corp'):'';
 }
 /* 國內研討會：平日報名、自費、不花工時、不看信任；週末出席，下週一生效 */
 export function confBlock(k){
@@ -361,7 +454,7 @@ export function registerConf(k){
   if(!CONF[k]||confBlock(k)) return false;
   const C=CONF[k];
   S.wallet-=C.fee; S.st.confFee+=C.fee; S.conf.req=k;
-  track('invest',{investment:'conf_'+k,stack:'none'});
+  track('invest',{investment:'conf_'+k,stack:'none',...INV_SELF});
   log('ok',t('log.conf',{name:C.name,fee:nt(C.fee)}));
   return true;
 }
@@ -389,7 +482,7 @@ export function hwReqBlock(k){
 export function requestHw(k){
   if(!HW[k]||hwReqBlock(k)) return false;
   S.hwReq={k,day:S.day};
-  track('invest',{investment:k,stack:'none'});
+  track('invest',{investment:k,stack:'none',...INV_SELF});
   if(PAR()) advance(HW_REQ_HRS); else S.hours-=HW_REQ_HRS;
   log('dim',t('log.hwReq',{name:HW[k].name,price:HW[k].price,h:h1(HW_REQ_HRS),d:S.day+HW[k].days}));
   return true;
@@ -401,9 +494,9 @@ export function useHw(v,m){
 }
 /* 做 skills 之後：一次派出所有複雜度 ≤2 的工單 */
 export function batch(){
-  if(!S.inv.skills) return;
+  if(!skillsLv()) return;
   let n=0,skip=0;
-  for(const is of S.issues.filter(i=>!i.running&&i.cx<=SKILLS_CX[lv(S.inv.skills)]).sort(queueOrder)){
+  for(const is of S.issues.filter(i=>!i.running&&!i.inv&&i.cx<=SKILLS_CX[skillsLv()]).sort(queueOrder)){
     if(!canQuick()) break;
     const {i}=presetFor(is);
     if(i<0){skip++;continue;}
@@ -415,16 +508,16 @@ export function batch(){
 export const INV_STACKS=()=>[...S.companies,...COMPANIES.filter(k=>!S.companies.includes(k)),'fe'];
 export function invHint(is){
   const out=[];
-  if(S.inv.md[is.stack]) out.push(t('hint.md',{st:STACKS[is.stack].name,tk:MD_TK,p:Math.round(MD_P[lv(S.inv.md[is.stack])]*100)}));
-  const sd=sddLevel(); if(sd) out.push(t('hint.sdd',{name:SDD_NAME[sd],tk:SDD_TK[sd],p:is.cx>=3?t('hint.sddP',{p:Math.round(SDD_P[sd]*100)}):''}));
-  if(S.inv.tests) out.push(t('hint.tests',{p:Math.round(TEST_CATCH[lv(S.inv.tests)]*100)}));
-  if(S.inv.ci&&PAR()) out.push(t('hint.ci'));
-  if(S.inv.hook&&PAR()) out.push(t('hint.hook'));
-  if(S.inv.scan&&is.sens) out.push(t('hint.scan',{x:SCAN_AUDIT[lv(S.inv.scan)]}));
-  if(S.inv.fastlane&&is.store) out.push(t('hint.fastlane',{p:Math.round(FASTLANE_REJECT*100)}));
-  if(S.inv.monitor&&is.inc) out.push(t('hint.monitor',{n:MONITOR_LATE}));
+  if(S.inv.md[is.stack]) out.push(t('hint.md',{st:STACKS[is.stack].name,tk:Math.round(mdTk(is.stack)*100)/100,p:Math.round(mdP(is.stack)*100)}));
+  const sd=sddLevel(); if(sd) out.push(t('hint.sdd',{name:SDD_NAME[sd],tk:SDD_TK[sd],p:is.cx>=3?t('hint.sddP',{p:Math.round(sddP(sd)*100)}):''}));
+  if(S.inv.tests) out.push(t('hint.tests',{p:Math.round(testCatch()*100)}));
+  if(S.inv.ci&&PAR()) out.push(ciMul()===CI_CONFLICT?t('hint.ci'):t('hint.ciX',{x:Math.round(ciMul()*100)/100}));
+  if(S.inv.hook&&PAR()) out.push(hookMul()===HOOK_PR?t('hint.hook'):t('hint.hookX',{x:Math.round(hookMul()*100)/100}));
+  if(S.inv.scan&&is.sens) out.push(t('hint.scan',{x:Math.round(scanMul()*100)/100}));
+  if(S.inv.fastlane&&is.store) out.push(t('hint.fastlane',{p:Math.round(storeReject()*100)}));
+  if(monOn()&&is.inc) out.push(t('hint.monitor',{n:MONITOR_LATE}));
   if(S.inv.ai) out.push(t('hint.ai',{n:lv(S.inv.ai),p:Math.round((1-(1-AI_P)**lv(S.inv.ai))*100),per:Math.round(AI_P*100)}));
-  if(S.inv.mcp) out.push(t('hint.mcp',{p:Math.round(MCP_REVEAL*100)}));
+  if(S.inv.mcp) out.push(t('hint.mcp',{p:Math.round(mcpReveal()*100)}));
   if(S.hw.pc&&sel.v==='local') out.push(t('hint.pc',{x:PC_SPEED}));
   return out.length?t('hint.invest',{list:out.join(t('sep.semi'))}):'';
 }
@@ -441,7 +534,7 @@ export const EVENTS=[
   ()=>{if(S.cnBan||S.day<8)return ev('remind');if(0)return ev('policy');S.cnBan=true;return ev('cnBan');},
   ()=>{S.corp*=.7;return ev('freeze');},
   ()=>{const v=pick(SUBV);S.capMod[v]*=.8;return ev('quota',{v:VENDORS[v].name});},
-  ()=>{if(S.day<6)return ev('trafficLow');S.issues.push(makeIssue(true));S.issues.push(makeIssue(true));return [t('ev.traffic.t'),t(S.inv.monitor?'ev.traffic.monitor':'ev.traffic.today')];},
+  ()=>{if(S.day<6)return ev('trafficLow');S.issues.push(makeIssue(true));S.issues.push(makeIssue(true));return [t('ev.traffic.t'),t(monOn()?'ev.traffic.monitor':'ev.traffic.today')];},
   ()=>{const need=S.day*PACE_KPI;
     if(S.kpi>need){S.trust=Math.min(100,S.trust+PRAISE_TRUST);return ev('praise',{kpi:S.kpi,need,n:PRAISE_TRUST});}
     if(S.day<6)return ev('paceRemind',{kpi:S.kpi,x:PACE_KPI});
@@ -477,20 +570,20 @@ export const dayStartLine=(d,monday,n,g)=>t('log.dayStart',{d,week:monday?t('log
 export function endDay(){
   const rep=[];
   if(PAR()&&S.jobs.length) advance(S.hours);
-  const killed=cancelJobs(j=>j.issue.due<=S.day,t('log.note.expired'));
+  const killed=cancelJobs(j=>dueBy(j.issue,S.day),t('log.note.expired'));
   if(killed) rep.push(t('rep.killed',{n:killed}));
   /* 月底收工：第 20 天還在跑的（工單第 20 天之後才到期）照玩家中止扣款，排在公司單日上限檢查之前 */
   if(S.day>=20) S.jobs.splice(0).forEach(j=>{j.issue.running=false;settle(j,{frac:cancelFrac(j),fail:true,cancel:true,monthEnd:true});});
-  const gigLate=S.issues.filter(i=>i.out&&i.due<=S.day);
+  const gigLate=S.issues.filter(i=>i.out&&dueBy(i,S.day));
   /* 外包逾期：賠違約金，不扣 KPI 和信任 */
   gigLate.forEach(i=>{const pen=Math.round(i.pay*GIG_LATE);S.wallet-=pen;S.st.outPenalty+=pen;S.st.outLate++;log('bad',t('log.gigLate',{title:issueTitle(i),pen:nt(pen)}));});
   if(gigLate.length) rep.push(t('rep.gigLate',{n:gigLate.length,pen:nt(gigLate.reduce((a,i)=>a+Math.round(i.pay*GIG_LATE),0))}));
-  const late=S.issues.filter(i=>!i.out&&i.due<=S.day);
+  const late=S.issues.filter(i=>!i.out&&dueBy(i,S.day));
   let lateTrust=0;
   /* 研究拆出來的兩張單算同一張原單：都逾期時信任只扣一次 */
   const lateFrom=new Set();
-  late.forEach(i=>{const pen=Math.ceil(i.kpi*LATE_KPI), tr=i.from&&lateFrom.has(i.from)?0:i.inc?(S.inv.monitor?MONITOR_LATE:INC_LATE_TRUST):LATE_TRUST; if(i.from)lateFrom.add(i.from);S.kpi-=pen;S.st.kpiLost+=pen;S.trust=Math.max(0,S.trust-tr);lateTrust+=tr;S.st.late++;log('bad',t('log.late',{title:issueTitle(i),pen,tr}));});
-  S.issues=S.issues.filter(i=>i.due>S.day);
+  late.forEach(i=>{const pen=Math.ceil(i.kpi*LATE_KPI), tr=i.from&&lateFrom.has(i.from)?0:i.inc?(monOn()?MONITOR_LATE:INC_LATE_TRUST):LATE_TRUST; if(i.from)lateFrom.add(i.from);S.kpi-=pen;S.st.kpiLost+=pen;S.trust=Math.max(0,S.trust-tr);lateTrust+=tr;S.st.late++;log('bad',t('log.late',{title:issueTitle(i),pen,tr}));});
+  S.issues=S.issues.filter(i=>!dueBy(i,S.day));
   if(late.length) rep.push(t('rep.late',{n:late.length,tr:lateTrust}));
   if(S.corpDay>CORP_DAY_LIMIT){S.trust=Math.max(0,S.trust-CORP_DAY_TRUST);rep.push(t('rep.corpDay',{c:nt(S.corpDay),n:CORP_DAY_TRUST}));log('warn',t('log.corpDay',{c:nt(S.corpDay),n:CORP_DAY_TRUST}));}
   /* 買了電腦沒用：每台每天信任 -2 */

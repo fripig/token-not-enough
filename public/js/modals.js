@@ -1,5 +1,5 @@
 import {COMPANIES,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
-import {S,addGigs,clearSave,daySnap,loadGame,modeKpi,saveGame,sel,track} from './state.js';
+import {S,addGigs,clearSave,daySnap,loadGame,modeKpi,saveGame,sel,track,dueBy} from './state.js';
 import {log,prefBill} from './calc.js';
 import {PAR,invCount,sumDelta} from './actions.js';
 import {app,langSwitch,mo,ov,render} from './view.js';
@@ -119,7 +119,7 @@ export function showDay(rep,ev,monday,sum=null){
   ${monday?`<p class="lead">${t('ui.day.monday')}</p>`:''}
   ${ev?`<div class="evt"><b>${ev[0]}</b>${ev[1]}</div>`:''}
   ${rep.length?`<ul class="rules">${rep.map(r=>`<li>${r}</li>`).join('')}</ul>`:''}
-  <p class="lead">${t('ui.day.queue',{n:S.issues.length,due:S.issues.filter(i=>i.due<=S.day).length})}</p>
+  <p class="lead">${t('ui.day.queue',{n:S.issues.length,due:S.issues.filter(i=>dueBy(i,S.day)).length})}</p>
   <div class="actions"><button class="btn primary" data-act="close">${t('ui.day.start')}</button>${monday?`<button class="btn ghost" data-act="adj">${t('ui.adjust')}</button>`:''}</div>`;
   ov.hidden=false;
   mo.onclick=e=>{const bt=e.target.closest('button');if(!bt)return;if(bt.dataset.act==='close')ov.hidden=true;if(bt.dataset.act==='adj')showSetup(true);};
