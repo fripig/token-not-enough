@@ -29,7 +29,7 @@ section("rules-reference（gh-20-01-rules-modal）",()=>{
   press({rtab:'score'}); ok(els.mo.innerHTML.includes('總分 = KPI ×'),'rules-reference：結算分頁顯示總分公式');
   /* gh-66-01：更新分頁列出全部，新的在前 */
   {const h=Ru.rulesTab('news'), li=[...h.matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m=>m[1]);
-   ok(li.length===NEWS.length&&li[0].includes(NEWS[0].date)&&li[0].includes(I.t('news.gh-66-01'))&&li.at(-1).includes('2026-10-10')&&li.at(-1).includes(I.t('news.gh-32-01')),'rules-reference：更新分頁列出全部 21 筆，第一行是 gh-66-01、最後一行是 2026-10-10 的 gh-32-01',li.length);}
+   ok(li.length===NEWS.length&&li[0].includes(NEWS[0].date)&&li[0].includes(I.t('news.gh-66-01'))&&li.at(-1).includes('2026-10-10')&&li.at(-1).includes(I.t('news.gh-32-01')),'rules-reference：更新分頁列出全部 22 筆，第一行是 gh-66-01、最後一行是 2026-10-10 的 gh-32-01',li.length);}
   /* gh-26-01-money-off-score：錢不算分、錢包用光就停、外包 KPI × 250、起始錢包 */
   ok(Ru.rulesTab('score').includes('總分 = KPI × 10 + 信任 × 4 − 稽核次數 × 80。')&&Ru.rulesTab('score').includes('錢不算分')&&!Ru.rulesTab('score').includes('÷'),'rules-reference：結算分頁寫新公式、錢不算分');
   ok(Ru.rulesTab('basic').includes('個人錢包 NT$8,000')&&Ru.rulesTab('basic').includes('錢包不夠付這次的訂閱就不能確認'),'rules-reference：基本分頁寫起始錢包 NT$8,000 與訂閱要付得起');

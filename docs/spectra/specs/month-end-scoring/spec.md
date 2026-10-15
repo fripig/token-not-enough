@@ -8,7 +8,7 @@ Turns the month into a score, a letter grade and a title, and shows a receipt of
 
 ### Requirement: Score formula
 
-Personal spend SHALL be subscription fees + personal API + outsourcing penalties + conference fees; outsourcing income SHALL NOT be subtracted, so personal spend SHALL never be negative. It SHALL be shown on the receipt as 你自己掏的錢 and used for titles, and SHALL NOT affect the score. The score SHALL be round(KPI × 10 + trust × 4 − audits × 80). The receipt SHALL state 總分 = KPI × 10 + 信任 × 4 − 稽核次數 × 80.
+Personal spend SHALL be subscription fees + personal API + outsourcing penalties + conference fees; outsourcing income SHALL NOT be subtracted, so personal spend SHALL never be negative. It SHALL be shown on the receipt as 你自己掏的錢 and used for titles, and SHALL NOT affect the score. The score SHALL be round(KPI × 10 + trust × 4 − audits × 80). The receipt SHALL state 總分 = KPI × 10 + 信任 × 4 − 稽核次數 × 80. When the usage challenge toggle is on, the score SHALL also add the usage bonus defined in `quota-burn`.
 
 #### Scenario: Score example
 
@@ -38,7 +38,7 @@ Personal spend SHALL be subscription fees + personal API + outsourcing penalties
 ---
 ### Requirement: Grade
 
-The grade SHALL use thresholds per mode. In serial mode it SHALL be S at 3,800 or more, A at 2,400, B at 1,400, C at 500, and D below. In parallel mode it SHALL be S at 9,500 or more, A at 5,280, B at 4,000, C at 2,720, and D below. Parallel thresholds SHALL NOT be derived from the serial ones.
+The grade SHALL use thresholds per mode. In serial mode it SHALL be S at 3,800 or more, A at 2,400, B at 1,400, C at 500, and D below. In parallel mode it SHALL be S at 9,500 or more, A at 5,280, B at 4,000, C at 2,720, and D below. Parallel thresholds SHALL NOT be derived from the serial ones. When the usage challenge toggle is on, the grade SHALL use the thresholds defined in `quota-burn` instead.
 
 #### Scenario: Same score, different modes
 

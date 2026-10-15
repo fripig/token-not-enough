@@ -8,6 +8,7 @@ import {showRules} from './rules.js';
    只能在最前面加，不能刪也不能調順序：tokgame-news 記的是看過的最新一筆 id。 */
 export const NEWS=[
   {id:'gh-66-01',date:'2026-10-16'},
+  {id:'gh-65-01',date:'2026-10-16'},
   {id:'gh-64-01',date:'2026-10-15'},
   {id:'gh-63-01',date:'2026-10-14'},
   {id:'gh-48-01',date:'2026-10-11'},

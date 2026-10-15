@@ -11,7 +11,7 @@ export const resetIds=()=>{uid=0;};
 export const START={wallet:8000,corp:12000,trust:70,hours:8};
 export function fresh(){
   uid=0;
-  S={day:1,hours:START.hours,wallet:START.wallet,corp:START.corp,trust:START.trust,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),outsource:S?.outsource===true,advanced:S?.advanced===true,presets:presetsOf(S?.presets),jobs:[],
+  S={day:1,hours:START.hours,wallet:START.wallet,corp:START.corp,trust:START.trust,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),outsource:S?.outsource===true,advanced:S?.advanced===true,burn:S?.burn===true,presets:presetsOf(S?.presets),jobs:[],
     inv:{md:{},...objOf(INV_KEYS,()=>0),ai:0},
     invQ:{md:{}},
     subs:objOf(APIV,()=>'none'),
@@ -21,7 +21,7 @@ export function fresh(){
     hw:objOf(HW_KEYS,()=>false),hwReq:null,hwUsed:objOf(HW_KEYS,()=>false),
     conf:{req:null,went:[]},
     outage:null,corpDay:0,issues:[],log:[],
-    st:{subFee:0,api:0,corp:0,done:0,late:0,audits:0,manual:0,conflicts:0,caught:0,tk:objOf(Object.keys(VENDORS),()=>0),byBill:{sub:0,seat:0,api:0,corp:0,local:0},kpiLost:0,trapHit:0,trapFound:0,outIncome:0,outPenalty:0,outDone:0,outLate:0,confFee:0,abandoned:0}};
+    st:{subFee:0,api:0,corp:0,done:0,late:0,audits:0,manual:0,conflicts:0,caught:0,tk:objOf(Object.keys(VENDORS),()=>0),byBill:{sub:0,seat:0,api:0,corp:0,local:0},kpiLost:0,trapHit:0,trapFound:0,outIncome:0,outPenalty:0,outDone:0,outLate:0,confFee:0,abandoned:0,burnV:0,burnM:0,corpTk:0}};
   sel={issue:null,v:'anthropic',m:'sonnet',b:'api',rv:sel?.rv??1,ef:sel?.ef??1,sdd:2,rvv:sel?.rvv??null,rvm:sel?.rvm??null,rvb:sel?.rvb??null};
   S.dayStart=daySnap();
 }
@@ -32,7 +32,7 @@ export const daySnap=()=>({kpi:S.kpi,trust:S.trust,wallet:S.wallet,corp:S.corp})
 export function track(name,extra={}){
   try{
     if(typeof gtag!=='function') return;
-    gtag('event',name,{game_version:GAME_VERSION,game_mode:S.mode,companies:S.companies.join('+'),advanced:S.advanced,outsource:S.outsource,day:S.day,...extra});
+    gtag('event',name,{game_version:GAME_VERSION,game_mode:S.mode,companies:S.companies.join('+'),advanced:S.advanced,outsource:S.outsource,burn:S.burn,day:S.day,...extra});
   }catch(e){}
 }
 
@@ -67,6 +67,8 @@ export function loadGame(d){
   /* 投資工單之前的存檔沒有品質：已有的等級都當 100% */
   S.invQ??={md:{}}; S.invQ.md??={};
   S.conf??={req:null,went:[]}; S.st.confFee??=0; S.st.abandoned??=0;
+  /* 用量挑戰之前的存檔：當作沒開、還沒有累計 */
+  S.burn??=false; S.st.burnV??=0; S.st.burnM??=0; S.st.corpTk??=0;
   /* 舊存檔沒有 SDD 選擇：當 2（用已買的最高級） */
   if(![0,1,2].includes(sel.sdd)) sel.sdd=2;
   /* 交叉審核之前的存檔沒有審核模型：選擇與跑著的 job 都當同一個 */

@@ -1,6 +1,6 @@
-import {COMPANIES,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
+import {BURN_PTS,COMPANIES,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
 import {S,addGigs,clearSave,daySnap,loadGame,modeKpi,saveGame,sel,track,dueBy} from './state.js';
-import {log,prefBill} from './calc.js';
+import {burnStat,log,prefBill} from './calc.js';
 import {PAR,invCount,sumDelta} from './actions.js';
 import {app,langSwitch,mo,ov,render} from './view.js';
 import {firstIssues,start} from './main.js';
@@ -41,7 +41,7 @@ export function toggleCompany(cs,k){
 }
 export function showSetup(adjust){
   const rulesBtn=`<div class="actions"><button class="btn ghost" data-act="rules">${t('ui.setup.rules')}</button></div>`;
-  draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],outsource:S.outsource,advanced:S.advanced};
+  draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],outsource:S.outsource,advanced:S.advanced,burn:S.burn};
   const draw=()=>{
     mo.innerHTML=`<h2>${adjust?t('ui.setup.titleAdj'):t('ui.setup.title')}</h2>
     <div class="mlang">${langSwitch()}</div>
@@ -60,6 +60,10 @@ export function showSetup(adjust){
       <button class="sb ${draft.advanced?'':'sel'}" data-adv="0"><b>${t('ui.setup.advOff')}</b><small>${t('ui.setup.advOffSub')}</small></button>
       <button class="sb ${draft.advanced?'sel':''}" data-adv="1"><b>${t('ui.setup.advOn')}</b><small>${t('ui.setup.advOnSub')}</small></button>
     </div></div>
+    <div class="sec"><label>${t('ui.setup.burn')}</label><div class="modes">
+      <button class="sb ${draft.burn?'':'sel'}" data-burn="0"><b>${t('ui.setup.burnOff')}</b><small>${t('ui.setup.burnOffSub')}</small></button>
+      <button class="sb ${draft.burn?'sel':''}" data-burn="1"><b>${t('ui.setup.burnOn')}</b><small>${t('ui.setup.burnOnSub',{s:BURN_PTS.serial,p:BURN_PTS.parallel.toLocaleString('en-US')})}</small></button>
+    </div></div>
     <div class="sec"><label>${t('ui.setup.mode')}</label><div class="modes">
       <button class="sb ${draft.mode==='parallel'?'sel':''}" data-mode="parallel"><b>${t('ui.setup.par')}</b><small>${t('ui.setup.parSub')}</small></button>
       <button class="sb ${draft.mode==='serial'?'sel':''}" data-mode="serial"><b>${t('ui.setup.serial')}</b><small>${t('ui.setup.serialSub')}</small></button>
@@ -77,6 +81,7 @@ export function showSetup(adjust){
     else if(bt.dataset.company){draft.companies=toggleCompany(draft.companies,bt.dataset.company);draw();}
     else if(bt.dataset.out){draft.outsource=bt.dataset.out==='1';draw();}
     else if(bt.dataset.adv){draft.advanced=bt.dataset.adv==='1';draw();}
+    else if(bt.dataset.burn){draft.burn=bt.dataset.burn==='1';draw();}
     else if(bt.dataset.act==='close'){ov.hidden=true;}
     else if(bt.dataset.act==='rules'){showRules(back);}
     /* 開局視窗蓋住標頭，所以這裡也能換語言；草稿不重設 */
@@ -86,10 +91,10 @@ export function showSetup(adjust){
       if(!adjust){
         const outChanged=draft.outsource!==S.outsource, modeChanged=draft.mode!==S.mode; S.outsource=draft.outsource;
         /* 模式先定下來，第 1 天工單的 KPI 才會照確認的模式算（難線 ×1.3 只在單線） */
-        S.mode=draft.mode; S.advanced=draft.advanced;
+        S.mode=draft.mode; S.advanced=draft.advanced; S.burn=draft.burn;
         if(draft.companies.join()!==S.companies.join()){S.companies=draft.companies;firstIssues();}
         else{ if(outChanged){S.issues=S.issues.filter(i=>!i.out);const g=addGigs();if(g)log('dim',t('log.setup.gigs',{n:g}));} if(modeChanged) modeKpi(); }
-        log('dim',t('log.setup.mode',{company:companyName(),mode:PAR()?t('ui.modePar'):t('ui.modeSerial'),adv:S.advanced?t('sep')+t('ui.setup.advOn'):''}));
+        log('dim',t('log.setup.mode',{company:companyName(),mode:PAR()?t('ui.modePar'):t('ui.modeSerial'),adv:(S.advanced?t('sep')+t('ui.setup.advOn'):'')+(S.burn?t('sep')+t('ui.setup.burnOn'):'')}));
       }
       const changed=SUBV.filter(v=>draft.subs[v]!==S.subs[v]);
       for(const v of changed) S.subs[v]=draft.subs[v];
@@ -144,16 +149,18 @@ export function showBadSave(){
   mo.onclick=e=>{const bt=e.target.closest('button');if(!bt)return;if(bt.dataset.act==='new')start();};
 }
 /* 總分權重與評等門檻（S、A、B、C，兩種模式各一組；平行 S 是強玩法的中位數）；錢不算分，個人花費只顯示與判定稱號 */
-export const SCORE={kpi:10,trust:4,audit:80}, GRADES={serial:[3800,2400,1400,500],parallel:[9500,5280,4000,2720]};
+export const SCORE={kpi:10,trust:4,audit:80}, GRADES={serial:[3800,2400,1400,500],parallel:[9500,5280,4000,2720],burnSerial:[3900,2500,1500,600],burnParallel:[12300,7880,6600,5320]};
 /* 月底總分與評等；self 是你自己掏的錢（只算支出），net 是個人淨收支（外包收入 − self） */
 export function monthScore(){
   const self=S.st.subFee+S.st.api+S.st.outPenalty+S.st.confFee, net=Math.round(S.st.outIncome-self);
-  const score=Math.round(S.kpi*SCORE.kpi+S.trust*SCORE.trust-S.st.audits*SCORE.audit);
-  const gi=GRADES[PAR()?'parallel':'serial'].findIndex(x=>score>=x);
-  return {self,net,score,grade:gi<0?'D':'SABC'[gi]};
+  /* 用量挑戰：加上 使用率 × BURN_PTS，評等門檻用另一組 */
+  const b=burnStat(), pts=BURN_PTS[PAR()?'parallel':'serial'], burn=S.burn?Math.round(pts*b.pct):0;
+  const score=Math.round(S.kpi*SCORE.kpi+S.trust*SCORE.trust-S.st.audits*SCORE.audit)+burn;
+  const gi=GRADES[S.burn?(PAR()?'burnParallel':'burnSerial'):(PAR()?'parallel':'serial')].findIndex(x=>score>=x);
+  return {self,net,score,grade:gi<0?'D':'SABC'[gi],burn,pts,pct:b.pct,bv:b.v,bm:b.m};
 }
 export function showEnd(){
-  const {self,net,score,grade:g}=monthScore();
+  const {self,net,score,grade:g,burn,pts,pct,bv,bm}=monthScore();
   const tot=Object.values(S.st.tk).reduce((a,b)=>a+b,0)||1;
   let title,desc;
   if(S.st.audits>=2){title=t('end.title.audits');desc=t('end.desc.audits')}
@@ -166,8 +173,8 @@ export function showEnd(){
   else {title=t('end.title.newbie');desc=t('end.desc.newbie')}
   /* 最高分依模式與公司分開記錄；Laravel 沿用改版前的舊 key */
   let best=0; const bk=bestKey();
-  try{best=+localStorage.getItem(bk)||(S.companies.join()==='laravel'?+localStorage.getItem('tokgame-best-'+S.mode)||0:0); if(score>best)localStorage.setItem(bk,score);}catch(e){}
-  track('game_end',{score,grade:g}); clearSave();
+  try{best=+localStorage.getItem(bk)||(!S.burn&&S.companies.join()==='laravel'?+localStorage.getItem('tokgame-best-'+S.mode)||0:0); if(score>best)localStorage.setItem(bk,score);}catch(e){}
+  track('game_end',{score,grade:g,...(S.burn?{burn_pct:Math.round(pct*100)}:{})}); clearSave();
   const vendorLines=Object.keys(S.st.tk).filter(v=>S.st.tk[v]>0).map(v=>`<div><span>${VENDORS[v].name}</span><span>${kt(S.st.tk[v])} tokens${t('sep')}${Math.round(S.st.tk[v]/tot*100)}%</span></div>`).join('')||`<div><span>${t('end.noAgent')}</span><span>—</span></div>`;
   const conf=S.conf.went.length||S.conf.req;
   const sp=t('sep'), row=(k,v)=>`<div><span>${t(k)}</span><span>${v}</span></div>`;
@@ -197,10 +204,11 @@ export function showEnd(){
     ${row('end.audits',t('end.nTimes',{n:S.st.audits}))}
     ${row('ui.meter.trust',Math.round(S.trust))}
     <div><span>KPI</span><span>${S.kpi}</span></div>
+    ${S.burn?row('end.burnUse',`${nt(bv)} / ${nt(bm)}${t('ui.burn.pct',{n:Math.round(pct*100)})}`)+row('end.burnPts','+'+burn.toLocaleString('en-US')):''}
     <hr><div class="tot"><span>${t('end.score')}</span><span>${score.toLocaleString('en-US')}</span></div>
     ${best?row('end.best',best.toLocaleString('en-US')):''}
   </div>
-  <p class="lead">${t('end.formula',{kpi:SCORE.kpi,trust:SCORE.trust,audit:SCORE.audit})}</p>
+  <p class="lead">${t('end.formula',{kpi:SCORE.kpi,trust:SCORE.trust,audit:SCORE.audit})}${S.burn?t('end.formulaBurn',{n:pts.toLocaleString('en-US')}):''}</p>
   <div class="actions"><button class="btn primary" data-act="again">${t('end.again')}</button><button class="btn ghost" data-act="close">${t('end.log')}</button></div>`;
   ov.hidden=false;
   mo.onclick=e=>{const bt=e.target.closest('button');if(!bt)return;if(bt.dataset.act==='again')start();if(bt.dataset.act==='close'){ov.hidden=true;app.querySelector('[data-act="end"]')?.setAttribute('disabled','');}};
