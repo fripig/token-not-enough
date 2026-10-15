@@ -1,9 +1,9 @@
 // localization 的規則檢查：docs/spectra/specs/localization/spec.md
-import {ok,section,stripComments,newRun} from './lib.js';
+import {ok,section,stripComments,newRun,bootSeen} from './lib.js';
 import {readFileSync,readdirSync} from 'node:fs';
 import {els,store,resetStore} from '../fake-dom.js';
 import {seedRandom} from '../seed.js';
-import {boot,firstIssues,start} from '../../public/js/main.js';
+import {firstIssues,start} from '../../public/js/main.js';
 import {STACKS,VENDORS} from '../../public/js/data.js';
 import * as dataModule from '../../public/js/data.js';
 import {S,issueTitle,makeIssue,sel} from '../../public/js/state.js';
@@ -173,7 +173,7 @@ section("字典一致性：key 集合、程式裡寫死的 key、題庫長度",(
     ok(els.app.innerHTML.includes('Ticket queue')&&els.app.innerHTML.includes('Background agents'),'i18n：切換後畫面重畫成英文');
         ok(snap()===s0&&store['tokgame-save']===save0&&ge.length===n0&&S.jobs.length===2,'i18n：切換不改狀態、不寫存檔、不送 GA、不寫紀錄，agent 照跑');
     /* 重新整理：偏好保留，繼續上一局的提示也是英文 */
-    boot(); ok(I.lang==='en'&&els.mo.innerHTML.includes('Continue your last game?'),'i18n：重新整理後沿用英文（含繼續上一局）');
+    bootSeen(); ok(I.lang==='en'&&els.mo.innerHTML.includes('Continue your last game?'),'i18n：重新整理後沿用英文（含繼續上一局）');
     /* localStorage 寫不進去：還是切得過去，重新整理再看瀏覽器語言 */
     I.setLang('zh-TW'); resetStore(); const set0=globalThis.localStorage.setItem; globalThis.localStorage.setItem=()=>{throw new Error('blocked');};
     let threw=false; try{clickLang('en');}catch(e){threw=true;}

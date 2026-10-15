@@ -10,4 +10,5 @@ export const resetStore=(seed={})=>{for(const k in store)delete store[k];Object.
 globalThis.document={getElementById:id=>els[id],documentElement:{lang:''},title:''};
 /* node 自帶 navigator.language（Node 24 是 en-US）；固定成繁中，check.js、sim.js 的輸出才不會變成英文 */
 Object.defineProperty(globalThis,'navigator',{value:{language:'zh-TW',languages:['zh-TW']},configurable:true,writable:true});
-globalThis.localStorage={getItem:k=>k in store?store[k]:null,setItem:(k,v)=>{store[k]=String(v);},removeItem:k=>{delete store[k];}};
+/* length、key(i)：最近更新判斷老玩家時要列出所有 key（gh-66-01） */
+globalThis.localStorage={getItem:k=>k in store?store[k]:null,setItem:(k,v)=>{store[k]=String(v);},removeItem:k=>{delete store[k];},get length(){return Object.keys(store).length;},key:i=>Object.keys(store)[i]??null};

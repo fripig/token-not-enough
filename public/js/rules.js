@@ -5,9 +5,10 @@ import {ABANDON_TRUST,CANCEL_MIN,AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_
 import {GRADES,SCORE} from './modals.js';
 import {mo,ov} from './view.js';
 import {t} from './i18n.js';
+import {NEWS,newsList} from './news.js';
 
 /* ===== 規則速查：數字一律從遊戲常數插值，改數值時這裡跟著變；文字在字典的 rules.* ===== */
-export const RULE_TABS=['basic','dispatch','billing','tickets','invest','score'].map(id=>({id,get title(){return t(`rules.tab.${id}`);}}));
+export const RULE_TABS=['basic','dispatch','billing','tickets','invest','score','news'].map(id=>({id,get title(){return t(`rules.tab.${id}`);}}));
 export let ruleTab='basic';
 /* 審核多出來的倍率（×1.3 → 0.3），避開浮點尾數 */
 export const x1=m=>Math.round((m-1)*100)/100;
@@ -107,6 +108,8 @@ export function rulesTab(id){
     ${rlist([r('hw1',{h:HW_REQ_HRS,setup:HW_SETUP_HRS}),
       r('hw2'),
       r('hw3',{n:HW_IDLE})])}`);
+  /* 最近更新的完整紀錄，新的在前（gh-66-01） */
+  case 'news': return newsList(NEWS);
   case 'score': return rsec(r('h.score'),rlist([
       r('score1',{kpi:SCORE.kpi,trust:SCORE.trust,audit:SCORE.audit}),
       r('score2')]))
@@ -129,8 +132,9 @@ export function rulesTab(id){
     +rsec(`${r('h.effort')} ${tag('adv')}`,rtable([r('th.effort'),r('th.cap'),'token',r('th.time')],EFFORT.map(e=>[e.name,e.cap>0?`+${e.cap}`:e.cap<0?`${e.cap}`:r('same'),`×${e.tk}`,`×${e.hrs}`])));
   }
 }
-/* 規則 modal：back 是從其他彈窗打開時，關閉後回到那個彈窗的函式 */
-export function showRules(back){
+/* 規則 modal：back 是從其他彈窗打開時，關閉後回到那個彈窗的函式；tab 是要直接打開的分頁（最近更新彈窗開「更新」） */
+export function showRules(back,tab){
+  if(tab&&RULE_TABS.some(x=>x.id===tab)) ruleTab=tab;
   const draw=()=>{
     mo.innerHTML=`<h2>${r('title')}</h2>
     <div class="seg rtabs">${RULE_TABS.map(x=>`<button class="sb ${x.id===ruleTab?'sel':''}" data-rtab="${x.id}">${x.title}</button>`).join('')}</div>

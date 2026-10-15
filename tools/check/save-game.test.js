@@ -1,7 +1,7 @@
 // save-game 的規則檢查：docs/spectra/specs/save-game/spec.md
-import {ok,section,newRun,ticket,job} from './lib.js';
+import {ok,section,newRun,ticket,job,bootSeen} from './lib.js';
 import {els,store,resetStore} from '../fake-dom.js';
-import {boot,start} from '../../public/js/main.js';
+import {start} from '../../public/js/main.js';
 import {bestKey,model} from '../../public/js/data.js';
 import * as dataModule from '../../public/js/data.js';
 import {S,fresh,sel} from '../../public/js/state.js';
@@ -38,7 +38,7 @@ section("save-game（gh-11-01-save-game）",()=>{
   /* 讀不到 localStorage：當成沒有存檔 */
   const gi=localStorage.getItem; localStorage.getItem=()=>{throw new Error('denied');};
   ok(St.readSave()===null,'save-game：getItem 丟例外時當成沒有存檔');
-  let threwLoad=false; try{boot();}catch(e){threwLoad=true;}
+  let threwLoad=false; try{bootSeen();}catch(e){threwLoad=true;}
   ok(!threwLoad&&els.mo.innerHTML.includes('月初：決定這個月怎麼付 token')&&!els.ov.hidden,'save-game：getItem 丟例外時開頁照常開局設定');
   localStorage.getItem=gi;
   /* 存檔只有這五個欄位，不帶 GAME_VERSION */
@@ -62,7 +62,7 @@ section("Day-start save",()=>{
   const d4=saved();
   ok(d4.S.day===4&&d4.S.issues.map(i=>i.id).join()===S.issues.map(i=>i.id).join()&&Array.isArray(d4.morning.rep)&&typeof d4.morning.monday==='boolean','save-game：換到第 4 天存當天早上的佇列與報告');
   ok(d4.morning.sum&&d4.morning.sum.d===3&&['kpi','trust','wallet','corp'].every(k=>Array.isArray(d4.morning.sum[k])&&d4.morning.sum[k].length===2),'save-game：早上報告存了第 3 天下班的四格數字',JSON.stringify(d4.morning.sum));
-  {const snap=store[SV]; fresh(); boot(); clickMo({act:'resume'}); store[SV]=snap;
+  {const snap=store[SV]; fresh(); bootSeen(); clickMo({act:'resume'}); store[SV]=snap;
    ok(S.day===4&&els.mo.innerHTML.includes('class="daysum"')&&els.mo.innerHTML.includes('第 3 天下班'),'save-game：開頁按繼續，早上報告顯示存下來的四格');}
   const is=S.issues.find(i=>!i.out); sel.issue=is.id; sel.v='deepseek'; sel.m='chat'; sel.b='api'; dispatch();
   ok(S.jobs.length===1&&saved().S.jobs.length===d4.S.jobs.length&&store[SV]===JSON.stringify(d4),'save-game：派工後存檔不變');
@@ -103,7 +103,7 @@ section("Resume on page load",()=>{
   newRun(['laravel','rust'],'parallel'); S.day=7; const t2=ticket('rust',3,{running:true}); S.issues=[t2,ticket('laravel',1)];
   S.jobs=[{issue:t2,v:'anthropic',b:'api',M:model('anthropic','sonnet'),mul:1,rv:1,tk:100,hrs:3,ok:true,caught:false,left:2,hidden:false,stop:false,sdd:false}];
   resetStore(); St.saveGame({rep:['2 個 agent 跑了一整晚'],ev:['事件標題','事件內容'],monday:false}); fresh();
-  ev.length=0; boot();
+  ev.length=0; bootSeen();
   ok(els.mo.innerHTML.includes('繼續上一局')&&els.mo.innerHTML.includes(`第 7 天・${dataModule.companyName(['laravel','rust'])}・平行</p>`)&&!els.ov.hidden,'save-game：開頁有存檔時顯示繼續彈窗與第 7 天・公司・平行（沒有 agent 數）');
   clickMo({act:'resume'});
   ok(S.day===7&&S.jobs.length===1&&S.jobs[0].issue===S.issues.find(i=>i.id===t2.id)&&els.app.innerHTML.includes(t2.title),'save-game：繼續後第 7 天、過夜 agent 還在、job 的工單就是佇列裡那張');
@@ -112,16 +112,16 @@ section("Resume on page load",()=>{
   ok(ev.length===0,'save-game：繼續不送 GA 事件',ev.join());
   ok(SV in store,'save-game：繼續後存檔保留');
   /* 第 1 天的存檔：繼續後沒有彈窗 */
-  newRun('laravel','serial'); St.saveGame(); fresh(); boot(); clickMo({act:'resume'});
+  newRun('laravel','serial'); St.saveGame(); fresh(); bootSeen(); clickMo({act:'resume'});
   ok(S.day===1&&els.ov.hidden,'save-game：繼續第 1 天的存檔後沒有彈窗');
   /* 開新局：刪掉存檔、開開局設定 */
-  newRun('laravel','serial'); S.day=5; St.saveGame({rep:[],ev:null,monday:false}); boot(); clickMo({act:'new'});
+  newRun('laravel','serial'); S.day=5; St.saveGame({rep:[],ev:null,monday:false}); bootSeen(); clickMo({act:'new'});
   ok(!(SV in store)&&els.mo.innerHTML.includes('月初：決定這個月怎麼付 token')&&S.day===1,'save-game：選開新局刪掉存檔並開開局設定');
   /* 沒有存檔：直接開局設定 */
-  resetStore(); boot();
+  resetStore(); bootSeen();
   ok(els.mo.innerHTML.includes('月初：決定這個月怎麼付 token')&&!els.ov.hidden,'save-game：沒有存檔時開頁直接開局設定');
   /* 壞存檔：提示，按鈕開局設定 */
-  resetStore({[SV]:'{"ver":0}'}); boot();
+  resetStore({[SV]:'{"ver":0}'}); bootSeen();
   ok(els.mo.innerHTML.includes('存檔無法讀取')&&!(SV in store),'save-game：壞存檔顯示讀不到並刪掉');
   clickMo({act:'new'}); ok(els.mo.innerHTML.includes('月初：決定這個月怎麼付 token'),'save-game：讀不到提示的按鈕開開局設定');
   delete globalThis.gtag;
@@ -133,7 +133,7 @@ section("Resume on page load：#63 之前存的 slots 直接忽略",()=>{
   newRun('laravel','parallel'); S.day=5; S.hours=8;
   const ta=ticket('fe',2,{running:true}), tb=ticket('fe',2,{running:true}), tc=ticket('fe',1,{due:8});
   S.issues=[ta,tb,tc]; S.jobs=[job(ta,'anthropic','sonnet','corp',{left:3,hrs:3}),job(tb,'anthropic','sonnet','corp',{left:3,hrs:3})];
-  S.slots=4; resetStore(); St.saveGame(null); fresh(); boot(); clickMo({act:'resume'});
+  S.slots=4; resetStore(); St.saveGame(null); fresh(); bootSeen(); clickMo({act:'resume'});
   ok(S.day===5&&S.jobs.length===2&&els.app.innerHTML.includes('背景 agent 2'),'舊存檔（slots: 4、兩個 agent）讀得進來，顯示背景 agent 2',S.jobs.length);
   sel.issue=tc.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0}); dispatch();
   ok(S.jobs.length===3,'讀檔後第三張照派，沒有工作槽上限',S.jobs.length);

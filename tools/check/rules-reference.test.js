@@ -1,6 +1,7 @@
 // rules-reference 的規則檢查：docs/spectra/specs/rules-reference/spec.md
 import {ok,section,newRun,ticket,job} from './lib.js';
-import {els,store} from '../fake-dom.js';
+import {els,store,resetStore} from '../fake-dom.js';
+import {boot} from '../../public/js/main.js';
 import {KPI,SEAT} from '../../public/js/data.js';
 import * as dataModule from '../../public/js/data.js';
 import {S,sel} from '../../public/js/state.js';
@@ -11,6 +12,7 @@ import * as C from '../../public/js/calc.js';
 import * as M from '../../public/js/modals.js';
 import * as St from '../../public/js/state.js';
 import * as Ru from '../../public/js/rules.js';
+import {NEWS,NEWS_KEY} from '../../public/js/news.js';
 import {setLang} from '../../public/js/i18n.js';
 import * as I from '../../public/js/i18n.js';
 
@@ -21,10 +23,13 @@ section("rules-reference（gh-20-01-rules-modal）",()=>{
   const tabIds=()=>[...els.mo.innerHTML.matchAll(/data-rtab="(\w+)"/g)].map(m=>m[1]);
   const selTab=()=>els.mo.innerHTML.match(/class="sb sel" data-rtab="(\w+)"/)?.[1];
   newRun('laravel'); els.ov.hidden=true; Ru.showRules();
-  ok(els.mo.innerHTML.includes('<h2>遊戲規則</h2>')&&tabIds().join()==='basic,dispatch,billing,tickets,invest,score'&&selTab()==='basic'&&!els.ov.hidden,'rules-reference：第一次打開有六個分頁、選中基本');
-  ok(Ru.RULE_TABS.map(t=>t.title).join()==='基本,派工與成功率,付費與稽核,工單與陷阱,投資與電腦,結算','rules-reference：分頁標題與順序');
+  ok(els.mo.innerHTML.includes('<h2>遊戲規則</h2>')&&tabIds().join()==='basic,dispatch,billing,tickets,invest,score,news'&&selTab()==='basic'&&!els.ov.hidden,'rules-reference：第一次打開有七個分頁、選中基本');
+  ok(Ru.RULE_TABS.map(t=>t.title).join()==='基本,派工與成功率,付費與稽核,工單與陷阱,投資與電腦,結算,更新','rules-reference：分頁標題與順序');
   for(const t of Ru.RULE_TABS){press({rtab:t.id}); ok(selTab()===t.id&&els.mo.innerHTML.includes(Ru.rulesTab(t.id)),`rules-reference：點 ${t.title} 會選中並顯示內容`);}
   press({rtab:'score'}); ok(els.mo.innerHTML.includes('總分 = KPI ×'),'rules-reference：結算分頁顯示總分公式');
+  /* gh-66-01：更新分頁列出全部，新的在前 */
+  {const h=Ru.rulesTab('news'), li=[...h.matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m=>m[1]);
+   ok(li.length===NEWS.length&&li[0].includes(NEWS[0].date)&&li[0].includes(I.t('news.gh-66-01'))&&li.at(-1).includes('2026-10-10')&&li.at(-1).includes(I.t('news.gh-32-01')),'rules-reference：更新分頁列出全部 21 筆，第一行是 gh-66-01、最後一行是 2026-10-10 的 gh-32-01',li.length);}
   /* gh-26-01-money-off-score：錢不算分、錢包用光就停、外包 KPI × 250、起始錢包 */
   ok(Ru.rulesTab('score').includes('總分 = KPI × 10 + 信任 × 4 − 稽核次數 × 80。')&&Ru.rulesTab('score').includes('錢不算分')&&!Ru.rulesTab('score').includes('÷'),'rules-reference：結算分頁寫新公式、錢不算分');
   ok(Ru.rulesTab('basic').includes('個人錢包 NT$8,000')&&Ru.rulesTab('basic').includes('錢包不夠付這次的訂閱就不能確認'),'rules-reference：基本分頁寫起始錢包 NT$8,000 與訂閱要付得起');
@@ -98,4 +103,20 @@ section("rules-reference：英文也寫平行沒有上限、衝突最多 90%（#
   setLang('en'); const be=Ru.rulesTab('basic');
   newRun('laravel','parallel'); S.hours=8; S.jobs=[job(ticket('fe',1),'anthropic','haiku','corp',{left:5,hrs:5})]; const hp=ticket('fe',1); S.issues=[hp]; sel.issue=hp.id; render(); const ph=els.app.innerHTML; setLang('zh-TW');
   ok(be.includes('No limit on how many agents run at once')&&be.includes('+25%')&&be.includes('adds 10% merge-conflict chance')&&be.includes('up to 90%')&&ph.includes('(up to 90%)'),'rules-reference：英文基本分頁與派工台平行提示也寫沒有上限、衝突最多 90%',be.slice(0,300));
+});
+
+section('Rules entry points／Closing returns to the opening context：從最近更新打開「更新」分頁（gh-66-01）',()=>{
+  const press=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+  const selTab=()=>els.mo.innerHTML.match(/class="sb sel" data-rtab="(\w+)"/)?.[1];
+  /* 8 筆沒看過：還有 3 筆，按了打開規則、選中更新 */
+  resetStore({[NEWS_KEY]:NEWS[8].id}); boot();
+  ok(els.mo.innerHTML.includes('還有 3 筆更新'),'rules-reference：8 筆沒看過時寫「還有 3 筆更新」');
+  press({act:'newsmore'});
+  ok(els.mo.innerHTML.includes('<h2>遊戲規則</h2>')&&selTab()==='news'&&store[NEWS_KEY]===NEWS[0].id,'rules-reference：還有 N 筆更新打開規則、選中更新、記成看過',selTab());
+  /* 有存檔：更新分頁關閉後是繼續彈窗，最近更新不再跳 */
+  newRun('laravel','serial'); S.day=3; resetStore(); St.saveGame({rep:[],ev:null,monday:false}); St.fresh();
+  boot(); press({act:'newsmore'}); press({act:'close'});
+  ok(els.mo.innerHTML.includes('繼續上一局')&&els.mo.innerHTML.includes('第 3 天')&&!els.ov.hidden,'rules-reference：從最近更新打開的規則，關閉後接回繼續彈窗');
+  boot(); ok(!els.mo.innerHTML.includes('<h2>最近更新</h2>')&&els.mo.innerHTML.includes('繼續上一局'),'rules-reference：之後開頁不再跳最近更新');
+  resetStore();
 });

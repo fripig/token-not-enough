@@ -5,6 +5,7 @@ import {abandonArm,app,armAbandon,armCancel,cancelArm,render,scrollToDispatch,se
 import {showBadSave,showResume,showSetup} from './modals.js';
 import {showRules} from './rules.js';
 import {initLang,setLang} from './i18n.js';
+import {showNews,unseenNews} from './news.js';
 import {INV_CX} from './data.js';
 
 /* ===== 事件 ===== */
@@ -59,10 +60,12 @@ export function start(){
   clearSave(); fresh(); firstIssues(); setTab('dispatch');
   render(); showSetup(false);
 }
-/* 開頁：先決定語言；有存檔問要不要繼續，存檔壞了先提示，都沒有就開新局 */
+/* 開頁：先決定語言；有沒看過的更新先開最近更新（要在 readSave 之前看，壞存檔會被刪掉），
+   關掉後才是原本的：有存檔問要不要繼續，存檔壞了先提示，都沒有就開新局 */
 export function boot(){
   initLang();
-  const d=readSave();
-  if(!d) start(); else if(d.bad) showBadSave(); else showResume(d);
+  const news=unseenNews(), d=readSave();
+  const next=()=>{if(!d) start(); else if(d.bad) showBadSave(); else showResume(d);};
+  if(news.length) showNews(news,next); else next();
 }
 boot();
