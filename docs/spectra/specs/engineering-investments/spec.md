@@ -26,7 +26,7 @@ The game SHALL offer these investments, each purchasable once per run at level 1
 
 寫 CLAUDE.md (per stack), 單元測試, secret scanning／脫敏 and 做 skills SHALL also have a level 2 costing 1 hour and NT$200, purchasable once level 1 is owned and the matching conference was attended: a 技術線場 conference covering that stack for CLAUDE.md, a 綜合場 conference for 單元測試, a 資安場 conference for secret scanning and an AI 場 conference for 做 skills. 導入 SDD SHALL also have a level 2 (SDD 框架) costing 1 hour and NT$200, purchasable once level 1 is owned, with no conference requirement. 提升 agent 能力 is defined in its own requirement. 交叉審核工具 SHALL have only level 1, SHALL need no conference, and its effect is defined in `cross-model-review`.
 
-The hours and budget in this section are the initial values; the implementation SHALL keep them in sync with any value changed by simulator tuning. A purchase SHALL be refused when the highest level is already owned, when the next level is locked, when remaining hours are below the hour cost, or when the company API budget is below the budget cost. A purchase SHALL deduct the budget from the company API budget and count it in the day's company spend and the month's company bill. In parallel mode it SHALL advance the clock by the hour cost (background agents keep running and settle, and the PR review time of an agent that finishes during the investment is added on top, as with every other clock advance); in serial mode it SHALL subtract the hours. It SHALL NOT be blocked by a busy local GPU. Investments SHALL reset at the start of each run. The investment 補測試 SHALL NOT exist.
+The hours and budget in this section are the initial values; the implementation SHALL keep them in sync with any value changed by simulator tuning. A purchase SHALL be refused when the highest level is already owned, when the next level is locked, when remaining hours are below the hour cost, or when the company API budget is below the budget cost. A purchase SHALL deduct the budget from the company API budget and count it in the day's company spend and the month's company bill. In parallel mode, pressing the investment-tab button of a written investment (as listed in `agent-investments`) SHALL create an investment ticket instead of purchasing, and the purchase defined here SHALL happen when that ticket is hand-written; buttons of the other investments purchase directly. A purchase in parallel mode SHALL advance the clock by the hour cost (background agents keep running and settle, and the PR review time of an agent that finishes during the investment is added on top, as with every other clock advance); in serial mode it SHALL subtract the hours. It SHALL NOT be blocked by a busy local GPU. Effects defined in this spec are the values at quality 100%; every owned level purchased here SHALL have quality 100%, and lower qualities from agent-built levels scale them as defined in `agent-investments`. Investments SHALL reset at the start of each run. The investment 補測試 SHALL NOT exist.
 
 #### Scenario: Successful purchase
 
@@ -68,6 +68,11 @@ The hours and budget in this section are the initial values; the implementation 
 
 - **WHEN** the player buys 交叉審核工具 with 8 hours left and NT$12,000 company budget in serial mode, without any conference attended
 - **THEN** 6 hours remain, company budget is NT$11,800, 交叉審核工具 shows 已完成 and a GA `invest` event is sent with `investment` `xreview`
+
+#### Scenario: Parallel-mode button opens a ticket
+
+- **WHEN** in parallel mode the player presses the 單元測試 button with 8 hours left and NT$12,000 company budget
+- **THEN** 8 hours remain, company budget is NT$12,000, 單元測試 is still not owned and the queue holds one 單元測試 investment ticket
 
 ---
 ### Requirement: CLAUDE.md effect
