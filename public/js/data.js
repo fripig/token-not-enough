@@ -44,6 +44,8 @@ export function cnBlock(is,v,M){
   return '';
 }
 export const SEAT={day:2500,week:10000,get name(){return t('seat.name');},vendors:['anthropic','openai','google'],trust:[55,65,75],review:5};
+/* 用量挑戰：用量加分＝BURN_PTS × 使用率；席位不用錢，照 Max 5× 的月費算價值（週額度 10,000k 接近 Max 5× 的 9,000k，估計值） */
+export const BURN_PTS={serial:500,parallel:4000}, BURN_SEAT_VALUE=3300;
 export const BASE=[0,60,180,350,550,850,1200];
 export const KPI=[0,3,6,10,16,24,34];
 /* 技術線：前六個是可選的工作內容（主技術線），fe 是每種工作內容都會有的前端工單 */
@@ -67,7 +69,7 @@ export function normCompanies(c){
   return ok?COMPANIES.filter(k=>a.includes(k)):['laravel'];
 }
 export const companyName=(cs=S.companies)=>cs.map(k=>STACKS[k].company).join(t('company.join'));
-export const bestKey=()=>`tokgame-best-${S.mode}-${S.companies.join('+')}`;
+export const bestKey=()=>`tokgame-best-${S.mode}-${S.companies.join('+')}${S.burn?'-burn':''}`;
 
 /* ===== 工具 ===== */
 export const R=(a,b)=>a+Math.random()*(b-a);

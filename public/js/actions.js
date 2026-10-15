@@ -1,6 +1,6 @@
 import {CAP_SCALE,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,CONFLICT_MAX,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv,INV_CX,invCx,CLIENTS} from './data.js';
 import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardKpi,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks,issueTitle,dueBy,invTitle} from './state.js';
-import {REVIEW,reviewer,reviewerBlock,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetBlock,presetFor,quotaLeft,storeReject,useQuota,gigBlocked,sddStop,ciMul,hookMul,scanMul,mcpEvalHrs,mcpReveal,skillsLv,mdTk,mdP,sddP,testCatch,monOn,invQ,setInvQ} from './calc.js';
+import {REVIEW,reviewer,reviewerBlock,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetBlock,presetFor,quotaLeft,storeReject,useQuota,weekBurn,gigBlocked,sddStop,ciMul,hookMul,scanMul,mcpEvalHrs,mcpReveal,skillsLv,mdTk,mdP,sddP,testCatch,monOn,invQ,setInvQ} from './calc.js';
 import {render,setTab} from './view.js';
 import {showDay,showEnd} from './modals.js';
 import {t} from './i18n.js';
@@ -119,7 +119,7 @@ export function charge(b,v,M,tk){
     useQuota(b,v,need); return {spend:t('log.spend.quota',{n:kt(need)}),short:false,frac:1,q:need};
   }
   if(b==='api'){ const c=tk*M.price*S.priceMod[v], paid=Math.min(c,Math.max(0,S.wallet)); S.wallet-=paid; S.st.api+=paid; return {spend:nt(paid),short:paid<c,frac:c>0?paid/c:1,cost:paid}; }
-  if(b==='corp'){ const c=tk*M.price*S.priceMod[v]; S.corp-=c; S.corpDay+=c; S.st.corp+=c; return {spend:t('log.spend.corp',{c:nt(c)}),short:false,frac:1,cost:c}; }
+  if(b==='corp'){ const c=tk*M.price*S.priceMod[v]; S.corp-=c; S.corpDay+=c; S.st.corp+=c; S.st.corpTk+=c; return {spend:t('log.spend.corp',{c:nt(c)}),short:false,frac:1,cost:c}; }
   return {spend:t('log.spend.power'),short:false,frac:1};
 }
 /* 同一種付費方式扣了兩次（交叉審核的修正）時，紀錄寫合計 */
@@ -594,6 +594,8 @@ export function endDay(){
   S.day++; S.hours=START.hours; S.corpDay=0; S.outage=null; S.dayStart=daySnap();
   for(const k of ['sub','seat'])for(const v in S.used[k])S.used[k][v].d=0;
   const monday=(S.day-1)%5===0;
+  /* 用量挑戰：每週額度歸零前，把剛結束這週的訂閱與席位用量記下來 */
+  if(monday){const w=weekBurn();S.st.burnV+=w.v;S.st.burnM+=w.m;}
   if(monday)for(const k of ['sub','seat'])for(const v in S.used[k])S.used[k][v].w=0;
   if(S.seatReq&&S.day>=S.seatReq.day+SEAT.review){
     const sv=S.seatReq.vendor, need=SEAT.trust[S.seats.length]; S.seatReq=null;

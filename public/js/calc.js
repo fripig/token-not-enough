@@ -1,4 +1,4 @@
-import {BIG,CATCH,MANUAL_HRS,RESEARCH_DIRECT_TK,RETRY,STACK_HRS,UNFAMILIAR_HRS,FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,CAP_SCALE,WEAK_CAP,P_TOP,cnBlock,effModel,efOf,kt,model,planOf,AI_P,CONF_MANUAL,lv,INV_ON,CI_CONFLICT,HOOK_PR,SCAN_AUDIT,MCP_REVEAL,MCP_EVAL_HRS,SDD_TRAP_STOP,invQuality} from './data.js';
+import {APIV,BURN_SEAT_VALUE,BIG,CATCH,MANUAL_HRS,RESEARCH_DIRECT_TK,RETRY,STACK_HRS,UNFAMILIAR_HRS,FASTLANE_REJECT,HW,MD_P,MD_TK,PC_SPEED,SDD_P,SDD_TK,SEAT,STACKS,TEST_CATCH,VENDORS,CAP_SCALE,WEAK_CAP,P_TOP,cnBlock,effModel,efOf,kt,model,planOf,AI_P,CONF_MANUAL,lv,INV_ON,CI_CONFLICT,HOOK_PR,SCAN_AUDIT,MCP_REVEAL,MCP_EVAL_HRS,SDD_TRAP_STOP,invQuality} from './data.js';
 import {S,sel,unfamiliar,confStacks} from './state.js';
 import {PAR,TRAP_STOP,invLevel} from './actions.js';
 import {t} from './i18n.js';
@@ -10,6 +10,19 @@ export function quotaLeft(kind,v){
   return Math.max(0,Math.min(p.day*cm-u.d,p.week*cm-u.w));
 }
 export function useQuota(kind,v,x){const u=S.used[kind][v];u.d+=x;u.w+=x;}
+/* 用量挑戰：這週的訂閱（月費 ÷ 4）與席位（BURN_SEAT_VALUE ÷ 4）照每週額度用了幾成算價值 */
+export function weekBurn(){
+  let v=0,m=0;
+  for(const k of APIV){const p=planOf(k); if(!p.price) continue; const val=p.price/4, cap=p.week*S.capMod[k]; m+=val; v+=val*(cap>0?Math.min(1,S.used.sub[k].w/cap):0);}
+  for(const k of S.seats){const val=BURN_SEAT_VALUE/4; m+=val; v+=val*Math.min(1,S.used.seat[k].w/SEAT.week);}
+  return {v,m};
+}
+/* 整個月的使用率：已結束的週＋這週（當作現在結束）＋公司 API（花在 token 的錢 ÷ 花掉的加剩下的，透支算滿） */
+export function burnStat(){
+  const w=weekBurn(), ct=S.st.corpTk, cm=ct+Math.max(0,S.corp);
+  const v=S.st.burnV+w.v+ct, m=S.st.burnM+w.m+cm;
+  return {v,m,pct:m>0?v/m:0};
+}
 
 /* 自我審核：多花 token 與時間，agent 改壞時有機會當場抓到並修正，避免整單重做 */
 export const REVIEW=[{get name(){return t('review.0');},tk:1,hrs:1},{get name(){return t('review.1');},tk:1.3,hrs:1.2},{get name(){return t('review.2');},tk:1.6,hrs:1.35}];

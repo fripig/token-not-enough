@@ -1,6 +1,6 @@
 import {CAP_SCALE,CONFLICT_MAX,RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL,INV_CX} from './data.js';
 import {GIG_LATE,S,issueTitle,sel,unfamiliar,dueBy} from './state.js';
-import {REVIEW,reviewer,reviewCost,rvModelBlock,sddLevel,bills,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetBlock,quotaLeft,stackHint,skillsLv,invQ,sddP,sddStop} from './calc.js';
+import {REVIEW,reviewer,reviewCost,rvModelBlock,sddLevel,bills,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetBlock,quotaLeft,burnStat,stackHint,skillsLv,invQ,sddP,sddStop} from './calc.js';
 import {ABANDON_TRUST,canAbandon,INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax,invTicketBlock,invSelfBlock,lvCost} from './actions.js';
 import {LANGS,LANG_SWITCH,lang,t} from './i18n.js';
 
@@ -41,6 +41,9 @@ export function render(){
   if(S.seatReq) qs+=`<div class="q none">${t('ui.q.seatReq',{d:S.seatReq.day+5})}</div>`;
   if(S.hwReq) qs+=`<div class="q none">${t('ui.q.hwReq',{name:HW[S.hwReq.k].name,d:S.hwReq.day+HW[S.hwReq.k].days})}</div>`;
   if(!qs) qs=`<div class="q none">${t('ui.q.none')}</div>`;
+  /* 用量挑戰：這個月到目前為止用掉的價值（這週當作現在結束），放在最前面 */
+  if(S.burn){const b=burnStat(), n=Math.round(b.pct*100);
+    qs=`<div class="q"><div class="nm">${t('ui.burn.row')}<span>${nt(b.v)} / ${nt(b.m)}${t('ui.burn.pct',{n})}</span></div><div class="bar"><i style="width:${n}%"></i></div></div>`+qs;}
 
   const jobsHtml=!PAR()?'':`<div class="ph" style="margin-top:6px"><h2>${t('ui.jobs.title')}</h2><span>${t('ui.jobs.slots',{n:S.jobs.length})}</span></div>
     <div class="jobs">${S.jobs.map(j=>{const sh=j.shownHrs??j.hrs, el=j.hrs-j.left, over=el>=sh, pr=over?1:Math.max(0,el/sh);const lbl=BILL_LABEL[j.b];

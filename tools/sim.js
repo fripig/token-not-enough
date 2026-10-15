@@ -31,15 +31,16 @@
 // SIM_RESEARCH=agent|self 讓自動玩家遇到研究單時先研究再派工：agent 用它本來要派的廠商、模型與付費方式研究，self 自己研究；不能研究（例如工時不夠）時照舊直接派工。預設的自動玩家一律直接派工。
 // SIM_COMBOS=1 改跑十五種雙選組合（另跑單選 Laravel 當對照）。
 // SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
+// SIM_BURN=1 開用量挑戰，平均分那幾行多印使用率（整體、訂閱＋席位、公司 API）與席位佔總價值的比例；SIM_BURN=2 再換成燒額度的自動玩家（見 BURN 的註解）。
 // SIM_LOG=1 每種模式額外印出月底執行紀錄的筆數（平均、最多）與存檔 JSON 的字元數（平均、最多），量紀錄整月保留後的大小。
 import {els} from './fake-dom.js';
 import './sim-seed.js';
 // 先載入入口模組，模組初始化順序才會和瀏覽器一樣（main.js 載入時會呼叫 start()）
 import {firstIssues,start} from '../public/js/main.js';
-import {INV_CX,CAP_SCALE,COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model,CONF,CONF_KEYS,CONF_LAST_DAY} from '../public/js/data.js';
+import {BURN_PTS,BURN_SEAT_VALUE,INV_CX,CAP_SCALE,COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model,CONF,CONF_KEYS,CONF_LAST_DAY} from '../public/js/data.js';
 import {START,S,dueBy,sel,setResearchRate,setSixRate,setTrapRate} from '../public/js/state.js';
-import {est,hwBlock,localBusy,prefBill,quotaLeft,reviewerBlock,rvPrefBill} from '../public/js/calc.js';
-import {isInvTicket,openInvTicket,PAR,abandon,canAbandon,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
+import {burnStat,est,hwBlock,localBusy,prefBill,quotaLeft,reviewerBlock,rvPrefBill} from '../public/js/calc.js';
+import {CORP_DAY_LIMIT,isInvTicket,openInvTicket,PAR,abandon,canAbandon,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
 import {dispatchPanel} from '../public/js/view.js';
 import {subCost} from '../public/js/modals.js';
 // 自動玩家不記最高分（和改成模組前一樣）
@@ -100,6 +101,11 @@ const oaiPrice=id=>VENDORS.openai.plans.find(p=>p.id===id).price;
 const LOG=process.env.SIM_LOG==='1', logs={};
 /* SIM_ABANDON=1：下班前把今天到期、沒在跑的公司單退掉（−2 信任，比逾期的 −4 與扣 KPI 一半划算） */
 const ABANDON=process.env.SIM_ABANDON==='1';
+/* SIM_BURN=1：開用量挑戰，印出平均使用率；=2 再換成燒額度的自動玩家：訂閱、席位有額度就派 Opus／Astra／Gemini Pro（中強度、自審），
+   公司 API 照「剩下的預算 ÷ 剩下的天數」與單日上限分配給 Opus，都不行才照預設派法 */
+const BURN=['1','2'].includes(process.env.SIM_BURN)?+process.env.SIM_BURN:0;
+if(process.env.SIM_BURN!==undefined&&!BURN){ console.error(`SIM_BURN 只能是 1 或 2，收到「${process.env.SIM_BURN}」`); process.exit(1); }
+const BURN_MODEL={anthropic:'opus',openai:'high',google:'pro'}, burnRuns={};
 
 /* SIM_INVAGENT：開（或找回）這項投資的投資工單，派給能力夠的模型或 DeepSeek Chat */
 function invAgent(k,st){
@@ -122,7 +128,7 @@ function sim(){
     for(const company of runs){
       for(let g=0;g<N*3;g++){
         /* 先設模式再產生第 1 天工單：難線 KPI ×1.3 只在單線（gh-53） */
-        start(); S.companies=company.split('+'); S.outsource=OUT; S.advanced=EFF;
+        start(); S.companies=company.split('+'); S.outsource=OUT; S.advanced=EFF; S.burn=!!BURN;
         S.mode=mode; firstIssues();
         if(SUB){ S.subs.openai=SUB; S.wallet-=SUB_PRICE; S.st.subFee+=SUB_PRICE; }
         else{ S.subs.anthropic='max5'; S.wallet-=3300; S.st.subFee+=3300; }
@@ -176,6 +182,18 @@ function sim(){
                 if(fb){ sel.v='anthropic'; sel.m=HAIKU?'haiku':'sonnet'; sel.b=fb; }
                 else{ sel.v='local'; sel.m='gemma'; sel.b='local'; }
               }
+              if(BURN===2){
+                const is=free[0], def={v:sel.v,m:sel.m,b:sel.b,rv:sel.rv,ef:sel.ef}; sel.rv=1; sel.ef=1;
+                const subV=['openai','anthropic'].find(v=>S.subs[v]!=='none'&&S.outage!==v&&quotaLeft('sub',v)>300);
+                const seatB=is.out?undefined:S.seats.find(v=>S.outage!==v&&quotaLeft('seat',v)>300);
+                if(subV) Object.assign(sel,{v:subV,m:BURN_MODEL[subV],b:'sub'});
+                else if(seatB) Object.assign(sel,{v:seatB,m:BURN_MODEL[seatB],b:'seat'});
+                else{
+                  const c=!is.out&&S.outage!=='anthropic'?est(is,'anthropic','opus').hi*model('anthropic','opus').price:Infinity, today=(S.corp+S.corpDay)/(21-S.day);
+                  if(S.corpDay+c<=Math.min(CORP_DAY_LIMIT,today)&&c<=S.corp) Object.assign(sel,{v:'anthropic',m:'opus',b:'corp'});
+                  else Object.assign(sel,def);
+                }
+              }
               if(XREV){
                 const rr=S.inv.xreview&&sel.rv>=1&&model(sel.v,sel.m).cap-free[0].cx*CAP_SCALE<=-CAP_SCALE?{...OPUS,b:rvPrefBill(free[0],OPUS.v,OPUS.m)}:null;
                 Object.assign(sel,rr&&!reviewerBlock(free[0],rr,sel.v)?{rvv:rr.v,rvm:rr.m,rvb:rr.b}:{rvv:null,rvm:null,rvb:null});
@@ -197,6 +215,10 @@ function sim(){
         const k=mode+' '+company; sum[k]??={n:0,tot:0,g:{}};
         sum[k].n++; sum[k].tot+=score; sum[k].g[grade]=(sum[k].g[grade]||0)+1;
         if(LOG)(logs[mode]??=[]).push([S.log.length,JSON.stringify({S,sel}).length]);
+        /* 用量挑戰：整體、公司 API、訂閱＋席位的使用率，與席位佔總價值的比例 */
+        if(BURN){const b=burnStat(), cm=S.st.corpTk+Math.max(0,S.corp), seatM=S.seats.reduce((t,v)=>t+((21-SEAT_DAYS[SEAT.vendors.indexOf(v)])/5)*BURN_SEAT_VALUE/4,0);
+          const u=sum[k].u??={pct:0,corp:0,sub:0,seat:0}; u.pct+=b.pct; u.corp+=cm>0?S.st.corpTk/cm:0; u.sub+=b.m-cm>0?(b.v-S.st.corpTk)/(b.m-cm):0; u.seat+=b.m>0?seatM/b.m:0;
+          (burnRuns[mode]??=[]).push([score,Math.round(BURN_PTS[mode]*b.pct)]);}
         if(g<3){const self=S.st.subFee+S.st.api;console.log(mode,company,'rv',g%3,'caught',S.st.caught,'cnBan',S.cnBan,'ds',Math.round(S.st.tk.deepseek),'ant',Math.round(S.st.tk.anthropic),'kpi',S.kpi,'done',S.st.done,'late',S.st.late,'trust',Math.round(S.trust),'self',Math.round(self),'corp',Math.round(S.st.corp),'conf',S.st.conflicts,'out',S.st.outDone+'/'+S.st.outLate,'outIncome',S.st.outIncome,...(LUNA||SUB||UPG?['oai',Math.round(S.st.tk.openai)]:[]),...(HWSIM?['hw',HW_KEYS.filter(k=>S.hw[k]).join('+')||'none','local',Math.round(S.st.tk.local)]:[]),...(SEATS?['seats',S.seats.join('+'),'oai',Math.round(S.st.tk.openai),'goog',Math.round(S.st.tk.google)]:[]),'grade',grade);}
       }
     }
@@ -204,7 +226,13 @@ function sim(){
   console.log('\n=== 平均分（對照同模式的 Laravel）===');
   for(const k in sum){
     const mode=k.split(' ')[0], m=sum[k].tot/sum[k].n, base=sum[mode+' laravel'].tot/sum[mode+' laravel'].n;
-    console.log(k.padEnd(22),'mean',String(Math.round(m)).padStart(6),'vs laravel',((m/base-1)*100).toFixed(1).padStart(6)+'%','grades','SABCD'.split('').map(x=>x+':'+(sum[k].g[x]||0)).join(' '));
+    const u=sum[k].u, p=x=>(x/sum[k].n*100).toFixed(1)+'%';
+    console.log(k.padEnd(22),'mean',String(Math.round(m)).padStart(6),'vs laravel',((m/base-1)*100).toFixed(1).padStart(6)+'%','grades','SABCD'.split('').map(x=>x+':'+(sum[k].g[x]||0)).join(' '),...(BURN?['usage',p(u.pct),'sub+seat',p(u.sub),'corp',p(u.corp),'seatShare',p(u.seat)]:[]));
+  }
+  if(BURN){
+    console.log('\n=== 用量挑戰（SIM_BURN）：各模式所有工作內容合計 ===');
+    const med=a=>{const s=[...a].sort((x,y)=>x-y), h=s.length>>1; return s.length%2?s[h]:(s[h-1]+s[h])/2;};
+    for(const mode in burnRuns){const r=burnRuns[mode]; console.log(mode.padEnd(9),'局數',r.length,'總分中位數',med(r.map(x=>x[0])),'用量加分中位數',med(r.map(x=>x[1])),'用量加分平均',Math.round(r.reduce((t,x)=>t+x[1],0)/r.length));}
   }
   if(LOG){
     console.log('\n=== 月底執行紀錄（SIM_LOG）===');

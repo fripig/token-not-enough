@@ -154,6 +154,10 @@ section("multi-stack-company：狀態、沿用、退回",()=>{
   ok('tokgame-best-parallel-laravel+app' in store&&!h2.includes('999,999'),'雙選寫入 tokgame-best-parallel-laravel+app，不讀舊 key');
   h2=endPair(['laravel'],{'tokgame-best-parallel':'4200'}); ok(h2.includes('4,200'),'只選 Laravel 仍讀舊 key');
   newRun('rails','serial'); ok(bestKey()==='tokgame-best-serial-rails','單選 key 不變');
+  /* 用量挑戰：key 多 -burn，不讀沒開時的最高分與舊 key */
+  newRun(['laravel'],'parallel'); S.burn=true; resetStore({'tokgame-best-parallel':'4200','tokgame-best-parallel-laravel':'5000'}); S.day=20; S.kpi=900; showEnd(); h2=els.mo.innerHTML;
+  ok(!h2.includes('先前最佳')&&'tokgame-best-parallel-laravel-burn' in store,'用量挑戰寫入 tokgame-best-parallel-laravel-burn，不讀一般與舊 key');
+  S.burn=false;
   newRun(['sre','devops'],'parallel'); ok(bestKey()==='tokgame-best-parallel-sre+devops','SRE＋DevOps 的最高分 key');
 
   /* 投資按鈕順序 */
