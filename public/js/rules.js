@@ -61,7 +61,7 @@ export function rulesTab(id){
       `<b>${BILL_LABEL.sub}</b>${r('bill.sub')}`,
       `<b>${BILL_LABEL.seat}</b>${r('bill.seat',{day:kt(SEAT.day),week:kt(SEAT.week)})}`,
       `<b>${BILL_LABEL.api}</b>${r('bill.api')}`,
-      `<b>${BILL_LABEL.corp}</b>${r('bill.corp',{vendors:APIV.filter(v=>VENDORS[v].corp).map(v=>VENDORS[v].name).join(ls),limit:nt(CORP_DAY_LIMIT),n:CORP_DAY_TRUST,od:OVERDRAFT_TRUST})}`,
+      `<b>${BILL_LABEL.corp}</b>${r(S.corpApi.length?'bill.corp':'bill.corpNone',{vendors:S.corpApi.map(v=>VENDORS[v].name).join(ls),limit:nt(CORP_DAY_LIMIT),n:CORP_DAY_TRUST,od:OVERDRAFT_TRUST})}`,
       `<b>${BILL_LABEL.local}</b>${r('bill.local',{tag:tag('par')})}`,
       `${tag('gig')}${r('bill.gig')}`]))
     +rsec(r('h.audit'),rlist([

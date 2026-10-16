@@ -20,6 +20,9 @@ section("billing-methods：付費選項",()=>{
   S.subs.anthropic='pro'; ok(note('anthropic','sub').ok&&note('anthropic','sub').note==='Pro・剩 450k','billing-methods：有訂閱時顯示剩餘額度');
   ok(!note('openai','corp').ok&&note('openai','corp').note==='公司沒簽約','billing-methods：沒簽約的廠商不能走公司 API');
   S.corp=0; ok(!note('anthropic','corp').ok&&note('anthropic','corp').note==='預算用完','billing-methods：公司預算用完');
+  S.corp=12000; S.corpApi=[];
+  ok(['anthropic','openai','google'].every(v=>!note(v,'corp').ok&&note(v,'corp').note==='公司沒簽約'),'billing-methods：一家都沒簽時預算還在也不能走公司 API');
+  S.corpApi=['anthropic','google'];
   /* 扣款 */
   newRun('laravel');
   charge('api','anthropic',model('anthropic','sonnet'),200); ok(near(S.wallet,8000-90)&&near(S.st.api,90),'billing-methods：200k Sonnet 個人 API 扣 NT$90');

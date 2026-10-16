@@ -5,25 +5,25 @@ import {t,tl} from './i18n.js';
 /* 遊戲版本：部署時 .github/workflows/pages.yml 的兩個 job（GitHub Pages、Cloudflare Pages）各自把 'dev' 換成短 commit hash，本機與 node 工具維持 dev */
 export const GAME_VERSION='dev';
 export const VENDORS={
-  anthropic:{name:'Anthropic',agent:'Claude Code',vc:'--anth',corp:true,
+  anthropic:{name:'Anthropic',agent:'Claude Code',vc:'--anth',
     plans:[{id:'none',get name(){return t('plan.none');},price:0},{id:'pro',name:'Pro',price:650,day:450,week:1800},{id:'max5',name:'Max 5×',price:3300,day:2200,week:9000},{id:'max20',name:'Max 20×',price:6500,day:9000,week:36000}],
     models:[{id:'haiku',name:'Haiku',cap:30,price:.15,w:.3,speed:.7,verb:.9},{id:'sonnet',name:'Sonnet',cap:40,price:.45,w:1,speed:.8,verb:1},{id:'opus',name:'Opus',cap:50,price:.9,w:2,speed:1,verb:.85},{id:'fable',name:'Fable',cap:60,price:1.8,w:4,speed:1.2,verb:.85}]},
-  openai:{name:'OpenAI',agent:'Codex CLI',vc:'--oai',corp:false,
+  openai:{name:'OpenAI',agent:'Codex CLI',vc:'--oai',
     plans:[{id:'none',get name(){return t('plan.none');},price:0},{id:'plus',name:'Plus',price:650,day:500,week:2000},{id:'pro',name:'Pro 200',price:6500,day:8000,week:30000},{id:'pro500',name:'Pro 500',price:16250,day:12500,week:50000}],
     models:[{id:'mini',name:'Luna',cap:30,price:.15,w:.3,speed:.7,verb:1},{id:'std',name:'Sol',cap:40,price:.4,w:1,speed:.8,verb:1.05},{id:'high',name:'Astra',cap:50,price:1.6,w:3,speed:1,verb:.95}]},
-  google:{name:'Google',agent:'Gemini CLI',vc:'--goog',corp:true,
+  google:{name:'Google',agent:'Gemini CLI',vc:'--goog',
     plans:[{id:'none',get name(){return t('plan.none');},price:0},{id:'aipro',name:'AI Pro',price:650,day:700,week:2800},{id:'ultra',name:'Ultra',price:8000,day:10000,week:40000}],
     models:[{id:'flash',name:'Flash',cap:20,price:.06,w:.25,speed:.4,verb:1.1,ctx:true},{id:'pro',name:'Pro',cap:40,price:.35,w:1,speed:.9,verb:1,ctx:true}]},
-  deepseek:{name:'DeepSeek',get agent(){return t('agent.deepseek');},vc:'--dsk',corp:false,cn:true,
+  deepseek:{name:'DeepSeek',get agent(){return t('agent.deepseek');},vc:'--dsk',cn:true,
     plans:[{id:'none',get name(){return t('plan.none');},price:0}],
     models:[{id:'chat',name:'Chat',cap:30,price:.03,w:1,speed:.7,verb:1.15},{id:'reasoner',name:'Reasoner',cap:40,price:.06,w:1,speed:1.2,verb:1.5}]},
-  zhipu:{get name(){return t('vendor.zhipu');},get agent(){return t('agent.zhipu');},vc:'--glm',corp:false,cn:true,
+  zhipu:{get name(){return t('vendor.zhipu');},get agent(){return t('agent.zhipu');},vc:'--glm',cn:true,
     plans:[{id:'none',get name(){return t('plan.none');},price:0},{id:'lite',name:'Lite',price:100,day:1500,week:6000},{id:'pro',name:'Pro',price:500,day:6000,week:24000}],
     models:[{id:'air',name:'GLM Air',cap:30,price:.04,w:.5,speed:.6,verb:1.1},{id:'glm',name:'GLM',cap:40,price:.1,w:1,speed:.9,verb:1.1}]},
-  moonshot:{name:'Kimi',agent:'Kimi CLI',vc:'--kimi',corp:false,cn:true,
+  moonshot:{name:'Kimi',agent:'Kimi CLI',vc:'--kimi',cn:true,
     plans:[{id:'none',get name(){return t('plan.none');},price:0},{id:'member',get name(){return t('plan.member');},price:300,day:1500,week:6000}],
     models:[{id:'k2',name:'K2',cap:40,price:.12,w:1,speed:.9,verb:1.2}]},
-  local:{get name(){return t('vendor.local');},get agent(){return t('agent.local');},vc:'--local',corp:false,plans:[],
+  local:{get name(){return t('vendor.local');},get agent(){return t('agent.local');},vc:'--local',plans:[],
     /* 基本款不用買電腦；id 沿用舊名，存檔、派工方案與 GA 不受影響。hw 標記要先買哪台電腦（見 HW） */
     models:[{id:'qwen',name:'Qwen3.6 35B-A3B',cap:30,price:0,w:0,speed:1.7,verb:1.3,cn:true},{id:'gemma',name:'Gemma 4 26B A4B',cap:30,price:0,w:0,speed:1.9,verb:1.25},{id:'oss',name:'Gemma 4 E4B',cap:20,price:0,w:0,speed:1.8,verb:1.2},
       {id:'qcnext',name:'Qwen3-Coder-Next',cap:40,price:0,w:0,speed:1.4,verb:1.2,cn:true,hw:'spark'},{id:'gemma4',name:'Gemma 4 31B',cap:40,price:0,w:0,speed:2,verb:1.2,hw:'spark'},{id:'glm53',name:'GLM-5.3',cap:50,price:0,w:0,speed:2.8,verb:1,cn:true,hw:'mac'}]}
@@ -67,6 +67,13 @@ export function normCompanies(c){
   const a=typeof c==='string'?[c]:c;
   const ok=Array.isArray(a)&&a.length>=1&&a.length<=2&&new Set(a).size===a.length&&a.every(k=>COMPANIES.includes(k));
   return ok?COMPANIES.filter(k=>a.includes(k)):['laravel'];
+}
+/* 公司 API 合約：開局選哪幾家美系廠商有簽，固定照 CORP_VENDORS 的順序存；空陣列也合法，不合法退回預設 */
+export const CORP_VENDORS=['anthropic','openai','google'];
+export const CORP_DEFAULT=['anthropic','google'];
+export function normCorp(c){
+  const ok=Array.isArray(c)&&new Set(c).size===c.length&&c.every(k=>CORP_VENDORS.includes(k));
+  return ok?CORP_VENDORS.filter(k=>c.includes(k)):[...CORP_DEFAULT];
 }
 export const companyName=(cs=S.companies)=>cs.map(k=>STACKS[k].company).join(t('company.join'));
 export const bestKey=()=>`tokgame-best-${S.mode}-${S.companies.join('+')}${S.burn?'-burn':''}`;

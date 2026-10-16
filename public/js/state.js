@@ -1,4 +1,4 @@
-import {STACK_PICK,STACK_FE,CONF,HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,lv,normCompanies,objOf,pick,pickClient,presetsOf,rnd,validReviewer,INVEST} from './data.js';
+import {STACK_PICK,STACK_FE,CONF,HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,lv,normCompanies,normCorp,objOf,pick,pickClient,presetsOf,rnd,validReviewer,INVEST} from './data.js';
 import {t,tl} from './i18n.js';
 import {monOn} from './calc.js';
 
@@ -11,7 +11,7 @@ export const resetIds=()=>{uid=0;};
 export const START={wallet:8000,corp:12000,trust:70,hours:8};
 export function fresh(){
   uid=0;
-  S={day:1,hours:START.hours,wallet:START.wallet,corp:START.corp,trust:START.trust,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),outsource:S?.outsource===true,advanced:S?.advanced===true,burn:S?.burn===true,presets:presetsOf(S?.presets),jobs:[],
+  S={day:1,hours:START.hours,wallet:START.wallet,corp:START.corp,trust:START.trust,kpi:0,mode:S?.mode||'parallel',companies:normCompanies(S?.companies),outsource:S?.outsource===true,advanced:S?.advanced===true,burn:S?.burn===true,corpApi:normCorp(S?.corpApi),presets:presetsOf(S?.presets),jobs:[],
     inv:{md:{},...objOf(INV_KEYS,()=>0),ai:0},
     invQ:{md:{}},
     subs:objOf(APIV,()=>'none'),
@@ -32,7 +32,7 @@ export const daySnap=()=>({kpi:S.kpi,trust:S.trust,wallet:S.wallet,corp:S.corp})
 export function track(name,extra={}){
   try{
     if(typeof gtag!=='function') return;
-    gtag('event',name,{game_version:GAME_VERSION,game_mode:S.mode,companies:S.companies.join('+'),advanced:S.advanced,outsource:S.outsource,burn:S.burn,day:S.day,...extra});
+    gtag('event',name,{game_version:GAME_VERSION,game_mode:S.mode,companies:S.companies.join('+'),advanced:S.advanced,outsource:S.outsource,burn:S.burn,corp_api:S.corpApi.length?S.corpApi.join('+'):'none',day:S.day,...extra});
   }catch(e){}
 }
 
@@ -69,6 +69,8 @@ export function loadGame(d){
   S.conf??={req:null,went:[]}; S.st.confFee??=0; S.st.abandoned??=0;
   /* 用量挑戰之前的存檔：當作沒開、還沒有累計 */
   S.burn??=false; S.st.burnV??=0; S.st.burnM??=0; S.st.corpTk??=0;
+  /* 公司 API 合約之前的存檔（或壞掉的值）：當作 Anthropic＋Google */
+  S.corpApi=normCorp(S.corpApi);
   /* 舊存檔沒有 SDD 選擇：當 2（用已買的最高級） */
   if(![0,1,2].includes(sel.sdd)) sel.sdd=2;
   /* 交叉審核之前的存檔沒有審核模型：選擇與跑著的 job 都當同一個 */

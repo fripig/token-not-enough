@@ -5,6 +5,7 @@ import {start} from '../../public/js/main.js';
 import {CLIENTS,VENDORS,kt,model} from '../../public/js/data.js';
 import {S,sel} from '../../public/js/state.js';
 import {capBar,render} from '../../public/js/view.js';
+import {bills} from '../../public/js/calc.js';
 
 section("agent-catalog：模型數值表",()=>{
   /* agent-catalog：模型數值表 */
@@ -21,7 +22,20 @@ section("agent-catalog：模型數值表",()=>{
   ok(['flash','pro'].every(m=>model('google',m).ctx)&&MODELS.filter(r=>r[0]!=='google').every(([v,m])=>!model(v,m).ctx),'agent-catalog：只有 Gemini 有 ctx');
   ok(Object.keys(VENDORS).filter(v=>VENDORS[v].cn).join()==='deepseek,zhipu,moonshot'&&model('local','qwen').cn&&!model('local','gemma').cn&&!model('local','oss').cn&&model('local','qcnext').cn&&!model('local','gemma4').cn&&model('local','glm53').cn,'agent-catalog：中國廠商與 Qwen、GLM-5.3 中國權重');
   ok(VENDORS.local.models.map(x=>x.name).join()==='Qwen3.6 35B-A3B,Gemma 4 26B A4B,Gemma 4 E4B,Qwen3-Coder-Next,Gemma 4 31B,GLM-5.3'&&VENDORS.local.models.map(x=>x.hw||'').join()===',,,spark,spark,mac','agent-catalog：本地模型依序是三個基本款再三個電腦解鎖的');
-  ok(Object.keys(VENDORS).filter(v=>VENDORS[v].corp).join()==='anthropic,google','agent-catalog：只有 Anthropic、Google 可走公司 API');
+  ok(Object.values(VENDORS).every(V=>!('corp' in V)),'agent-catalog：VENDORS 沒有寫死的 corp 標記，公司 API 看這局的合約清單');
+});
+
+section("agent-catalog：公司 API 只給這局有簽約的廠商（gh-70-01）",()=>{
+  const corp=v=>bills(v,ticket('fe',2)).find(b=>b.id==='corp');
+  newRun('laravel','parallel');
+  ok(!corp('openai').ok&&corp('openai').note==='公司沒簽約','預設合約：OpenAI Sol 的公司 API 停用、寫公司沒簽約',JSON.stringify(corp('openai')));
+  S.corpApi=['openai'];
+  ok(corp('openai').ok&&corp('openai').note==='走部門預算','只簽 OpenAI：Sol 的公司 API 可用、寫走部門預算',JSON.stringify(corp('openai')));
+  ok(['anthropic','google'].every(v=>!corp(v).ok&&corp(v).note==='公司沒簽約'),'只簽 OpenAI：Sonnet、Gemini Pro 的公司 API 停用、寫公司沒簽約');
+  S.corpApi=['anthropic','openai','google'];
+  ok(['deepseek','zhipu','moonshot'].every(v=>!corp(v).ok&&corp(v).note==='公司沒簽約'),'三家都簽：中國廠商仍不能走公司 API');
+  ok(bills('local',ticket('fe',2)).every(b=>b.id!=='corp'),'三家都簽：本地模型沒有公司 API');
+  S.corpApi=['anthropic','google'];
 });
 
 section("訂閱方案表",()=>{

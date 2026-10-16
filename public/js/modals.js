@@ -1,4 +1,4 @@
-import {BURN_PTS,COMPANIES,STACK_PICK,STACK_FE,UNFAMILIAR_HRS,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
+import {BURN_PTS,COMPANIES,CORP_VENDORS,normCorp,STACK_PICK,STACK_FE,UNFAMILIAR_HRS,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
 import {S,addGigs,clearSave,daySnap,loadGame,modeKpi,saveGame,sel,track,dueBy} from './state.js';
 import {burnStat,log,prefBill} from './calc.js';
 import {PAR,invCount,sumDelta} from './actions.js';
@@ -41,7 +41,7 @@ export function toggleCompany(cs,k){
 }
 export function showSetup(adjust){
   const rulesBtn=`<div class="actions"><button class="btn ghost" data-act="rules">${t('ui.setup.rules')}</button></div>`;
-  draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],outsource:S.outsource,advanced:S.advanced,burn:S.burn};
+  draft={subs:{...S.subs},seat:'',mode:S.mode,companies:[...S.companies],outsource:S.outsource,advanced:S.advanced,burn:S.burn,corpApi:[...S.corpApi]};
   const draw=()=>{
     mo.innerHTML=`<h2>${adjust?t('ui.setup.titleAdj'):t('ui.setup.title')}</h2>
     <div class="mlang">${langSwitch()}</div>
@@ -55,6 +55,9 @@ export function showSetup(adjust){
     <div class="sec"><label>${t('ui.setup.gig')}</label><div class="modes">
       <button class="sb ${draft.outsource?'':'sel'}" data-out="0"><b>${t('ui.setup.gigOff')}</b><small>${t('ui.setup.gigOffSub')}</small></button>
       <button class="sb ${draft.outsource?'sel':''}" data-out="1"><b>${t('ui.setup.gigOn')}</b><small>${t('ui.setup.gigOnSub')}</small></button>
+    </div></div>
+    <div class="sec"><label>${t('ui.setup.corp')}</label><p class="hint">${t('ui.setup.corpHint')}</p><div class="modes">
+      ${CORP_VENDORS.map(v=>{const on=draft.corpApi.includes(v);return `<button class="sb ${on?'sel':''}" data-corp="${v}"><b>${VENDORS[v].name}</b><small>${on?t('bill.dept'):t('bill.noContract')}</small></button>`;}).join('')}
     </div></div>
     <div class="sec"><label>${t('ui.setup.adv')}</label><div class="modes">
       <button class="sb ${draft.advanced?'':'sel'}" data-adv="0"><b>${t('ui.setup.advOff')}</b><small>${t('ui.setup.advOffSub')}</small></button>
@@ -82,6 +85,7 @@ export function showSetup(adjust){
     else if(bt.dataset.out){draft.outsource=bt.dataset.out==='1';draw();}
     else if(bt.dataset.adv){draft.advanced=bt.dataset.adv==='1';draw();}
     else if(bt.dataset.burn){draft.burn=bt.dataset.burn==='1';draw();}
+    else if(bt.dataset.corp){const v=bt.dataset.corp;draft.corpApi=draft.corpApi.includes(v)?draft.corpApi.filter(k=>k!==v):[...draft.corpApi,v];draw();}
     else if(bt.dataset.act==='close'){ov.hidden=true;}
     else if(bt.dataset.act==='rules'){showRules(back);}
     /* 開局視窗蓋住標頭，所以這裡也能換語言；草稿不重設 */
@@ -91,10 +95,10 @@ export function showSetup(adjust){
       if(!adjust){
         const outChanged=draft.outsource!==S.outsource, modeChanged=draft.mode!==S.mode; S.outsource=draft.outsource;
         /* 模式先定下來，第 1 天工單的 KPI 才會照確認的模式算（難線 ×1.3 只在單線） */
-        S.mode=draft.mode; S.advanced=draft.advanced; S.burn=draft.burn;
+        S.mode=draft.mode; S.advanced=draft.advanced; S.burn=draft.burn; S.corpApi=normCorp(draft.corpApi);
         if(draft.companies.join()!==S.companies.join()){S.companies=draft.companies;firstIssues();}
         else{ if(outChanged){S.issues=S.issues.filter(i=>!i.out);const g=addGigs();if(g)log('dim',t('log.setup.gigs',{n:g}));} if(modeChanged) modeKpi(); }
-        log('dim',t('log.setup.mode',{company:companyName(),mode:PAR()?t('ui.modePar'):t('ui.modeSerial'),adv:(S.advanced?t('sep')+t('ui.setup.advOn'):'')+(S.burn?t('sep')+t('ui.setup.burnOn'):'')}));
+        log('dim',t('log.setup.mode',{company:companyName(),mode:PAR()?t('ui.modePar'):t('ui.modeSerial'),adv:(S.advanced?t('sep')+t('ui.setup.advOn'):'')+(S.burn?t('sep')+t('ui.setup.burnOn'):''),corp:t('log.setup.corpPart',{v:S.corpApi.length?S.corpApi.map(v=>VENDORS[v].name).join(t('sep.list')):t('log.setup.corpNone')})}));
       }
       const changed=SUBV.filter(v=>draft.subs[v]!==S.subs[v]);
       for(const v of changed) S.subs[v]=draft.subs[v];

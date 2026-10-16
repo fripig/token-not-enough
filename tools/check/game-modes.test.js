@@ -19,10 +19,10 @@ section("game-modes：模式選擇",()=>{
   {
   start(); S.mode='parallel'; showSetup(false);
   ok(/class="sb sel" data-mode="parallel"/.test(els.mo.innerHTML)&&els.mo.innerHTML.includes('data-mode="serial"'),'game-modes：開局可選平行或單線，選中平行');
-  clickMo({act:'confirm'}); ok(S.log.some(l=>l.msg.endsWith('· Laravel 後端・遊戲模式：平行')),'game-modes：開局紀錄寫平行、沒有 agent 數',S.log.map(l=>l.msg).join('|'));
+  clickMo({act:'confirm'}); ok(S.log.some(l=>l.msg.endsWith('· Laravel 後端・遊戲模式：平行・公司 API：Anthropic、Google')),'game-modes：開局紀錄寫平行、沒有 agent 數',S.log.map(l=>l.msg).join('|'));
   pristine.fresh(); ok(pristine.S.mode==='parallel','game-modes：第一次開局預設平行模式');
   S.mode='serial'; fresh(); ok(S.mode==='serial','game-modes：模式跨局保留');
-  start(); clickMo({act:'confirm'}); ok(S.log.some(l=>l.msg.endsWith('遊戲模式：單線')),'game-modes：開局紀錄寫單線');
+  start(); clickMo({act:'confirm'}); ok(S.log.some(l=>l.msg.endsWith('遊戲模式：單線・公司 API：Anthropic、Google')),'game-modes：開局紀錄寫單線');
   showSetup(true); ok(!els.mo.innerHTML.includes('data-mode'),'game-modes：週一調整不能換模式');
   /* 單線 */
   newRun('laravel'); S.hours=8; const ts=ticket('fe',2); S.issues=[ts]; sel.issue=ts.id; Object.assign(sel,{v:'anthropic',m:'sonnet',b:'corp',rv:0});

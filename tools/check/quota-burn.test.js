@@ -48,6 +48,15 @@ section("quota-burn：公司 API 預算",()=>{
   ok(S.st.corpTk>0&&near(S.st.corpTk+S.corp,12000),'刷公司 API 會記進 corpTk',String(S.st.corpTk));
 });
 
+section("quota-burn：一家都沒簽時不算公司 API（gh-70-01）",()=>{
+  newRun('laravel','parallel'); S.corpApi=[];
+  for(const v in S.subs) S.subs[v]='none';
+  S.st.burnV=3300; S.st.burnM=3300; S.st.corpTk=0; S.corp=11000;
+  const b=burnStat(); ok(near(b.m,3300)&&near(b.v,3300)&&near(b.pct,1),'沒簽約、預算剩 NT$11,000、訂閱 NT$3,300 用滿：使用率 100%',JSON.stringify(b));
+  S.corpApi=['anthropic','google'];
+  ok(near(burnStat().m,14300),'有簽約時公司預算照算進總價值',String(burnStat().m));
+});
+
 section("quota-burn：個人 API 不算",()=>{
   newRun('laravel','parallel');
   charge('api','anthropic',model('anthropic','opus'),3000);

@@ -17,9 +17,10 @@ export function weekBurn(){
   for(const k of S.seats){const val=BURN_SEAT_VALUE/4; m+=val; v+=val*Math.min(1,S.used.seat[k].w/SEAT.week);}
   return {v,m};
 }
-/* 整個月的使用率：已結束的週＋這週（當作現在結束）＋公司 API（花在 token 的錢 ÷ 花掉的加剩下的，透支算滿） */
+/* 整個月的使用率：已結束的週＋這週（當作現在結束）＋公司 API（花在 token 的錢 ÷ 花掉的加剩下的，透支算滿）；
+   這局公司一家都沒簽時公司 API 那塊不算（預算只能買投資，不能拿來燒） */
 export function burnStat(){
-  const w=weekBurn(), ct=S.st.corpTk, cm=ct+Math.max(0,S.corp);
+  const w=weekBurn(), on=S.corpApi.length>0, ct=on?S.st.corpTk:0, cm=on?ct+Math.max(0,S.corp):0;
   const v=S.st.burnV+w.v+ct, m=S.st.burnM+w.m+cm;
   return {v,m,pct:m>0?v/m:0};
 }
@@ -156,6 +157,8 @@ export const reviewCost=e=>e.rv?costLine(e.rv.b,e.R,e.rv.v,{lo:e.rlo,hi:e.rhi}):
 
 /* 外包單只能自己付：公司 API 與公司席位都不能用 */
 export const GIG_NOTE=()=>t('why.gig');
+/* 這局公司有簽公司 API 合約的廠商（開局設定，見 corp-api-contracts） */
+export const corpOk=v=>S.corpApi.includes(v);
 export const gigBlocked=(is,b)=>!!is?.out&&(b==='corp'||b==='seat');
 export function bills(v,is){
   if(v==='local') return [{id:'local',label:t('bill.local'),note:t('bill.localNote'),ok:true}];
@@ -163,7 +166,7 @@ export function bills(v,is){
   out.push({id:'sub',label:t('bill.sub'),note:pl.id==='none'?t('bill.noPlan'):t('bill.planLeft',{plan:pl.name,n:kt(quotaLeft('sub',v))}),ok:pl.id!=='none'});
   if(S.seats.includes(v)) out.push({id:'seat',label:t('bill.seat'),note:t('bill.left',{n:kt(quotaLeft('seat',v))}),ok:true});
   out.push(S.wallet>0?{id:'api',label:t('bill.api'),note:t('bill.card'),ok:true}:{id:'api',label:t('bill.api'),note:t('why.walletEmpty'),ok:false});
-  out.push({id:'corp',label:t('bill.corp'),note:!V.corp?t('bill.noContract'):S.corp<=0?t('bill.budgetOut'):t('bill.dept'),ok:V.corp&&S.corp>0});
+  out.push({id:'corp',label:t('bill.corp'),note:!corpOk(v)?t('bill.noContract'):S.corp<=0?t('bill.budgetOut'):t('bill.dept'),ok:corpOk(v)&&S.corp>0});
   return out.map(b=>gigBlocked(is,b.id)?{...b,note:GIG_NOTE(),ok:false}:b);
 }
 /* 換廠商時的預設付費：有席位且額度夠用席位，否則有訂閱且額度夠用訂閱，都不行回傳 null（維持原本）；機敏單不自動換成個人訂閱（會被稽核） */

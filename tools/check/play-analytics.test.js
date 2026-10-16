@@ -21,19 +21,19 @@ section("GA 遊戲事件（gh-10-01-play-analytics）",()=>{
   ok(names()==='game_start,subscription,day_reached'&&ev.every(e=>e.kind==='event'&&e.p.day===1),'play-analytics：開局確認送 game_start、subscription、第 1 天 day_reached',names());
   ok(ev[1].p.vendor==='none'&&ev[1].p.plan==='none','play-analytics：沒有訂閱時送一筆 vendor none、plan none',JSON.stringify(ev[1].p));
   const p0=ev[0].p;
-  ok(p0.game_version==='dev'&&p0.game_mode==='serial'&&p0.companies==='rails'&&!('slots' in p0)&&p0.advanced===false&&p0.outsource===false&&p0.burn===false,'play-analytics：單線 Rails 的共同參數',JSON.stringify(p0));
+  ok(p0.game_version==='dev'&&p0.game_mode==='serial'&&p0.companies==='rails'&&!('slots' in p0)&&p0.advanced===false&&p0.outsource===false&&p0.burn===false&&p0.corp_api==='anthropic+google','play-analytics：單線 Rails 的共同參數',JSON.stringify(p0));
   /* 開局參數：平行 Laravel＋Rust、進階、接外包 */
   newRun('laravel','parallel'); S.advanced=false; S.outsource=false; showSetup(false);
-  clickMo({company:'rust'}); clickMo({out:'1'}); clickMo({adv:'1'}); clickMo({burn:'1'}); ev.length=0; clickMo({act:'confirm'});
+  clickMo({company:'rust'}); clickMo({out:'1'}); clickMo({adv:'1'}); clickMo({burn:'1'}); clickMo({corp:'anthropic'}); clickMo({corp:'google'}); ev.length=0; clickMo({act:'confirm'});
   const p1=ev[0]?.p||{};
-  ok(ev[0]?.name==='game_start'&&p1.game_mode==='parallel'&&p1.companies==='laravel+rust'&&!('slots' in p1)&&p1.advanced===true&&p1.outsource===true&&p1.burn===true,'play-analytics：平行雙選的共同參數',JSON.stringify(p1));
+  ok(ev[0]?.name==='game_start'&&p1.game_mode==='parallel'&&p1.companies==='laravel+rust'&&!('slots' in p1)&&p1.advanced===true&&p1.outsource===true&&p1.burn===true&&p1.corp_api==='none','play-analytics：平行雙選的共同參數',JSON.stringify(p1));
   /* 整個月：第 1–20 天各一次 day_reached，第 20 天結束送 game_end，不送第 21 天 */
   for(let i=0;i<20;i++)endDay();
   const days=ev.filter(e=>e.name==='day_reached').map(e=>e.p.day).join();
   ok(days===Array.from({length:20},(_,i)=>i+1).join(),'play-analytics：第 1–20 天各送一次 day_reached',days);
   ok(ev.filter(e=>e.name==='game_end').length===1&&ev.at(-1).name==='game_end'&&ev.at(-1).p.day===20,'play-analytics：月底送一次 game_end');
   ok(ev.at(-1).p.burn===true&&Number.isInteger(ev.at(-1).p.burn_pct)&&ev.at(-1).p.burn_pct>=0&&ev.at(-1).p.burn_pct<=100,'play-analytics：用量挑戰的 game_end 帶 burn_pct（0–100 的整數）',JSON.stringify(ev.at(-1).p));
-  S.burn=false;
+  S.burn=false; S.corpApi=['anthropic','google'];
   /* gh-18-01：識別子不變，SRE＋DevOps 送 sre+devops */
   newRun('sre','parallel'); showSetup(false); clickMo({company:'devops'}); ev.length=0; clickMo({act:'confirm'});
   ok(ev[0]?.name==='game_start'&&ev[0].p.companies==='sre+devops','play-analytics：SRE＋DevOps 的 companies 是 sre+devops',JSON.stringify(ev[0]?.p));

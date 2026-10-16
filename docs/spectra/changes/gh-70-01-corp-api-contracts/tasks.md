@@ -1,0 +1,23 @@
+## 1. Store the list on `S.corpApi`, drop `VENDORS[v].corp`
+
+- [x] 1.1 Company API contract setting data: add `CORP_VENDORS`, `CORP_DEFAULT` and `normCorp` to public/js/data.js; `fresh()` in public/js/state.js carries `corpApi: normCorp(S?.corpApi)` across runs and `loadGame` fills a missing field with the default (Contract list in saves; `SAVE_VER` unchanged). Verify: new tools/check/corp-api-contracts.test.js asserts the normalization table of the Company API contract setting spec (reordering, empty list kept, unknown vendor / duplicate / non-array / missing → default) and that an old save without `corpApi` loads as `['anthropic','google']`; `node tools/check.js corp-api-contracts save-game` passes.
+- [x] 1.2 [after: 1.1] Add `corpOk(v)` in public/js/calc.js and make `bills()` (Billing options per vendor; Vendor and model catalog) enable 公司 API only when `corpOk(v) && S.corp > 0` (note 公司沒簽約 otherwise); remove the `corp` flag from every `VENDORS` entry so the run's list is the only source. Verify: billing-methods and agent-catalog checks updated for the default list (OpenAI disabled), the OpenAI-only list (Sol enabled, Sonnet and Gemini Pro disabled), the empty list (all disabled with budget above 0) and DeepSeek with all three contracted (disabled); `grep -n "\.corp\b" public/js/data.js public/js/calc.js public/js/rules.js` shows no `VENDORS[...].corp` / `V.corp` reads; `node tools/check.js billing-methods agent-catalog` passes.
+
+## 2. Toggle buttons, not a radio set
+
+- [x] 2.1 [after: 1.1] In `showSetup` (opening only, not `adjust`) add the 公司 API 合約 section after outsourcing and before 進階模式: three `data-corp` toggle buttons (Anthropic, OpenAI, Google) whose small text is 走部門預算 / 公司沒簽約, hint text `ui.setup.corpHint`, `draft.corpApi` copied from `S.corpApi`, confirm assigns `S.corpApi = normCorp(draft.corpApi)` before `prefBill` and `track('game_start')`, without calling `firstIssues()` or `addGigs()`. Reword `ui.setup.r.corp` to point at the section. Add keys to both dictionaries. Verify: corp-api-contracts check clicks `data-corp` buttons and asserts default preselection, persistence through 再玩一個月, empty list allowed, day-1 ticket ids unchanged after toggling, and no `data-corp` in the weekly modal; `node tools/check.js corp-api-contracts localization` passes.
+- [x] 2.2 [after: 2.1] Contract list in rules and log: the rules modal billing tab lists `S.corpApi` names (or 這局公司沒有簽任何廠商, `rules.bill.corpNone`), and `log.setup.mode` ends with ・公司 API：<names> or ・公司 API：無. Verify: corp-api-contracts check asserts the rules tab for OpenAI + Google (names OpenAI and Google, not Anthropic) and the setup log line for the empty list; rules-reference and localization checks pass (zh/en number parity).
+
+## 3. GA parameter name `corp_api`
+
+- [x] 3.1 [after: 1.1] `track()` adds `corp_api` to the Common event parameters (`S.corpApi.join('+')` or `none`) to every event. Verify: play-analytics check asserts `corp_api` `anthropic+google` on the serial Rails `game_start` and `none` on the parallel run with every vendor unticked; `node tools/check.js play-analytics` passes.
+
+## 4. Usage challenge with no contracts
+
+- [x] 4.1 [after: 1.1] `burnStat()` (Value-weighted usage) leaves the company pool out when `S.corpApi` is empty. Verify: quota-burn check asserts usage 100% for an empty list with company budget NT$11,000 and subscription pools NT$3,300 / NT$3,300 used, and the existing NT$17,775 / NT$13,455 example still holds with the default list; `node tools/check.js quota-burn` passes.
+
+## 5. Scope, release and records
+
+- [x] 5.1 [after: 1.2, 2.1] Contract list scope: confirm seats and best-score key ignore the list. Verify: corp-api-contracts check asserts the Monday seat request offers all three vendors with an empty list, and `bestKey()` is the same for an OpenAI-only run and a default run.
+- [x] 5.2 [after: 2.2, 3.1, 4.1, 5.1] Add the `gh-70-01` entry at the front of `NEWS` with `news.gh-70-01` in both dictionaries (dated the push day), and update docs/DESIGN.md: vendor table column 公司可走 API, billing section, GA parameter list (`corp_api` as custom dimension), opening setup description, requirement list item 55 with the user's choices, and note that company-paid OpenAI is unmeasured. Verify: `node tools/check.js` passes in full (whats-new checks included); `SIM_SEED=101 node tools/sim.js` output is byte-identical to the same command on `main` before the change (diff of the two outputs is empty).
+- [x] 5.3 [after: 5.2] Manual check in the browser (`python3 -m http.server -d public 8000`): untick Anthropic, tick OpenAI, confirm; Sonnet's 公司 API is disabled with 公司沒簽約 and Sol's is enabled; layout fits 400px width. Verify: observed in the browser and reported with what was seen.
