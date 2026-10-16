@@ -1,4 +1,4 @@
-import {CONF,HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,lv,normCompanies,objOf,pick,pickClient,presetsOf,rnd,validReviewer,INVEST} from './data.js';
+import {STACK_PICK,STACK_FE,CONF,HARD_KPI,INC_KPI,STORE_RATE,APIV,BASE,GAME_VERSION,CLIENTS,COMPANIES,HW_KEYS,INV_KEYS,KPI,MONITOR_KPI,R,SEAT,STACKS,VENDORS,lv,normCompanies,objOf,pick,pickClient,presetsOf,rnd,validReviewer,INVEST} from './data.js';
 import {t,tl} from './i18n.js';
 import {monOn} from './calc.js';
 
@@ -85,8 +85,8 @@ export const confCount=()=>S.conf.went.length;
 /* 一般工單：75% 平分給選到的主技術線、15% 前端、10% 平分給沒選的技術線 */
 export function pickStack(){
   const r=Math.random();
-  if(r<.75) return pick(S.companies);
-  if(r<.9) return 'fe';
+  if(r<STACK_PICK) return pick(S.companies);
+  if(r<STACK_PICK+STACK_FE) return 'fe';
   return pick(COMPANIES.filter(k=>!S.companies.includes(k)));
 }
 /* 陷阱題：看起來是小單（複雜度 1–2），其實牽扯架構（真實複雜度 4–5） */

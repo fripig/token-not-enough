@@ -1,4 +1,4 @@
-import {BURN_PTS,COMPANIES,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
+import {BURN_PTS,COMPANIES,STACK_PICK,STACK_FE,UNFAMILIAR_HRS,SEAT,STACKS,SUBV,VENDORS,bestKey,companyName,kt,nt,planOf,vc} from './data.js';
 import {S,addGigs,clearSave,daySnap,loadGame,modeKpi,saveGame,sel,track,dueBy} from './state.js';
 import {burnStat,log,prefBill} from './calc.js';
 import {PAR,invCount,sumDelta} from './actions.js';
@@ -49,7 +49,7 @@ export function showSetup(adjust){
     <ul class="rules">
       ${SETUP_RULES.map(k=>`<li>${t(k)}</li>`).join('')}
     </ul>${rulesBtn}
-    <div class="sec"><label>${t('ui.setup.work')}</label><div class="modes">
+    <div class="sec"><label>${t('ui.setup.work')}</label><p class="hint">${t('ui.setup.workHint',{pick:Math.round(STACK_PICK*100),fe:Math.round(STACK_FE*100),other:Math.round((1-STACK_PICK-STACK_FE)*100),x:UNFAMILIAR_HRS})}</p><div class="modes">
       ${COMPANIES.map(k=>{const on=draft.companies.includes(k);return `<button class="sb ${on?'sel':''}" data-company="${k}" ${!on&&draft.companies.length>=2?'disabled':''}><b>${STACKS[k].company}</b><small>${t('ui.setup.level')} ${'★'.repeat(STACKS[k].level)}${t('sep')}${STACKS[k].desc}</small></button>`;}).join('')}
     </div></div>
     <div class="sec"><label>${t('ui.setup.gig')}</label><div class="modes">

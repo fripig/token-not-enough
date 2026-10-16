@@ -8,6 +8,9 @@ import {S,fresh,makeIssue,pickStack,sel,unfamiliar} from '../../public/js/state.
 import {manualHrs} from '../../public/js/calc.js';
 import {intakeIssue} from '../../public/js/actions.js';
 import {render} from '../../public/js/view.js';
+import {setLang} from '../../public/js/i18n.js';
+import {DICT as zh} from '../../public/js/i18n/zh-TW.js';
+import {DICT as en} from '../../public/js/i18n/en.js';
 import {showEnd,showSetup} from '../../public/js/modals.js';
 
 section("1.1 技術線資料",()=>{
@@ -100,7 +103,14 @@ section("multi-stack-company：狀態、沿用、退回",()=>{
   const press=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
   const picked=()=>COMPANIES.filter(k=>new RegExp(`class="sb sel" data-company="${k}"`).test(els.mo.innerHTML)).join();
   start(); S.companies=['laravel']; showSetup(false);
-  ok(els.mo.innerHTML.includes('工作內容（可選 1–2 項）'),'標籤寫出工作內容可選 1–2 項');
+  ok(els.mo.innerHTML.includes('<label>熟悉的工作內容（可選 1–2 項）</label>'),'標籤寫出熟悉的工作內容可選 1–2 項');
+  { const h=els.mo.innerHTML, hint='所有技術線都會進工單：選的佔 75%、前端 15%、其他 10%。沒選的算不熟，手寫要 ×2。';
+    const iL=h.indexOf('熟悉的工作內容（可選 1–2 項）'), iH=h.indexOf(`<p class="hint">${hint}</p>`), iB=h.indexOf('data-company=');
+    ok(iL>=0&&iH>iL&&iB>iH,'提示行在標籤之後、第一顆工作內容按鈕之前',`${iL} ${iH} ${iB}`);
+    ok([zh,en].every(D=>['{pick}','{fe}','{other}','{x}'].every(p=>D['ui.setup.workHint'].includes(p))),'提示行的數字從常數插值，字典不寫死');
+    setLang('en'); showSetup(false); const he=els.mo.innerHTML; setLang('zh-TW');
+    ok(he.includes('<label>Stacks you know (pick 1–2)</label>')&&he.includes('<p class="hint">Every stack sends tickets: 75% to your picks, 15% frontend, 10% the rest. Stacks you did not pick are unfamiliar; hand-writing takes ×2.</p>'),'英文標籤與提示行');
+    showSetup(false); }
   press({company:'app'}); ok(picked()==='laravel,app','laravel + 點 app → laravel, app');
   ok(/data-company="rust" disabled/.test(els.mo.innerHTML)&&/data-company="rails" disabled/.test(els.mo.innerHTML),'選滿兩條時其他按鈕停用');
   press({company:'rust'}); ok(picked()==='laravel,app','選滿時點 rust 不變');

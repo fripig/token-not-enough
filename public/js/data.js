@@ -166,6 +166,7 @@ export const CATCH={base:.2,per:.1,strict:.2,max:.95};            // 自我審�
 export const REVEAL={base:.35,per:.15,max:.95};                     // 評估架構識破率
 export const BIG={gap:5,tk:.7};                                     // 大型 codebase：能力差距 ±gap、ctx 模型 token ×tk
 export const RETRY={tk:.7,hrs:.8};                                  // 失敗後重做的 token 與時間折扣
+export const STACK_PICK=.75, STACK_FE=.15;                          // 一般工單分給選到的主技術線、前端的比例，剩下的給沒選的
 export const MANUAL_HRS=2.2, UNFAMILIAR_HRS=2;                      // 手寫每單位複雜度的時數、不熟的倍率
 export const STACK_HRS={rust:1.2,app:1.15,devops:1.25};             // 技術線執行時間倍率
 export const STORE_RATE=.4, INC_KPI=1.6, HARD_KPI=1.3, LATE_KPI=.5; // 需上架審核比例、事故 KPI、難線 KPI、逾期扣 KPI 比例
