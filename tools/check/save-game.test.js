@@ -139,3 +139,12 @@ section("Resume on page load：#63 之前存的 slots 直接忽略",()=>{
   ok(S.jobs.length===3,'讀檔後第三張照派，沒有工作槽上限',S.jobs.length);
   delete S.slots;
 });
+
+section("Resume on page load：全端打雜的存檔（gh-69-01）",()=>{
+  const clickMo=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+  newRun([],'serial'); S.day=4; resetStore(); St.saveGame({rep:[],ev:null,monday:false});
+  ok(St.readSave()!==null,'save-game：companies 是空陣列的存檔讀得到');
+  S.companies=['laravel']; fresh(); bootSeen();
+  ok(els.mo.innerHTML.includes('第 4 天・全端打雜・單線</p>'),'save-game：繼續彈窗寫全端打雜',els.mo.innerHTML.match(/第 4 天[^<]*/)?.[0]);
+  clickMo({act:'resume'}); ok(S.day===4&&S.companies.length===0,'save-game：繼續後仍是全端打雜');
+});

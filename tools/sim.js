@@ -31,6 +31,7 @@
 // SIM_SIX_RATE=<比例> 可覆寫複雜度 6 的比例（第 11 天起複雜度 5 的單變成 6 的機率；SIM_SIX_RATE=0 時亂數序列和沒有複雜度 6 時一樣）。
 // SIM_RESEARCH=agent|self 讓自動玩家遇到研究單時先研究再派工：agent 用它本來要派的廠商、模型與付費方式研究，self 自己研究；不能研究（例如工時不夠）時照舊直接派工。預設的自動玩家一律直接派工。
 // SIM_COMBOS=1 改跑十五種雙選組合（另跑單選 Laravel 當對照）。
+// SIM_NONE=1 在工作內容清單後多跑一組 none（全端打雜，S.companies=[]），平均分那行對照同模式 Laravel；投資的自動玩家在這組不買 CLAUDE.md，研討會照優先順序選付得起的。
 // SIM_SEED=<整數> 用固定種子取代 Math.random，同一個種子每次輸出都一樣（重構時拿來比對行為有沒有變）。
 // SIM_BURN=1 開用量挑戰，平均分那幾行多印使用率（整體、訂閱＋席位、公司 API）與席位佔總價值的比例；SIM_BURN=2 再換成燒額度的自動玩家（見 BURN 的註解）。
 // SIM_LOG=1 每種模式額外印出月底執行紀錄的筆數（平均、最多）與存檔 JSON 的字元數（平均、最多），量紀錄整月保留後的大小。
@@ -70,6 +71,7 @@ if(XREV&&!INV){ console.error('SIM_XREVIEW 要搭配 SIM_INVEST=1 或 2'); proce
 /* SIM_XREVIEW：Opus 審，付費方式照遊戲的預設（rvPrefBill） */
 const OPUS={v:'anthropic',m:'opus'};
 const COMBOS=process.env.SIM_COMBOS==='1';
+const NONE=process.env.SIM_NONE==='1';
 const OUT=process.env.SIM_OUTSOURCE==='1';
 const EFF=process.env.SIM_EFFORT==='1';
 const LUNA=process.env.SIM_LUNA==='1';
@@ -125,11 +127,11 @@ function sim(){
   if(SIX!==undefined) setSixRate(SIX);
   const sum={};
   for(const mode of ['parallel','serial']){
-    const runs=COMBOS?['laravel',...COMPANIES.flatMap((a,i)=>COMPANIES.slice(i+1).map(b=>a+'+'+b))]:COMPANIES;
+    const runs=[...(COMBOS?['laravel',...COMPANIES.flatMap((a,i)=>COMPANIES.slice(i+1).map(b=>a+'+'+b))]:COMPANIES),...(NONE?['none']:[])];
     for(const company of runs){
       for(let g=0;g<N*3;g++){
         /* 先設模式再產生第 1 天工單：難線 KPI ×1.3 只在單線（gh-53） */
-        start(); S.companies=company.split('+'); S.outsource=OUT; S.advanced=EFF; S.burn=!!BURN;
+        start(); S.companies=company==='none'?[]:company.split('+'); S.outsource=OUT; S.advanced=EFF; S.burn=!!BURN;
         S.mode=mode; firstIssues();
         if(SUB){ S.subs.openai=SUB; S.wallet-=SUB_PRICE; S.st.subFee+=SUB_PRICE; }
         else{ S.subs.anthropic='max5'; S.wallet-=3300; S.st.subFee+=3300; }

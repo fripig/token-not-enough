@@ -211,3 +211,11 @@ section('play-analytics：投資工單的 invest 事件',()=>{
   const q=ev[0]?.p||{};
   ok(q.investment==='monitor'&&q.via==='self'&&q.quality===100&&q.vendor==='none'&&q.model==='none'&&q.bill==='none','單線直接買監控告警：via self、quality 100、none',JSON.stringify(q));
 });
+
+section("play-analytics：全端打雜的 companies（gh-69-01）",()=>{
+  const clickMo=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+  const ev=[]; globalThis.gtag=(kind,name,p)=>ev.push({name,p});
+  newRun([],'serial'); showSetup(false); ev.length=0; clickMo({act:'confirm'});
+  ok(ev[0]?.name==='game_start'&&ev[0].p.companies==='none'&&ev.every(e=>e.p.companies==='none'),'play-analytics：全端打雜的 game_start 與之後的事件送 companies none',JSON.stringify(ev[0]?.p));
+  delete globalThis.gtag;
+});

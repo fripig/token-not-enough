@@ -35,7 +35,10 @@ export function planCost(adjust){
   return c;
 }
 /* 開局的工作內容按鈕：選滿兩條不能再加、最後一條不能取消，結果照固定順序 */
+/* 'none' 是全端打雜：清空所有工作內容；全端打雜時點某條線就換成那條 */
+export const NONE_LEVEL=4;  // 全端打雜的難度星等
 export function toggleCompany(cs,k){
+  if(k==='none') return [];
   if(cs.includes(k)) return cs.length>1?cs.filter(x=>x!==k):cs;
   return cs.length<2?COMPANIES.filter(x=>x===k||cs.includes(x)):cs;
 }
@@ -49,8 +52,9 @@ export function showSetup(adjust){
     <ul class="rules">
       ${SETUP_RULES.map(k=>`<li>${t(k)}</li>`).join('')}
     </ul>${rulesBtn}
-    <div class="sec"><label>${t('ui.setup.work')}</label><p class="hint">${t('ui.setup.workHint',{pick:Math.round(STACK_PICK*100),fe:Math.round(STACK_FE*100),other:Math.round((1-STACK_PICK-STACK_FE)*100),x:UNFAMILIAR_HRS})}</p><div class="modes">
+    <div class="sec"><label>${t('ui.setup.work')}</label><p class="hint">${draft.companies.length?t('ui.setup.workHint',{pick:Math.round(STACK_PICK*100),fe:Math.round(STACK_FE*100),other:Math.round((1-STACK_PICK-STACK_FE)*100),x:UNFAMILIAR_HRS}):t('ui.setup.workHintNone',{six:Math.round((1-STACK_FE)*100),fe:Math.round(STACK_FE*100),x:UNFAMILIAR_HRS})}</p><div class="modes">
       ${COMPANIES.map(k=>{const on=draft.companies.includes(k);return `<button class="sb ${on?'sel':''}" data-company="${k}" ${!on&&draft.companies.length>=2?'disabled':''}><b>${STACKS[k].company}</b><small>${t('ui.setup.level')} ${'★'.repeat(STACKS[k].level)}${t('sep')}${STACKS[k].desc}</small></button>`;}).join('')}
+      <button class="sb ${draft.companies.length?'':'sel'}" data-company="none"><b>${t('stack.none.company')}</b><small>${t('ui.setup.level')} ${'★'.repeat(NONE_LEVEL)}${t('sep')}${t('stack.none.desc')}</small></button>
     </div></div>
     <div class="sec"><label>${t('ui.setup.gig')}</label><div class="modes">
       <button class="sb ${draft.outsource?'':'sel'}" data-out="0"><b>${t('ui.setup.gigOff')}</b><small>${t('ui.setup.gigOffSub')}</small></button>

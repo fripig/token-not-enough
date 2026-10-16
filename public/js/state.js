@@ -32,7 +32,7 @@ export const daySnap=()=>({kpi:S.kpi,trust:S.trust,wallet:S.wallet,corp:S.corp})
 export function track(name,extra={}){
   try{
     if(typeof gtag!=='function') return;
-    gtag('event',name,{game_version:GAME_VERSION,game_mode:S.mode,companies:S.companies.join('+'),advanced:S.advanced,outsource:S.outsource,burn:S.burn,corp_api:S.corpApi.length?S.corpApi.join('+'):'none',day:S.day,...extra});
+    gtag('event',name,{game_version:GAME_VERSION,game_mode:S.mode,companies:S.companies.join('+')||'none',advanced:S.advanced,outsource:S.outsource,burn:S.burn,corp_api:S.corpApi.length?S.corpApi.join('+'):'none',day:S.day,...extra});
   }catch(e){}
 }
 
@@ -84,9 +84,11 @@ export const confStacks=()=>new Set(S.conf.went.flatMap(k=>CONF[k].stacks));
 export const confCat=c=>S.conf.went.some(k=>CONF[k].cat===c);
 export const confCount=()=>S.conf.went.length;
 
-/* 一般工單：75% 平分給選到的主技術線、15% 前端、10% 平分給沒選的技術線 */
+/* 一般工單：75% 平分給選到的主技術線、15% 前端、10% 平分給沒選的技術線；
+   全端打雜（沒選）時 15% 前端、其他平分給六條線，亂數次數一樣 */
 export function pickStack(){
   const r=Math.random();
+  if(!S.companies.length) return r<STACK_FE?'fe':pick(COMPANIES);
   if(r<STACK_PICK) return pick(S.companies);
   if(r<STACK_PICK+STACK_FE) return 'fe';
   return pick(COMPANIES.filter(k=>!S.companies.includes(k)));
@@ -113,7 +115,7 @@ export function makeIssue(inc,st){
   if(inc) cx=4; else { const r=Math.random()+S.day/20*.38; cx=r<.28?1:r<.6?2:r<.9?3:r<1.12?4:5; }
   const base=BASE[cx]*R(.85,1.15);
   let due=inc?S.day+(monOn()?1:0):S.day+(cx<=2?1+rnd(3):2+rnd(4));
-  const stack=st||(inc?pick(S.companies):pickStack());
+  const stack=st||(inc?pick(S.companies.length?S.companies:COMPANIES):pickStack());
   const trap=!inc&&cx<=2&&Math.random()<TRAP_RATE, trueCx=Math.random()<.6?4:5;
   /* 記下題庫位置（src），顯示時照目前語言查；亂數呼叫和原本的 pick 一樣 */
   const g=trap&&Math.random()<.5?'trap':inc?'inc':String(cx), pool=STACKS[stack].pool[g], i=rnd(pool.length);

@@ -1,8 +1,8 @@
 // company-tech-stack 的規則檢查：docs/spectra/specs/company-tech-stack/spec.md
-import {ok,section,pristine,newRun,ticket} from './lib.js';
+import {ok,section,pristine,newRun,ticket,withRand} from './lib.js';
 import {els,store,resetStore} from '../fake-dom.js';
 import {firstIssues,start} from '../../public/js/main.js';
-import {COMPANIES,STACKS,bestKey,h1} from '../../public/js/data.js';
+import {COMPANIES,STACKS,bestKey,h1,STACK_PICK,STACK_FE} from '../../public/js/data.js';
 import * as dataModule from '../../public/js/data.js';
 import {S,fresh,makeIssue,pickStack,sel,unfamiliar} from '../../public/js/state.js';
 import {manualHrs} from '../../public/js/calc.js';
@@ -103,13 +103,13 @@ section("multi-stack-company：狀態、沿用、退回",()=>{
   const press=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
   const picked=()=>COMPANIES.filter(k=>new RegExp(`class="sb sel" data-company="${k}"`).test(els.mo.innerHTML)).join();
   start(); S.companies=['laravel']; showSetup(false);
-  ok(els.mo.innerHTML.includes('<label>熟悉的工作內容（可選 1–2 項）</label>'),'標籤寫出熟悉的工作內容可選 1–2 項');
+  ok(els.mo.innerHTML.includes('<label>熟悉的工作內容（可選 1–2 項，或全端打雜）</label>'),'標籤寫出熟悉的工作內容可選 1–2 項，或全端打雜');
   { const h=els.mo.innerHTML, hint='所有技術線都會進工單：選的佔 75%、前端 15%、其他 10%。沒選的算不熟，手寫要 ×2。';
-    const iL=h.indexOf('熟悉的工作內容（可選 1–2 項）'), iH=h.indexOf(`<p class="hint">${hint}</p>`), iB=h.indexOf('data-company=');
+    const iL=h.indexOf('熟悉的工作內容（可選 1–2 項，或全端打雜）'), iH=h.indexOf(`<p class="hint">${hint}</p>`), iB=h.indexOf('data-company=');
     ok(iL>=0&&iH>iL&&iB>iH,'提示行在標籤之後、第一顆工作內容按鈕之前',`${iL} ${iH} ${iB}`);
     ok([zh,en].every(D=>['{pick}','{fe}','{other}','{x}'].every(p=>D['ui.setup.workHint'].includes(p))),'提示行的數字從常數插值，字典不寫死');
     setLang('en'); showSetup(false); const he=els.mo.innerHTML; setLang('zh-TW');
-    ok(he.includes('<label>Stacks you know (pick 1–2)</label>')&&he.includes('<p class="hint">Every stack sends tickets: 75% to your picks, 15% frontend, 10% the rest. Stacks you did not pick are unfamiliar; hand-writing takes ×2.</p>'),'英文標籤與提示行');
+    ok(he.includes('<label>Stacks you know (pick 1–2, or Jack of all trades)</label>')&&he.includes('<p class="hint">Every stack sends tickets: 75% to your picks, 15% frontend, 10% the rest. Stacks you did not pick are unfamiliar; hand-writing takes ×2.</p>'),'英文標籤與提示行');
     showSetup(false); }
   press({company:'app'}); ok(picked()==='laravel,app','laravel + 點 app → laravel, app');
   ok(/data-company="rust" disabled/.test(els.mo.innerHTML)&&/data-company="rails" disabled/.test(els.mo.innerHTML),'選滿兩條時其他按鈕停用');
@@ -177,4 +177,74 @@ section("multi-stack-company：狀態、沿用、退回",()=>{
   newRun(['rust','app']); S.day=20; showEnd(); press({act:'again'});
   ok(S.companies.join()==='rust,app'&&/class="sb sel" data-company="rust"/.test(els.mo.innerHTML)&&/class="sb sel" data-company="app"/.test(els.mo.innerHTML),'結算按「再玩一個月」沿用 Rust＋App 並預選');
   }
+});
+
+section("gh-69-01 全端打雜：工單分布、事故單、不熟",()=>{
+  /* 一般工單：fe 約 15%，六條線各約 14.17%，沒有 undefined */
+  newRun([]); const N=10000, cnt={laravel:0,rails:0,rust:0,app:0,sre:0,devops:0,fe:0}; let bad=0;
+  for(let i=0;i<N;i++){const s=pickStack(); if(s in cnt)cnt[s]++; else bad++;}
+  ok(bad===0,'全端打雜：每張一般工單都有技術線',bad);
+  ok(Math.abs(cnt.fe/N-.15)<=.02,'全端打雜：fe 約 0.15',cnt.fe/N);
+  ok(COMPANIES.every(k=>Math.abs(cnt[k]/N-.85/6)<=.015),'全端打雜：六條線各約 0.1417',JSON.stringify(cnt));
+  /* 亂數次數跟有選時一樣：一次 Math.random 加一次 pick（fe 那支沒有 pick） */
+  const calls=(cs,r)=>{newRun(cs); let n=0; withRand([r,.5],()=>{const f=Math.random; Math.random=()=>{n++;return f();}; pickStack();}); return n;};
+  const fe=STACK_PICK+STACK_FE/2, line=.99;
+  ok(calls([],STACK_FE/2)===calls(['laravel'],fe)&&calls([],STACK_FE/2)===1,'全端打雜：抽到前端那支 pickStack 用 1 次亂數，跟選一條時抽到前端相同',`${calls([],STACK_FE/2)} ${calls(['laravel'],fe)}`);
+  ok(calls([],line)===calls(['laravel'],line)&&calls([],line)===2,'全端打雜：抽到六條線那支 pickStack 用 2 次亂數，跟選一條時相同',`${calls([],line)} ${calls(['laravel'],line)}`);
+  /* 事故單：六條線都會出、都不是 fe */
+  newRun([]); const incs=[...Array(1000)].map(()=>makeIssue(true));
+  ok(incs.every(i=>COMPANIES.includes(i.stack))&&COMPANIES.every(k=>incs.some(i=>i.stack===k)),'全端打雜：1,000 張事故單都在六條線上、六條都有');
+  /* 第 12 天進件：沒有 SRE 第二擲，事故 0.12、其中 sre 約 0.02 */
+  newRun([]); S.day=12; const T=10000, got=[...Array(T)].map(intakeIssue);
+  const a=got.filter(i=>i.inc).length/T, r=got.filter(i=>i.inc&&i.stack==='sre').length/T;
+  ok(Math.abs(a-.12)<=.01&&Math.abs(r-.02)<=.01,'進件：全端打雜第 12 天事故 0.12、sre 事故 0.02',`${a} ${r}`);
+  /* 前端以外都不熟，手寫 ×2 */
+  newRun([]);
+  ok(COMPANIES.every(k=>unfamiliar(ticket(k,2))&&h1(manualHrs(ticket(k,2)))==='8.8'),'全端打雜：六條線都不熟，複雜度 2 手寫 8.8h');
+  ok(!unfamiliar(ticket('fe',2))&&h1(manualHrs(ticket('fe',2)))==='4.4','全端打雜：前端不算不熟，手寫 4.4h');
+});
+
+section("gh-69-01 全端打雜：存法、名稱、最高分 key",()=>{
+  /* normCompanies：空陣列合法，其他不合法照舊退回 Laravel */
+  for(const [v,exp] of [[[],''],['rust','rust'],[['laravel','rails','rust'],'laravel'],[['go'],'laravel'],['','laravel'],[null,'laravel']]){
+    S.companies=v; fresh(); ok(S.companies.join()===exp,`存的工作內容 ${JSON.stringify(v)} → ${exp||'全端打雜（空）'}`,S.companies.join());
+  }
+  newRun([]); ok(dataModule.companyName()==='全端打雜'&&dataModule.companyName([])==='全端打雜','全端打雜的名稱');
+  setLang('en'); ok(dataModule.companyName([])==='Jack of all trades','英文名稱 Jack of all trades'); setLang('zh-TW');
+  render(); ok(els.app.innerHTML.includes('全端打雜・工程師'),'標頭顯示全端打雜');
+  newRun([],'serial'); ok(bestKey()==='tokgame-best-serial-none','全端打雜的最高分 key 是 tokgame-best-serial-none');
+  S.burn=true; ok(bestKey()==='tokgame-best-serial-none-burn','開用量挑戰是 tokgame-best-serial-none-burn'); S.burn=false;
+  const endNone=(burn,seed)=>{newRun([],'serial');S.burn=burn;resetStore(seed);S.day=20;S.kpi=900;showEnd();return els.mo.innerHTML;};
+  let h=endNone(false,{'tokgame-best-serial':'999999'});
+  ok(h.includes('月底結算・全端打雜・')&&'tokgame-best-serial-none' in store&&!h.includes('999,999'),'全端打雜月底寫入 -none、不讀舊 key、結算標題寫全端打雜');
+  endNone(true,{}); ok('tokgame-best-serial-none-burn' in store,'全端打雜開用量挑戰寫入 -none-burn'); S.burn=false;
+});
+
+section("gh-69-01 全端打雜：開局按鈕、提示行、說明句",()=>{
+  const press=ds=>els.mo.onclick({target:{closest:()=>({dataset:ds})}});
+  const picked=()=>[...COMPANIES,'none'].filter(k=>new RegExp(`class="sb sel" data-company="${k}"`).test(els.mo.innerHTML)).join();
+  const btn=k=>els.mo.innerHTML.match(new RegExp(`<button[^>]*data-company="${k}"[^>]*>([\\s\\S]*?)</button>`))?.[0]||'';
+  start(); S.companies=['laravel']; showSetup(false);
+  { const b=btn('none'), i6=els.mo.innerHTML.indexOf('data-company="devops"'), i7=els.mo.innerHTML.indexOf('data-company="none"');
+    ok(b.includes('<b>全端打雜</b>')&&b.includes('難度 ★★★★・什麼都接，前端以外都不熟。')&&i7>i6,'第七顆按鈕：全端打雜、難度 ★★★★、說明，排在 DevOps 後面',b); }
+  S.companies=[]; showSetup(false);
+  ok(COMPANIES.every(k=>!/disabled/.test(btn(k))),'全端打雜時六條線的按鈕都沒有停用',COMPANIES.filter(k=>/disabled/.test(btn(k))).join());
+  /* spec 的 toggle 表（含全端打雜三列） */
+  for(const [before,click,after] of [[['laravel'],'devops','laravel,devops'],[['laravel','app'],'sre','laravel,app'],[['laravel','app'],'laravel','app'],[['sre'],'sre','sre'],[['laravel','app'],'none','none'],[[],'rust','rust'],[[],'none','none']]){
+    start(); S.companies=before; showSetup(false);
+    if(click==='none'&&before.length===2) ok(!/data-company="none"[^>]*disabled/.test(btn('none')),'選滿兩條時全端打雜仍可按');
+    press({company:click}); ok(picked()===after,`toggle：${before.join(',')||'全端打雜'} 點 ${click} → ${after}`,picked());
+  }
+  /* 全端打雜狀態的提示行、說明句；確認後重抽第 1 天工單 */
+  start(); S.companies=['laravel']; showSetup(false);
+  press({company:'none'});
+  ok(els.mo.innerHTML.includes('<p class="hint">沒有熟悉的技術線：工單 85% 平分給六條線、前端 15%，前端以外手寫都要 ×2。</p>'),'全端打雜的提示行');
+  ok(els.mo.innerHTML.includes('你是工程師，負責「全端打雜」。'),'全端打雜的開局說明');
+  ok([zh,en].every(D=>['{six}','{fe}','{x}'].every(p=>D['ui.setup.workHintNone'].includes(p))),'全端打雜提示行的數字從常數插值');
+  setLang('en'); showSetup(false); press({company:'none'}); const he=els.mo.innerHTML; setLang('zh-TW');
+  ok(he.includes('<p class="hint">No familiar stack: 85% of tickets are split over the six stacks, 15% frontend; hand-writing anything but frontend takes ×2.</p>')&&he.includes('<b>Jack of all trades</b>')&&he.includes('Take anything; every stack but frontend is unfamiliar.'),'英文的全端打雜按鈕與提示行');
+  start(); S.companies=['laravel']; showSetup(false); const iss0=S.issues[0]; press({company:'none'}); press({act:'confirm'});
+  ok(S.companies.length===0&&S.issues.length===4&&S.issues[0]!==iss0,'確認全端打雜後存成空陣列並重抽第 1 天工單');
+  ok(els.app.innerHTML.includes('全端打雜・工程師')&&S.log.some(l=>l.msg.includes('全端打雜・遊戲模式')),'標頭與開局紀錄寫全端打雜');
+  showSetup(false); press({company:'rails'}); press({act:'confirm'}); ok(S.companies.join()==='rails','從全端打雜換回 Rails 後重存');
 });

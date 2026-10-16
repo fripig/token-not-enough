@@ -62,8 +62,9 @@ export const STACKS={
   fe:{get name(){return t('stack.fe.name');},get company(){return t('stack.fe.name');},desc:'',get pool(){return poolOf('fe');}}
 };
 export const COMPANIES=['laravel','rails','rust','app','sre','devops'];
-/* 主技術線可選 1–2 條，固定照 COMPANIES 的順序存；舊版存的單一字串視為只選一條 */
+/* 主技術線可選 1–2 條，或全端打雜（空陣列），固定照 COMPANIES 的順序存；舊版存的單一字串視為只選一條 */
 export function normCompanies(c){
+  if(Array.isArray(c)&&!c.length) return [];
   const a=typeof c==='string'?[c]:c;
   const ok=Array.isArray(a)&&a.length>=1&&a.length<=2&&new Set(a).size===a.length&&a.every(k=>COMPANIES.includes(k));
   return ok?COMPANIES.filter(k=>a.includes(k)):['laravel'];
@@ -75,8 +76,8 @@ export function normCorp(c){
   const ok=Array.isArray(c)&&new Set(c).size===c.length&&c.every(k=>CORP_VENDORS.includes(k));
   return ok?CORP_VENDORS.filter(k=>c.includes(k)):[...CORP_DEFAULT];
 }
-export const companyName=(cs=S.companies)=>cs.map(k=>STACKS[k].company).join(t('company.join'));
-export const bestKey=()=>`tokgame-best-${S.mode}-${S.companies.join('+')}${S.burn?'-burn':''}`;
+export const companyName=(cs=S.companies)=>cs.length?cs.map(k=>STACKS[k].company).join(t('company.join')):t('stack.none.company');
+export const bestKey=()=>`tokgame-best-${S.mode}-${S.companies.join('+')||'none'}${S.burn?'-burn':''}`;
 
 /* ===== 工具 ===== */
 export const R=(a,b)=>a+Math.random()*(b-a);
