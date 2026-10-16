@@ -8,7 +8,7 @@ Lets the player choose a company with a primary tech stack at the start of a run
 
 ### Requirement: Company selection at run start
 
-The opening setup modal SHALL present six work contents — Laravel 後端, Rails 後端, Rust 基礎設施, App 開發, SRE, DevOps — each labelled with its difficulty (Laravel 後端 and Rails 後端 難度 ★, App 開發, SRE and DevOps 難度 ★★, Rust 基礎設施 難度 ★★★), as toggles under the label 工作內容（可選 1–2 項）. The player SHALL be able to select one or two work contents: clicking an unselected option SHALL add it when fewer than two are selected; when two are selected the unselected options SHALL be disabled; clicking a selected option SHALL remove it unless it is the only one selected. The run SHALL store the selected stacks in the fixed order laravel, rails, rust, app, sre, devops. The default selection SHALL be Laravel 後端 alone. The intro text SHALL read 你是工程師，負責「<names>」。 followed by the existing budget sentence. The name shown in the header, the intro text, the day-1 log line, the resume modal and the month-end title SHALL be the selected work-content names joined with ＋ in that fixed order. The selection SHALL persist to the next run started with 再玩一個月; a stored single-stack value SHALL be read as a one-stack selection, and any invalid stored value SHALL fall back to Laravel 後端 alone. The weekly subscription adjustment modal SHALL NOT offer a work-content change. Stored identifiers (the run's stack list, GA's companies parameter, best-score keys and the save format) SHALL keep their existing names and values.
+The opening setup modal SHALL present six work contents — Laravel 後端, Rails 後端, Rust 基礎設施, App 開發, SRE, DevOps — each labelled with its difficulty (Laravel 後端 and Rails 後端 難度 ★, App 開發, SRE and DevOps 難度 ★★, Rust 基礎設施 難度 ★★★), as toggles under the label 熟悉的工作內容（可選 1–2 項） (English: Stacks you know (pick 1–2)). Directly under the label and before the toggles, the modal SHALL show one hint line stating that every stack sends tickets and giving the shares and the unfamiliar cost: 所有技術線都會進工單：選的佔 75%、前端 15%、其他 10%。沒選的算不熟，手寫要 ×2。 (English: Every stack sends tickets: 75% to your picks, 15% frontend, 10% the rest. Stacks you did not pick are unfamiliar; hand-writing takes ×2.). The three percentages SHALL come from the same named constants the ticket stack distribution uses (the selected share, the fe share, and the remainder), and the ×2 SHALL come from the unfamiliar hand-writing multiplier, so the hint changes when those values change. The player SHALL be able to select one or two work contents: clicking an unselected option SHALL add it when fewer than two are selected; when two are selected the unselected options SHALL be disabled; clicking a selected option SHALL remove it unless it is the only one selected. The run SHALL store the selected stacks in the fixed order laravel, rails, rust, app, sre, devops. The default selection SHALL be Laravel 後端 alone. The intro text SHALL read 你是工程師，負責「<names>」。 followed by the existing budget sentence. The name shown in the header, the intro text, the day-1 log line, the resume modal and the month-end title SHALL be the selected work-content names joined with ＋ in that fixed order. The selection SHALL persist to the next run started with 再玩一個月; a stored single-stack value SHALL be read as a one-stack selection, and any invalid stored value SHALL fall back to Laravel 後端 alone. The weekly subscription adjustment modal SHALL NOT offer a work-content change. Stored identifiers (the run's stack list, GA's companies parameter, best-score keys and the save format) SHALL keep their existing names and values.
 
 #### Scenario: Player picks a work content
 
@@ -42,7 +42,7 @@ The opening setup modal SHALL present six work contents — Laravel 後端, Rail
 #### Scenario: Difficulty labels
 
 - **WHEN** the opening modal is shown
-- **THEN** the label reads 工作內容（可選 1–2 項） and the buttons show the difficulties in the table
+- **THEN** the label reads 熟悉的工作內容（可選 1–2 項） and the buttons show the difficulties in the table
 
 ##### Example: difficulty per option
 
@@ -54,6 +54,16 @@ The opening setup modal SHALL present six work contents — Laravel 後端, Rail
 | App 開發 | ★★ |
 | SRE | ★★ |
 | DevOps | ★★ |
+
+#### Scenario: Hint line under the label
+
+- **WHEN** the opening modal is shown in zh-TW
+- **THEN** the line 所有技術線都會進工單：選的佔 75%、前端 15%、其他 10%。沒選的算不熟，手寫要 ×2。 appears after the label 熟悉的工作內容（可選 1–2 項） and before the first work-content button
+
+#### Scenario: Hint line in English
+
+- **WHEN** the opening modal is shown in English
+- **THEN** the label reads Stacks you know (pick 1–2) and the hint reads Every stack sends tickets: 75% to your picks, 15% frontend, 10% the rest. Stacks you did not pick are unfamiliar; hand-writing takes ×2.
 
 #### Scenario: Selection persists across replay
 
@@ -74,18 +84,6 @@ The opening setup modal SHALL present six work contents — Laravel 後端, Rail
 
 - **WHEN** a run with SRE＋DevOps selected sends game_start
 - **THEN** the companies parameter is sre+devops and the best-score key at month end is tokgame-best-<mode>-sre+devops
-
-
-<!-- @trace
-source: gh-18-01-work-roles-sre-devops
-updated: 2026-10-10
-code:
-  - public/js/data.js
-  - public/js/calc.js
-  - public/js/actions.js
-  - public/js/state.js
-  - public/js/modals.js
--->
 
 ---
 ### Requirement: Ticket stack distribution
