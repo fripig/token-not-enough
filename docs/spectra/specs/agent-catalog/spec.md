@@ -8,21 +8,21 @@ Lists the code agents and models the player can dispatch to and the fictional nu
 
 ### Requirement: Vendor and model catalog
 
-The game SHALL offer exactly these vendors and models. Each model SHALL have capability `cap` on a ×10 integer scale (10–60 today; values that are not multiples of 10, such as 45, are allowed for later models), price per 1k tokens in NT$, subscription quota weight `w`, hours per complexity point `speed`, and token multiplier `verb`. Wherever capability is compared with ticket complexity, complexity SHALL be multiplied by 10 (`CAP_SCALE`). Models marked ctx SHALL get the large-codebase bonus; vendors marked Chinese SHALL be treated as Chinese cloud; Qwen3.6 35B-A3B, Qwen3-Coder-Next and GLM-5.3 SHALL be treated as Chinese weights. The base local models SHALL keep the ids `qwen`, `gemma` and `oss` (Qwen3.6 35B-A3B, Gemma 4 26B A4B, Gemma 4 E4B). Qwen3-Coder-Next and Gemma 4 31B SHALL require the NVIDIA DGX Spark and GLM-5.3 SHALL require the Mac Studio (see `local-hardware`). Only Anthropic and Google SHALL accept company API billing. The Anthropic models SHALL follow the Claude 5 family: Haiku, Sonnet, Opus and Fable, in that order, with Fable (id `fable`) as the only capability-60 model. The OpenAI models SHALL be named after the GPT-6 family without the GPT-6 prefix (Luna, Sol, Astra) while keeping the ids `mini`, `std` and `high`. All numbers SHALL be fictional balance values, and the page footer SHALL keep the notice 價格、額度與模型能力都是遊戲平衡用的虛構數字，不代表各家實際方案。
+The game SHALL offer exactly these vendors and models. Each model SHALL have capability `cap` on a ×10 integer scale (10–60 today; values that are not multiples of 10, such as 45, are allowed for later models), price per 1k tokens in NT$, subscription quota weight `w`, hours per complexity point `speed`, and token multiplier `verb`. Wherever capability is compared with ticket complexity, complexity SHALL be multiplied by 10 (`CAP_SCALE`). Models marked ctx SHALL get the large-codebase bonus; vendors marked Chinese SHALL be treated as Chinese cloud; Qwen3.6 35B-A3B, Qwen3-Coder-Next and GLM-5.3 SHALL be treated as Chinese weights. The base local models SHALL keep the ids `qwen`, `gemma` and `oss` (Qwen3.6 35B-A3B, Gemma 4 26B A4B, Gemma 4 E4B). Qwen3-Coder-Next and Gemma 4 31B SHALL require the NVIDIA DGX Spark and GLM-5.3 SHALL require the Mac Studio (see `local-hardware`). Only Anthropic, OpenAI and Google SHALL be able to accept company API billing, and only when the run's contract list includes them (see `corp-api-contracts`); Chinese vendors and local models SHALL never accept it. The Anthropic models SHALL follow the Claude 5 family: Haiku, Sonnet, Opus and Fable, in that order, with Fable (id `fable`) as the only capability-60 model. The OpenAI models SHALL be named after the GPT-6 family without the GPT-6 prefix (Luna, Sol, Astra) while keeping the ids `mini`, `std` and `high`. All numbers SHALL be fictional balance values, and the page footer SHALL keep the notice 價格、額度與模型能力都是遊戲平衡用的虛構數字，不代表各家實際方案。
 
 ##### Example: models
 
 | Vendor (agent) | Model | cap | price | w | speed | verb | Flags |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Anthropic (Claude Code) | Haiku | 30 | 0.15 | 0.3 | 0.7 | 0.9 | company API |
-| Anthropic | Sonnet | 40 | 0.45 | 1 | 0.8 | 1 | company API |
-| Anthropic | Opus | 50 | 0.9 | 2 | 1 | 0.85 | company API |
-| Anthropic | Fable | 60 | 1.8 | 4 | 1.2 | 0.85 | company API |
+| Anthropic (Claude Code) | Haiku | 30 | 0.15 | 0.3 | 0.7 | 0.9 | |
+| Anthropic | Sonnet | 40 | 0.45 | 1 | 0.8 | 1 | |
+| Anthropic | Opus | 50 | 0.9 | 2 | 1 | 0.85 | |
+| Anthropic | Fable | 60 | 1.8 | 4 | 1.2 | 0.85 | |
 | OpenAI (Codex CLI) | Luna (id mini) | 30 | 0.15 | 0.3 | 0.7 | 1 | |
 | OpenAI | Sol (id std) | 40 | 0.4 | 1 | 0.8 | 1.05 | |
 | OpenAI | Astra (id high) | 50 | 1.6 | 3 | 1 | 0.95 | |
-| Google (Gemini CLI) | Flash | 20 | 0.06 | 0.25 | 0.4 | 1.1 | company API, ctx |
-| Google | Pro | 40 | 0.35 | 1 | 0.9 | 1 | company API, ctx |
+| Google (Gemini CLI) | Flash | 20 | 0.06 | 0.25 | 0.4 | 1.1 | ctx |
+| Google | Pro | 40 | 0.35 | 1 | 0.9 | 1 | ctx |
 | DeepSeek (Claude Code 接 DeepSeek API) | Chat | 30 | 0.03 | 1 | 0.7 | 1.15 | Chinese |
 | DeepSeek | Reasoner | 40 | 0.06 | 1 | 1.2 | 1.5 | Chinese |
 | 智譜 GLM (Claude Code＋GLM Coding Plan) | GLM Air | 30 | 0.04 | 0.5 | 0.6 | 1.1 | Chinese |
@@ -37,7 +37,17 @@ The game SHALL offer exactly these vendors and models. Each model SHALL have cap
 
 #### Scenario: Company API only for contracted vendors
 
-- **WHEN** the player selects OpenAI Sol in the dispatch panel
+- **WHEN** the run's contract list is the default Anthropic + Google and the player selects OpenAI Sol in the dispatch panel
+- **THEN** the 公司 API billing button is disabled with the note 公司沒簽約
+
+#### Scenario: OpenAI contracted
+
+- **WHEN** the run's contract list is OpenAI only and the company budget is above 0
+- **THEN** Sol's 公司 API billing button is enabled with the note 走部門預算, and Sonnet's and Gemini Pro's are disabled with the note 公司沒簽約
+
+#### Scenario: Chinese vendors never take company API
+
+- **WHEN** the run's contract list has all three vendors and the player selects DeepSeek Chat
 - **THEN** the 公司 API billing button is disabled with the note 公司沒簽約
 
 #### Scenario: Codex CLI shows GPT-6 family names
