@@ -50,7 +50,7 @@ tests:
 ---
 ### Requirement: Resume on page load
 
-When the page loads and a usable save exists, the game SHALL show a resume modal instead of the opening setup. The modal SHALL show the saved day, the saved companies and the saved mode (平行 or 單線, with no agent count), and offer 繼續 and 開新局. A save that still carries a `slots` field from before #63 SHALL be usable and SHALL resume with the field ignored.
+When the page loads and a usable save exists, the game SHALL show a resume modal instead of the opening setup. When the what's-new modal opens on page load (see the whats-new spec), the resume modal, the bad-save modal and the opening setup described here SHALL open after it is closed, unchanged. The modal SHALL show the saved day, the saved companies and the saved mode (平行 or 單線, with no agent count), and offer 繼續 and 開新局. A save that still carries a `slots` field from before #63 SHALL be usable and SHALL resume with the field ignored.
 
 繼續 SHALL restore `S`, `sel` and the ticket id counter to the saved values and render the board. Every running job's ticket SHALL be the same object as the matching ticket in the queue. When the save has a morning report, the morning report modal SHALL open with it. Resuming SHALL NOT send any analytics event.
 
@@ -93,6 +93,11 @@ When no save exists, page load SHALL open the opening setup as before.
 
 - **WHEN** a save is resumed with 繼續
 - **THEN** no `game_start` or `day_reached` event is sent
+
+#### Scenario: Resume after the what's-new modal
+
+- **WHEN** a usable day-4 save exists, `tokgame-news` is absent, the page loads, the player clicks 知道了 on the what's-new modal and then 繼續
+- **THEN** the board shows day 4 and the day-4 morning report modal opens, exactly as without the what's-new modal
 
 ---
 ### Requirement: Save structure version
