@@ -201,8 +201,10 @@ section('play-analytics：投資工單的 invest 事件',()=>{
   Object.assign(sel,{issue:is.id,v:'deepseek',m:'chat',b:'api',ef:1}); A.dispatch();
   ok(ev.length===0,'派投資工單不送 dispatch');
   A.wait(true);
+  ok(ev.length===0,'跑完（待驗收）不送事件',ev.map(e=>e.name).join());
+  A.acceptInv(is.id);
   const names=ev.map(e=>e.name).join();
-  ok(names==='invest','跑完只送 invest，不送 job_result',names);
+  ok(names==='invest','驗收只送 invest，不送 job_result',names);
   const p=ev[0]?.p||{};
   ok(p.investment==='md'&&p.stack==='laravel'&&p.via==='agent'&&p.quality===60&&p.vendor==='deepseek'&&p.model==='chat'&&p.bill==='api','invest 帶 via agent、quality 60、vendor／model／bill',JSON.stringify(p));
   newRun('laravel','serial'); S.hours=8; ev.length=0; invest('monitor');

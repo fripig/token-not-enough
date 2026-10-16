@@ -9,6 +9,7 @@
 // 每天先買開放了的 Lv2（已買 Lv1 的 CLAUDE.md、單元測試、secret scanning、做 skills）和下一級提升 agent 能力，再買 SIM_INVEST 的投資。
 // SIM_INVAGENT=1（要搭配 SIM_INVEST）讓自動玩家在平行模式把寫東西的投資開成投資工單、派 agent 做（gh-64-01）：能力夠的模型（複雜度 5 用 Opus，其他用 Sonnet），
 // 付費照派工台預設（席位、訂閱額度夠就用），否則公司 API、公司預算用完改個人 API；SIM_INVAGENT=cheap 一律派 DeepSeek Chat 個人 API（錢包見底改 Sonnet 公司 API）。單線模式照舊自己買。
+// 做好的投資工單每天開工先驗收（工時夠才驗，gh-67-01），再派下一項。
 // SIM_SDD2=1（要搭配 SIM_INVEST）讓自動玩家在 SIM_INVEST 的投資都買完、已有導入 SDD Lv1 之後，買 SDD 框架（Lv2）。
 // SIM_XREVIEW=1（要搭配 SIM_INVEST）讓自動玩家在 SIM_INVEST 的投資都買完後買交叉審核工具，之後寫的模型做不到這張單（能力差距 ≤ −10）、又有自審或嚴格審核時，
 // 改用 Claude Opus 審：付費方式照遊戲的預設（額度夠的席位、訂閱，否則公司 API，再不行個人 API）；審核模型不能用時照舊同一個模型審。
@@ -40,7 +41,7 @@ import {firstIssues,start} from '../public/js/main.js';
 import {BURN_PTS,BURN_SEAT_VALUE,INV_CX,CAP_SCALE,COMPANIES,HW,HW_KEYS,SEAT,VENDORS,cnBlock,model,CONF,CONF_KEYS,CONF_LAST_DAY} from '../public/js/data.js';
 import {START,S,dueBy,sel,setResearchRate,setSixRate,setTrapRate} from '../public/js/state.js';
 import {burnStat,est,hwBlock,localBusy,prefBill,quotaLeft,reviewerBlock,rvPrefBill} from '../public/js/calc.js';
-import {CORP_DAY_LIMIT,isInvTicket,openInvTicket,PAR,abandon,canAbandon,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
+import {CORP_DAY_LIMIT,acceptInv,isInvTicket,openInvTicket,PAR,abandon,canAbandon,dispatch,endDay,invest,requestHw,research,researchBlock,wait,confBlock,invLevel,investBlock,registerConf} from '../public/js/actions.js';
 import {dispatchPanel} from '../public/js/view.js';
 import {subCost} from '../public/js/modals.js';
 // 自動玩家不記最高分（和改成模組前一樣）
@@ -151,6 +152,8 @@ function sim(){
             if(up) invest(...up);
           }
           if(INV){
+            /* SIM_INVAGENT：先驗收做好的投資工單（工時夠才驗，gh-67-01） */
+            if(INVAG&&PAR()) for(const is of S.issues.filter(i=>i.acc)) acceptInv(is.id);
             const list=[...S.companies.map(k=>['md',k]),['tests'],...(PAR()?[['ci'],['hook']]:[]),['sdd'],
               ...(INV===2?EXTRA.filter(k=>k!=='fastlane'||S.companies.includes('app')).map(k=>[k]):[])];
             const next=list.find(([k,st])=>!(k==='md'?S.inv.md[st]:S.inv[k]));

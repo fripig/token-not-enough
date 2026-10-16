@@ -29,7 +29,7 @@ section("rules-reference（gh-20-01-rules-modal）",()=>{
   press({rtab:'score'}); ok(els.mo.innerHTML.includes('總分 = KPI ×'),'rules-reference：結算分頁顯示總分公式');
   /* gh-66-01：更新分頁列出全部，新的在前 */
   {const h=Ru.rulesTab('news'), li=[...h.matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m=>m[1]);
-   ok(li.length===NEWS.length&&li[0].includes(NEWS[0].date)&&li[0].includes(I.t('news.gh-66-01'))&&li.at(-1).includes('2026-10-10')&&li.at(-1).includes(I.t('news.gh-32-01')),'rules-reference：更新分頁列出全部 22 筆，第一行是 gh-66-01、最後一行是 2026-10-10 的 gh-32-01',li.length);}
+   ok(li.length===NEWS.length&&li[0].includes(NEWS[0].date)&&li[0].includes(I.t(`news.${NEWS[0].id}`))&&li.at(-1).includes('2026-10-10')&&li.at(-1).includes(I.t('news.gh-32-01')),'rules-reference：更新分頁列出全部更新，第一行是最新一筆、最後一行是 2026-10-10 的 gh-32-01',li.length);}
   /* gh-26-01-money-off-score：錢不算分、錢包用光就停、外包 KPI × 250、起始錢包 */
   ok(Ru.rulesTab('score').includes('總分 = KPI × 10 + 信任 × 4 − 稽核次數 × 80。')&&Ru.rulesTab('score').includes('錢不算分')&&!Ru.rulesTab('score').includes('÷'),'rules-reference：結算分頁寫新公式、錢不算分');
   ok(Ru.rulesTab('basic').includes('個人錢包 NT$8,000')&&Ru.rulesTab('basic').includes('錢包不夠付這次的訂閱就不能確認'),'rules-reference：基本分頁寫起始錢包 NT$8,000 與訂閱要付得起');
@@ -57,6 +57,7 @@ section("rules-reference（gh-20-01-rules-modal）",()=>{
   ok(bi.includes(D.nt(A.CORP_DAY_LIMIT))&&bi.includes(`信任 −${A.AUDIT_TRUST}`)&&bi.includes(SEAT.trust.join('／')),'rules-reference：付費分頁的公司單日上限、稽核扣分、席位門檻來自常數');
   ok(['md',...D.INV_KEYS].every(k=>{const I=D.INVEST[k];return iv.includes(I.name)&&iv.includes(`<td>${I.hrs}h</td>`)&&iv.includes(`<td>${D.nt(I.cost)}</td>`)&&iv.includes(I.desc);}),'rules-reference：投資分頁列出每項投資的工時、預算與效果');
   ok(D.HW_KEYS.every(k=>{const H=D.HW[k];return iv.includes(H.name)&&iv.includes(`<td>${H.trust}</td>`)&&iv.includes(H.price);}),'rules-reference：投資分頁列出每台電腦的價格與信任門檻');
+  ok(iv.includes(`工時的 ${Ru.pct(D.ACCEPT_HRS)} 驗收（例如單元測試 ${D.INVEST.tests.hrs}h → ${D.INVEST.tests.hrs*D.ACCEPT_HRS}h）`),'rules-reference：投資分頁寫出驗收工時，倍數來自 ACCEPT_HRS',iv.slice(0,300));
   ok(plain('dispatch').includes(`<td>${Math.round(C.P_STEP[1]*100)}%</td>`)&&plain('tickets').includes(`<td>${KPI[5]}</td>`),'rules-reference：成功率表與 KPI 表來自常數');
   {const dp=plain('dispatch'), tk=plain('tickets'); const rows=[...dp.matchAll(/<tr><td>([^<]*)<\/td><td>([^<]*)<\/td><\/tr>/g)].slice(0,6).map(m=>m[1]+'='+m[2]).join();
   ok(rows==='+20 以上=95%,+10=88%,0=75%,−10=50%,−20=25%,−30 以下=10%','rules-reference：成功率表六列，從 +20 以上到 −30 以下',rows);

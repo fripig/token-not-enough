@@ -15,7 +15,8 @@ section('Update entries：id、日期與兩種語言的文字',()=>{
   ok(new Set(ids).size===ids.length,'whats-new：id 不重複',ids.join());
   ok(NEWS.every(n=>/^\d{4}-\d{2}-\d{2}$/.test(n.date)),'whats-new：日期是 YYYY-MM-DD');
   ok(NEWS.every((n,i)=>i===0||n.date<=NEWS[i-1].date),'whats-new：日期由新到舊、不會變新');
-  ok(NEWS.length===22&&ids[0]==='gh-66-01'&&ids[21]==='gh-32-01'&&NEWS[21].date==='2026-10-10','whats-new：第一版 22 筆，從 gh-32-01（2026-10-10）到 gh-66-01',`${NEWS.length} ${ids[0]} ${ids.at(-1)}`);
+  const v1=ids.slice(ids.indexOf('gh-66-01'));
+  ok(v1.length===22&&v1.at(-1)==='gh-32-01'&&NEWS.at(-1).date==='2026-10-10','whats-new：第一版 22 筆，從 gh-32-01（2026-10-10）到 gh-66-01，之後的加在前面',`${NEWS.length} ${ids[0]} ${ids.at(-1)}`);
   ok(NEWS_KEY==='tokgame-news','whats-new：看過的記在 tokgame-news');
   const digits=s=>(s.match(/\d+/g)||[]).join(',');
   for(const {id} of NEWS){
@@ -59,10 +60,10 @@ section("What's-new modal on page load：開頁先看更新，關掉接回原本
   /* 第 7 天的存檔，回傳原始字串 */
   const save7=()=>{newRun(['laravel','rust'],'parallel'); S.day=7; S.issues=[ticket('laravel',1)];
     resetStore(); St.saveGame({rep:['早上報告第 7 天'],ev:null,monday:false}); const raw=store[SV]; St.fresh(); return raw;};
-  /* 老玩家有存檔：列最新 5 筆＋還有 17 筆，知道了之後是第 7 天的繼續彈窗 */
+  /* 老玩家有存檔：列最新 5 筆＋還有 NEWS.length − 5 筆，知道了之後是第 7 天的繼續彈窗 */
   const raw=save7(); const ev=[]; globalThis.gtag=(k,n)=>ev.push(n); const logN=S.log.length;
   boot();
-  ok(isNews()&&rows()===5&&NEWS.slice(0,5).every(n=>els.mo.innerHTML.includes(n.date)&&els.mo.innerHTML.includes(zh[`news.${n.id}`]))&&els.mo.innerHTML.includes('還有 17 筆更新'),'whats-new：有存檔、沒有記錄 → 列最新 5 筆與「還有 17 筆更新」',rows());
+  ok(isNews()&&rows()===5&&NEWS.slice(0,5).every(n=>els.mo.innerHTML.includes(n.date)&&els.mo.innerHTML.includes(zh[`news.${n.id}`]))&&els.mo.innerHTML.includes(`還有 ${NEWS.length-5} 筆更新`),`whats-new：有存檔、沒有記錄 → 列最新 5 筆與「還有 ${NEWS.length-5} 筆更新」`,rows());
   ok(!(NEWS_KEY in store),'whats-new：彈窗開著時還沒寫記錄');
   clickMo({act:'newsok'});
   ok(els.mo.innerHTML.includes('繼續上一局')&&els.mo.innerHTML.includes('第 7 天')&&store[NEWS_KEY]===top,'whats-new：知道了 → 第 7 天的繼續彈窗、記錄是最新一筆');
@@ -83,7 +84,7 @@ section("What's-new modal on page load：開頁先看更新，關掉接回原本
   /* 英文 */
   resetStore({'tokgame-best-serial-laravel':'100'}); I.setLang('en'); boot();
   const CJK=/[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uff00-\uffef]/;
-  ok(els.mo.innerHTML.includes("<h2>What's new</h2>")&&els.mo.innerHTML.includes('Got it')&&els.mo.innerHTML.includes('17 more updates')&&els.mo.innerHTML.includes(NEWS[0].date)&&!CJK.test(els.mo.innerHTML),'whats-new：英文彈窗沒有中文、日期照 YYYY-MM-DD');
+  ok(els.mo.innerHTML.includes("<h2>What's new</h2>")&&els.mo.innerHTML.includes('Got it')&&els.mo.innerHTML.includes(`${NEWS.length-5} more updates`)&&els.mo.innerHTML.includes(NEWS[0].date)&&!CJK.test(els.mo.innerHTML),'whats-new：英文彈窗沒有中文、日期照 YYYY-MM-DD');
   I.setLang('zh-TW'); delete globalThis.gtag; resetStore();
 });
 

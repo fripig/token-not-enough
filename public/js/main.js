@@ -1,6 +1,6 @@
 import {S,addGigs,clearSave,fresh,makeIssue,readSave,resetIds,sel} from './state.js';
 import {log,prefBill,rvPrefBill} from './calc.js';
-import {abandon,batch,cancelJob,dispatch,endDay,evaluate,research,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait,registerConf,dayStartLine,openInvTicket,PAR,invSelf,invLevel} from './actions.js';
+import {abandon,batch,cancelJob,dispatch,endDay,evaluate,research,invest,loadPreset,manual,quick,requestHw,rescope,savePreset,wait,registerConf,dayStartLine,openInvTicket,PAR,invSelf,invLevel,acceptInv} from './actions.js';
 import {abandonArm,app,armAbandon,armCancel,cancelArm,render,scrollToDispatch,setTab} from './view.js';
 import {showBadSave,showResume,showSetup} from './modals.js';
 import {showRules} from './rules.js';
@@ -37,6 +37,7 @@ app.addEventListener('click',e=>{
   else if(t.dataset.act==='go')dispatch();
   else if(t.dataset.act==='manual')manual();
   else if(t.dataset.act==='invself'){invSelf(sel.issue);render();}
+  else if(t.dataset.act==='invaccept'){acceptInv(sel.issue);render();}
   else if(t.dataset.act==='eval')evaluate();
   else if(t.dataset.act==='research')research('agent');
   else if(t.dataset.act==='selfresearch')research('self');

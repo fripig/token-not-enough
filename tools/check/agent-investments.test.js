@@ -126,8 +126,9 @@ section('agent-investments：派 agent 做投資',()=>{
   A.dispatch();
   ok(S.jobs.length===1&&S.jobs[0].inv&&is.running,'派出：投資 job 在跑');
   A.wait(true);
-  ok(near(S.corp,12000-247.5)&&S.inv.md.laravel===1&&invQ('md','laravel',1)===1&&!S.issues.includes(is),'跑完：公司預算扣 NT$247.5、CLAUDE.md Lv1 品質 100%、工單拿掉',S.corp);
+  ok(near(S.corp,12000-247.5)&&!S.inv.md.laravel&&S.issues.includes(is)&&is.acc&&is.acc.q===1,'跑完：公司預算扣 NT$247.5、還沒買到、工單待驗收（品質 100%）',S.corp);
   ok(near(S.hours,8-3.2),'跑完不加審 PR 時間（派工的 0.2h 跟 agent 同時跑）',S.hours);
+  ok(A.acceptInv(is.id)&&near(S.hours,8-3.2-1.5)&&near(S.corp,12000-247.5)&&S.inv.md.laravel===1&&invQ('md','laravel',1)===1&&!S.issues.includes(is),'驗收：剩 3.1h、公司預算不變、CLAUDE.md Lv1 品質 100%、工單拿掉',S.hours);
   /* 算同時在跑的 agent */
   newRun('laravel','parallel'); S.hours=8;
   A.openInvTicket('sdd'); const iv=S.issues.find(i=>i.inv); Object.assign(sel,{issue:iv.id,v:'anthropic',m:'opus',b:'corp',ef:1}); A.dispatch();
@@ -138,10 +139,64 @@ section('agent-investments：派 agent 做投資',()=>{
   A.openInvTicket('ci'); const ci=S.issues.find(i=>i.inv);
   ok(A.quick(ci.id,'quick',2),'按 C：派出');
   const j=S.jobs[0]; ok(j&&j.inv&&j.rv===0&&near(j.tk,BASE[3]*.85),'用 Opus、公司 API，token 是 BASE[3] × 0.85、沒有審核',j&&j.tk);
+  A.wait(true); ok(ci.acc&&!A.quick(ci.id,'quick',2)&&!S.jobs.length,'待驗收的投資工單不能一鍵派工');
+  sel.issue=ci.id; A.dispatch(); ok(!S.jobs.length,'待驗收的投資工單不能從派工台派出');
   /* 品質與重做 */
   newRun('laravel','parallel'); S.hours=8; S.inv.md.laravel=1; setInvQ('md','laravel',1,.6);
   A.applyInv({k:'md',st:'laravel',L:1},.3); ok(near(invQ('md','laravel',1),.6),'重做 30%：維持 60%');
   A.applyInv({k:'md',st:'laravel',L:1},1); ok(invQ('md','laravel',1)===1,'重做 100%：變 100%');
+  /* 重做做完但還沒驗收：品質不變 */
+  newRun('laravel','parallel'); S.hours=8; S.corp=12000; S.inv.md.laravel=1; setInvQ('md','laravel',1,.6);
+  A.openInvTicket('md','laravel',1); const rd=S.issues.find(i=>i.inv);
+  Object.assign(sel,{issue:rd.id,v:'anthropic',m:'opus',b:'corp',ef:1}); A.dispatch(); A.wait(true);
+  ok(rd.acc&&near(invQ('md','laravel',1),.6),'重做跑完、還沒驗收：品質維持 60%');
+  A.acceptInv(rd.id); ok(invQ('md','laravel',1)===1,'驗收後：品質 100%');
+});
+
+section('agent-investments：驗收',()=>{
+  const done=(k,st,q=1)=>{A.openInvTicket(k,st);const is=S.issues.find(i=>i.inv&&i.inv.k===k&&!i.acc);is.acc={q,v:'anthropic',m:'opus',b:'corp'};return is;};
+  newRun('laravel','parallel'); S.hours=8; S.corp=12000; S.wallet=8000;
+  const tst=done('tests');
+  ok(!S.inv.tests&&testCatch()===0,'待驗收：單元測試還沒買到、抓錯率加成 0');
+  render(); ok(/data-inv="tests"[^>]*disabled[^>]*>.*?已開工單/.test(els.app.innerHTML),'投資分頁的單元測試按鈕寫已開工單');
+  ok(/data-iss="\d+"[^]*?<span class="chip acc">待驗收<\/span>/.test(els.app.innerHTML),'卡片有待驗收標籤');
+  S.hours=6; sel.issue=tst.id; render();
+  const h=els.app.innerHTML;
+  ok(h.includes('data-act="invaccept"')&&h.includes('驗收（2.0h，不花錢）')&&h.includes(`data-abandon="${tst.id}">取消投資`),'派工台有驗收（2.0h）與取消投資');
+  ok(!h.includes('data-load=')&&!h.includes('data-act="go"')&&!h.includes('data-act="invself"')&&!h.includes('data-b='),'待驗收的派工台沒有方案、派出、自己做、付費方式');
+  clickApp({act:'invaccept'});
+  ok(near(S.hours,4)&&S.corp===12000&&S.wallet===8000&&S.inv.tests===1&&invQ('tests',null,1)===1&&!S.issues.includes(tst),'按驗收：剩 4h、公司預算與錢包不變、單元測試 Lv1 品質 100%、工單拿掉',S.hours);
+  ok(/★ 驗收投資 單元測試 Lv1｜品質 100%｜2\.0h/.test(S.log[0].msg),'紀錄寫驗收、品質與工時',S.log[0].msg);
+  /* 工時表 */
+  newRun('laravel','parallel');
+  const hrs={hook:1,ci:1.5,scan:1.5,fastlane:1.5,mcp:1.5,tests:2,monitor:1.5,skills:1.5,sdd:3};
+  for(const k in hrs){ A.openInvTicket(k); const is=S.issues.find(i=>i.inv&&i.inv.k===k); ok(near(A.acceptHrs(is),hrs[k]),`驗收工時：${k} ${hrs[k]}h`,A.acceptHrs(is)); }
+  A.openInvTicket('md','laravel'); ok(near(A.acceptHrs(S.issues.find(i=>i.inv&&i.inv.k==='md')),1.5),'驗收工時：CLAUDE.md 1.5h');
+  S.inv.md.rails=1; const L2={inv:{k:'md',st:'rails',L:2}}; ok(near(A.acceptHrs(L2),.5),'驗收工時：Lv2 0.5h');
+  const all=['md','tests','ci','hook','scan','fastlane','monitor','skills','mcp','sdd'].reduce((a,k)=>a+A.acceptHrs({inv:{k,st:'laravel',L:1}}),0);
+  ok(near(all,16.5)&&all>8,'Lv1 十項驗收合計 16.5h，一天 8h 放不下',all);
+  /* 工時不夠 */
+  newRun('laravel','parallel'); S.hours=1; const sd=done('sdd'); sel.issue=sd.id; render();
+  ok(/data-act="invaccept" disabled>驗收・工時不夠/.test(els.app.innerHTML),'剩 1h、SDD 要 3h：驗收按鈕停用寫工時不夠');
+  ok(!A.acceptInv(sd.id)&&S.hours===1&&!S.inv.sdd&&S.issues.includes(sd),'硬按：什麼都不變');
+  /* 本地 GPU 忙也能驗收 */
+  newRun('laravel','parallel'); S.hours=8; const hk=done('hook');
+  S.jobs.push({issue:ticket('fe',1),v:'local',m:'qwen',b:'local',left:5,hrs:5,tk:1,M:model('local','qwen')});
+  ok(C.localBusy()&&A.acceptInv(hk.id)&&S.inv.hook===1,'本地 GPU 忙：照樣能驗收');
+  /* 驗收時背景 agent 照跑 */
+  newRun('laravel','parallel'); S.hours=8; const ms=done('mcp');
+  A.openInvTicket('ci'); const c2=S.issues.find(i=>i.inv&&i.inv.k==='ci'&&!i.acc);
+  Object.assign(sel,{issue:c2.id,v:'anthropic',m:'opus',b:'corp',ef:1}); A.dispatch(); const left=S.jobs[0].left;
+  A.acceptInv(ms.id); ok(near(S.jobs[0].left,left-1.5),'驗收 1.5h：背景 agent 也跑了 1.5h',S.jobs[0].left);
+  /* 第 1 天全部派出、跑完，照工時驗收：一定有沒買到的 */
+  newRun('laravel','parallel'); S.hours=8; S.corp=12000; S.subs.anthropic='max20';
+  const ks=['md','tests','ci','hook','scan','fastlane','monitor','skills','mcp','sdd'];
+  for(const k of ks){ A.openInvTicket(k,'laravel'); const is=S.issues.find(i=>i.inv&&i.inv.k===k&&!i.running); Object.assign(sel,{issue:is.id,v:'anthropic',m:'opus',b:'sub',ef:1}); A.dispatch(); }
+  A.wait(true); while(S.jobs.length&&S.hours>0) A.wait(true);
+  let spent=0;
+  for(const is of S.issues.filter(i=>i.acc)){ const hh=A.acceptHrs(is); if(A.acceptInv(is.id)) spent+=hh; }
+  const owned=ks.filter(k=>A.invLevel(k,'laravel')>0).length;
+  ok(spent<=8&&owned<ks.length,'第 1 天全部派出跑完：驗收不超過 8h、十項沒有全部買到',JSON.stringify({spent,owned}));
 });
 
 section('agent-investments：付不出來、中止、當機、月底、過夜、取消投資',()=>{
@@ -149,7 +204,7 @@ section('agent-investments：付不出來、中止、當機、月底、過夜、
   /* 錢包見底 */
   newRun('laravel','parallel'); S.hours=8; S.wallet=10;
   const w=go('sdd',null,'anthropic','sonnet','api'); A.wait(true);
-  ok(S.wallet===0&&!S.inv.sdd&&S.issues.includes(w)&&!w.running,'個人 API 錢不夠：付掉 NT$10、錢包 0、沒買到、工單回佇列',S.wallet);
+  ok(S.wallet===0&&!S.inv.sdd&&S.issues.includes(w)&&!w.running&&!w.acc,'個人 API 錢不夠：付掉 NT$10、錢包 0、沒買到、工單回佇列',S.wallet);
   ok(S.log[0].msg.includes('錢包見底'),'紀錄寫錢包見底');
   /* 玩家中止 */
   newRun('laravel','parallel'); S.hours=8; S.corp=12000;
@@ -174,6 +229,13 @@ section('agent-investments：付不出來、中止、當機、月底、過夜、
   ok(els.app.innerHTML.includes(`data-abandon="${h.id}">取消投資`),'派工台的退單按鈕寫取消投資');
   clickApp({abandon:String(h.id)}); clickApp({abandon:String(h.id)});
   ok(!S.issues.includes(h)&&S.trust===70&&S.st.abandoned===0,'確定取消：工單拿掉、信任 70、退單數不變');
+  /* 待驗收時取消投資 */
+  newRun('laravel','parallel'); S.hours=8; S.wallet=8000;
+  const tc=go('tests',null,'deepseek','chat','api'); A.wait(true); const paid=S.wallet;
+  ok(tc.acc&&paid<8000,'跑完待驗收、token 已付');
+  sel.issue=tc.id; render(); clickApp({abandon:String(tc.id)}); clickApp({abandon:String(tc.id)});
+  ok(!S.issues.includes(tc)&&!S.inv.tests&&S.wallet===paid&&S.st.abandoned===0,'待驗收時取消：工單拿掉、沒買到、不退錢、不算退單');
+  ok(A.openInvTicket('tests'),'取消後可以再開單元測試的投資工單');
 });
 
 section('agent-investments：重做',()=>{
@@ -197,7 +259,19 @@ section('agent-investments：存檔保留投資工單與跑過夜的投資 job',
   ok(S.issues.some(i=>i.inv&&i.inv.k==='ci'&&!i.running),'佇列裡沒派的投資工單還在');
   ok(near(invQ('md','laravel',1),.6),'品質跟著存檔');
   S.hours=8; A.wait(true);
-  ok(S.inv.sdd===1&&!S.issues.some(i=>i.inv&&i.inv.k==='sdd'),'讀檔後跑完照樣套上等級');
+  ok(!S.inv.sdd&&is.acc===undefined&&S.issues.some(i=>i.inv&&i.inv.k==='sdd'&&i.acc),'讀檔後跑完：變成待驗收');
+  const sd=S.issues.find(i=>i.inv&&i.inv.k==='sdd'); ok(A.acceptInv(sd.id)&&S.inv.sdd===1,'驗收後套上等級');
+  /* 存檔保留待驗收 */
+  newRun('laravel','parallel'); S.hours=8; S.day=3;
+  A.openInvTicket('tests'); const tq=S.issues.find(i=>i.inv); tq.acc={q:.6,v:'deepseek',m:'chat',b:'api'};
+  resetStore(); St.saveGame(null); St.loadGame(St.readSave());
+  const back=S.issues.find(i=>i.inv&&i.inv.k==='tests');
+  ok(back&&back.acc&&back.acc.q===.6,'讀檔後還是待驗收、品質 60%');
+  S.hours=8; ok(A.acceptInv(back.id)&&S.inv.tests===1&&near(invQ('tests',null,1),.6),'驗收：單元測試 Lv1 品質 60%');
+  /* 沒有 acc 欄位的投資工單：不是待驗收 */
+  newRun('laravel','parallel'); A.openInvTicket('ci'); const ci=S.issues.find(i=>i.inv);
+  resetStore(); St.saveGame(null); St.loadGame(St.readSave());
+  ok(!S.issues.find(i=>i.inv).acc&&!A.acceptInv(S.issues.find(i=>i.inv).id),'沒有 acc 的投資工單讀進來不是待驗收');
 });
 
 section('agent-investments：規則 modal 顯示打折後的效果',()=>{
@@ -217,6 +291,7 @@ section('agent-investments：畫面數字、紀錄、到期張數、一起跑的
   Object.assign(sel,{issue:is.id,v:'anthropic',m:'sonnet',b:'corp',ef:1}); render();
   const h=els.app.innerHTML;
   ok(h.includes('<b>550k</b>')&&h.includes('<b>3.2h</b>')&&/預計品質<\/label><b[^>]*>100%/.test(h),'派工台顯示 550k、3.2h、預計品質 100%');
+  ok(/驗收工時<\/label><b>1\.5h<\/b>/.test(h),'派工台顯示驗收工時 1.5h');
   A.dispatch();
   ok(/派出投資工單 寫 CLAUDE\.md Lv1（Laravel）（複雜度 4）｜.*Sonnet・公司 API｜預計品質 100%｜派工台｜預計 3\.2h/.test(S.log[0].msg),'派出紀錄寫預計品質與預計時數',S.log[0].msg);
   /* 一般工單在投資 job 還在跑時完成：審 PR 倍率算一個其他 agent */
@@ -227,7 +302,7 @@ section('agent-investments：畫面數字、紀錄、到期張數、一起跑的
     ok(S.jobs.length===1&&S.jobs[0].inv&&near(before-S.hours,.1+.5),'工單先跑完：審 PR 0.5h（2 × 0.2 × 1.25）',before-S.hours); }
   finally{ Math.random=r0; }
   A.wait(true);
-  ok(/★ 投資完成 寫 CLAUDE\.md Lv1（Laravel）｜.*｜品質 100%｜燒掉 550k｜公司 NT\$248｜3\.2h/.test(S.log[0].msg),'完成紀錄寫品質、token、花費、時數',S.log[0].msg);
+  ok(/★ 投資做好 寫 CLAUDE\.md Lv1（Laravel）｜.*｜品質 100%｜燒掉 550k｜公司 NT\$248｜3\.2h｜驗收（1\.5h）後才生效/.test(S.log[0].msg),'完成紀錄寫品質、token、花費、時數、驗收工時',S.log[0].msg);
   /* 每日彈窗的到期張數不算投資工單 */
   newRun('laravel','parallel'); S.day=3; A.openInvTicket('ci'); M.showDay([],null,false);
   ok(els.mo.innerHTML.includes('其中 0 張今天到期'),'早上報告的今天到期張數不含投資工單');

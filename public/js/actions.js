@@ -1,4 +1,4 @@
-import {CAP_SCALE,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,CONFLICT_MAX,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv,INV_CX,invCx,CLIENTS} from './data.js';
+import {ACCEPT_HRS,CAP_SCALE,RESEARCH_HRS,RESEARCH_SELF_HRS,RESEARCH_SPLIT,RESEARCH_TK,UNFAMILIAR_HRS,cnBlock,MCP_EVAL_HRS,CI_CONFLICT,CONFLICT_MAX,PR_REVIEWED,CONFLICT,EVAL_HRS,LATE_KPI,PR_HRS,RESCOPE,RETRY,REVEAL,APIV,BASE,BILL_LABEL,COMPANIES,EFFORT,FASTLANE_REJECT,HOOK_PR,HW,PC_SPEED,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,KPI,MCP_REVEAL,MONITOR_LATE,MD_P,MD_TK,PN,R,SCAN_AUDIT,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,SEAT,STACKS,SUBV,TEST_CATCH,VENDORS,effModel,efOf,h1,kt,model,nt,objOf,pick,rnd,AI_MAX,AI_P,CONF,CONF_CATS,CONF_LAST_DAY,CONF_LV2,CONF_MANUAL,SKILLS_CX,lv,INV_CX,invCx,CLIENTS} from './data.js';
 import {GIG_LATE,START,S,addGigs,nextId,daySnap,hardKpi,makeIssue,saveGame,sel,track,unfamiliar,confCat,confCount,confStacks,issueTitle,dueBy,invTitle} from './state.js';
 import {REVIEW,reviewer,reviewerBlock,sddLevel,bills,est,hwBlock,localBusy,localSpeed,log,manualBlocked,manualHrs,presetBlock,presetFor,quotaLeft,storeReject,useQuota,weekBurn,gigBlocked,sddStop,ciMul,hookMul,scanMul,mcpEvalHrs,mcpReveal,skillsLv,mdTk,mdP,sddP,testCatch,monOn,invQ,setInvQ} from './calc.js';
 import {render,setTab} from './view.js';
@@ -62,7 +62,7 @@ export function dispatch(via='panel',preset='none'){
 export const canQuick=()=>S.hours>=.2;
 /* pi：卡片上按的方案（0–2），只用那個方案、不往下找；不給 pi（批次派工）照 A→B→C 用第一個能用的 */
 export function quick(id,via='quick',pi=null){
-  const is=S.issues.find(i=>i.id===id); if(!is||is.running||!canQuick()) return false;
+  const is=S.issues.find(i=>i.id===id); if(!is||is.running||is.acc||!canQuick()) return false;
   const {i,skip}=pi===null?presetFor(is):{i:S.presets[pi]&&!presetBlock(is,S.presets[pi])?pi:-1,skip:[]}; if(i<0) return false;
   Object.assign(sel,NO_RV,S.presets[i],{issue:id});
   if(skip.length) log('dim',t('log.quickSkip',{p:PN[i],list:skip.map(s=>t('log.skipItem',{p:PN[s.i],r:s.r})).join(t('sep.list'))}));
@@ -379,7 +379,7 @@ export function openInvTicket(k,st,L=invLevel(k,st)+1){
 }
 /* 投資工單派 agent：只有平行模式，不送 dispatch 事件；job 不審核、不套 SDD、不會失敗 */
 export function dispatchInv(is,via,preset){
-  if(!PAR()||S.hours<.2) return;
+  if(!PAR()||S.hours<.2||is.acc) return;
   const e=est(is,sel.v,sel.m), b=sel.b;
   if(b==='local'&&localBusy()) return;
   useHw(sel.v,sel.m);
@@ -395,7 +395,8 @@ export function applyInv({k,st,L},q){
   if(L>cur){ if(k==='md') S.inv.md[st]=L; else S.inv[k]=L; setInvQ(k,st,L,q); }
   else setInvQ(k,st,L,Math.max(invQ(k,st,L),q));
 }
-/* 投資工單的結算：中止（玩家、當機、月底）與付不出來時工單回佇列、不套等級；不審 PR、不衝突 */
+/* 投資工單的結算：中止（玩家、當機、月底）與付不出來時工單回佇列、不套等級；不審 PR、不衝突；
+   付清時也不套等級，工單留在佇列等玩家驗收（#67） */
 export function settleInv(j,o={}){
   const is=j.issue,v=j.v,b=j.b,M=j.M,frac=o.frac??1;
   let tk=j.tk*frac, hrs=j.hrs*frac;
@@ -407,12 +408,24 @@ export function settleInv(j,o={}){
   else if(o.fail) log('bad',t('log.fail',{title,who:w,note:o.note||t('log.note.fail'),tk:kt(tk),spend:ch.spend,h:h1(hrs)}));
   else if(ch.short) log('bad',t('log.fail',{title,who:w,note:t(b==='api'?'log.note.wallet':'log.note.quota'),tk:kt(tk),spend:ch.spend,h:h1(hrs)}));
   else{
-    applyInv(j.inv,j.q); S.issues=S.issues.filter(i=>i!==is); if(sel.issue===is.id) sel.issue=null;
-    track('invest',{investment:invKey(j.inv),stack:j.inv.k==='md'?j.inv.st:'none',via:'agent',quality:Math.round(j.q*100),vendor:v,model:j.m,bill:b});
-    log('ok',t('log.invDone',{title,who:w,q:Math.round(j.q*100),tk:kt(tk),spend:ch.spend,h:h1(hrs)}));
+    is.acc={q:j.q,v,m:j.m,b};
+    log('ok',t('log.invDone',{title,who:w,q:Math.round(j.q*100),tk:kt(tk),spend:ch.spend,h:h1(hrs),acc:h1(acceptHrs(is))}));
   }
   checkOverdraft();
   return {ok:false,hrs,rejected:false};
+}
+/* 驗收 agent 做完的投資工單：花自己做那一級工時的 ACCEPT_HRS 倍，不花錢，驗收後才套等級（#67） */
+export const acceptHrs=is=>ACCEPT_HRS*lvCost(is.inv.k,is.inv.L).hrs;
+export const acceptBlock=is=>S.hours<acceptHrs(is)-1e-9?t('why.hours'):'';
+export function acceptInv(id){
+  const is=S.issues.find(i=>i.id===id&&i.inv&&i.acc); if(!is||is.running||acceptBlock(is)) return false;
+  const {q,v,m,b}=is.acc, h=acceptHrs(is), title=issueTitle(is);
+  applyInv(is.inv,q);
+  track('invest',{investment:invKey(is.inv),stack:is.inv.k==='md'?is.inv.st:'none',via:'agent',quality:Math.round(q*100),vendor:v,model:m,bill:b});
+  S.issues=S.issues.filter(i=>i!==is); if(sel.issue===id) sel.issue=null;
+  log('ok',t('log.invAccept',{title,q:Math.round(q*100),h:h1(h)}));
+  advance(h);
+  return true;
 }
 /* GA：直接買、自己做、採購申請、研討會報名都是 self、品質 100 */
 export const INV_SELF={via:'self',quality:100,vendor:'none',model:'none',bill:'none'};
@@ -420,7 +433,7 @@ export const INV_SELF={via:'self',quality:100,vendor:'none',model:'none',bill:'n
 export const invKey=({k,L})=>L>=2?`${k}2`:k;
 /* 投資工單自己做：照原本的工時與公司預算，品質 100%；重做同一級時一樣付那一級的價錢 */
 export function invSelf(id){
-  const is=S.issues.find(i=>i.id===id&&i.inv); if(!is||is.running) return false;
+  const is=S.issues.find(i=>i.id===id&&i.inv); if(!is||is.running||is.acc) return false;
   const {k,st,L}=is.inv, cur=invLevel(k,st);
   if(L>cur){ if(!invest(k,st,L)) return false; setInvQ(k,st,L,1); }
   else{

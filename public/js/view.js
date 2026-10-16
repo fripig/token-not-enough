@@ -1,7 +1,7 @@
-import {CAP_SCALE,CONFLICT_MAX,RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL,INV_CX} from './data.js';
+import {ACCEPT_HRS,CAP_SCALE,CONFLICT_MAX,RESEARCH_DIRECT_TK,SKILLS_CX,SDD_EG,SDD_NAME,SDD_P,SDD_TK,SDD_TRAP_STOP,lv,BILL_LABEL,EFFORT,HW,HW_IDLE,HW_KEYS,HW_REQ_HRS,HW_SETUP_HRS,INVEST,INV_KEYS,PN,SEAT,STACKS,SUBV,VENDORS,cnBlock,companyName,h1,kt,model,nt,planOf,vc,CONF,CONF_CATS,CONF_KEYS,CONF_LAST_DAY,CONF_MANUAL,INV_CX} from './data.js';
 import {GIG_LATE,S,issueTitle,sel,unfamiliar,dueBy} from './state.js';
 import {REVIEW,reviewer,reviewCost,rvModelBlock,sddLevel,bills,costLine,est,hwBlock,localBusy,manualBlocked,manualHrs,presetBlock,quotaLeft,burnStat,stackHint,skillsLv,invQ,sddP,sddStop} from './calc.js';
-import {ABANDON_TRUST,canAbandon,INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax,invTicketBlock,invSelfBlock,lvCost} from './actions.js';
+import {ABANDON_TRUST,canAbandon,INV_STACKS,PAR,TRAP_STOP,researchBlock,researchCost,selfResearchHrs,auditOdds,auditRisk,canEvaluate,canQuick,clock,evalCost,hwReqBlock,invCount,invHint,investBlock,queueOrder,reviewLoad,confBlock,invCost,invLevel,invMax,invTicketBlock,invSelfBlock,lvCost,acceptBlock,acceptHrs} from './actions.js';
 import {LANGS,LANG_SWITCH,lang,t} from './i18n.js';
 
 /* ===== 畫面 ===== */
@@ -55,8 +55,8 @@ export function render(){
   /* 投資工單：只寫投資名稱、投資標籤、複雜度與 token，沒有 KPI、到期、案主 */
   const invCard=i=>`<div class="issw"><button class="iss ${sel.issue===i.id?'sel':''}" data-iss="${i.id}">
       <span class="t">${issueTitle(i)}</span><span class="k"></span>
-      <span class="meta">${pips(i)}<span class="num">~${kt(i.base)} tokens</span><span class="chip inv">${t('ui.chip.inv')}</span></span>
-    </button>${quickBtn(i)}</div>`;
+      <span class="meta">${pips(i)}<span class="num">~${kt(i.base)} tokens</span><span class="chip inv">${t('ui.chip.inv')}</span>${i.acc?`<span class="chip acc">${t('ui.chip.acc')}</span>`:''}</span>
+    </button>${i.acc?'':quickBtn(i)}</div>`;
   const list=S.issues.filter(i=>!i.running).sort(queueOrder).map(i=>{
     if(i.inv) return invCard(i);
     const left=i.due-S.day;
@@ -188,6 +188,20 @@ export function reviewerRows(is){
 }
 /* 目前選擇跟方案一樣時，載入方案按鈕亮起來；強度只在進階模式比 */
 export const presetIs=p=>p.v===sel.v&&p.m===sel.m&&p.b===sel.b&&p.rv===sel.rv&&(!S.advanced||p.ef===sel.ef)&&sddLevel(p.sdd)===sddLevel()&&JSON.stringify(reviewer(p))===JSON.stringify(reviewer());
+/* 待驗收的投資工單：只剩驗收與取消投資（#67） */
+export function invAccept(is){
+  const why=acceptBlock(is), h=h1(acceptHrs(is)), q=Math.round(is.acc.q*100);
+  return `<p class="dpt">${issueTitle(is)}</p>
+  <div class="est">
+    <div><label>${t('ui.dp.invQ')}</label><b class="${q>=100?'good':q>=60?'meh':'bad'}">${q}%</b></div>
+    <div><label>${t('ui.dp.accHrs')}</label><b>${h}h</b></div>
+  </div>
+  <p class="hint">${t('ui.dp.accHint',{q,h,pct:Math.round(ACCEPT_HRS*100)})}</p>
+  <div class="actions">
+    <button class="btn primary" data-act="invaccept" ${why?'disabled':''}>${why?`${t('ui.dp.acceptShort')}${t('sep')}${why}`:t('ui.dp.accept',{h})}</button>
+    ${abandonBtn(is)}
+  </div>`;
+}
 /* 投資工單的派工台：方案、預估（品質取代成功率）、派出、自己做、取消投資；不顯示審核、SDD、交叉審核、評估、研究 */
 export function invDispatch(is,{e,cl,segs,rows,warn,blocked}){
   const sp=t('sep'), why=invSelfBlock(is), {k,L}=is.inv, I=lvCost(k,L), q=Math.round(e.q*100);
@@ -198,6 +212,7 @@ export function invDispatch(is,{e,cl,segs,rows,warn,blocked}){
     <div><label>${cl.t}</label><b>${costTxt(cl)}</b></div>
     <div><label>${t('ui.dp.invQ')}</label><b class="${q>=100?'good':q>=60?'meh':'bad'}">${q}%</b></div>
     <div><label>${t('ui.dp.runHrs')}</label><b>${h1(e.hrs)}h</b></div>
+    <div><label>${t('ui.dp.accHrs')}</label><b>${h1(acceptHrs(is))}h</b></div>
   </div>
   <p class="hint">${t('ui.dp.invHint',{cx:is.cx})}</p>
   ${S.jobs.length?`<p class="hint">${t('ui.dp.parHint',{n:S.jobs.length,x:reviewLoad().toFixed(2),max:Math.round(CONFLICT_MAX*100)})}</p>`:''}
@@ -215,6 +230,7 @@ export function invDispatch(is,{e,cl,segs,rows,warn,blocked}){
 export function dispatchPanel(){
   const is=S.issues.find(i=>i.id===sel.issue), sp=t('sep'), ls=t('sep.list');
   if(!is) return `<div class="empty">${t('ui.dp.empty1')}<br>${t('ui.dp.empty2')}</div>${S.log.length?`<div class="recent"><label>${t('ui.dp.recent')}</label>${logLines(S.log.slice(0,DP_RECENT))}</div>`:''}`;
+  if(is.acc) return invAccept(is);
   // ensure billing valid
   const avail=(v,M)=>S.outage!==v&&!cnBlock(is,v,M)&&!hwBlock(M);
   if(!avail(sel.v,model(sel.v,sel.m))){for(const v in VENDORS){const M=VENDORS[v].models.find(M=>avail(v,M));if(M){sel.v=v;sel.m=M.id;break;}}if(sel.v==='local')sel.b='local';else if(sel.b==='local')sel.b='api';}

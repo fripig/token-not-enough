@@ -131,6 +131,8 @@ export const INV_CX={md:[4,5],tests:[4,5],ci:[3],hook:[2],scan:[3,5],fastlane:[3
 /* 品質錨點 [能力差距, 品質]，中間線性內插、兩端截平；開關類效果（skills 批次派工、監控告警）品質要到 INV_ON */
 export const INV_Q=[[0,1],[-10,.6],[-20,.3],[-30,.1]], INV_ON=.6;
 export const invCx=(k,L)=>INV_CX[k][L-1];
+/* agent 做完的投資工單，驗收要花自己做那一級工時的這個倍數（#67） */
+export const ACCEPT_HRS=.5;
 export function invQuality(cap,cx){
   const gap=cap-cx*CAP_SCALE;
   if(gap>=INV_Q[0][0]) return INV_Q[0][1];
