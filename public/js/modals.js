@@ -91,7 +91,7 @@ export function showSetup(adjust){
     else if(bt.dataset.burn){draft.burn=bt.dataset.burn==='1';draw();}
     else if(bt.dataset.corp){const v=bt.dataset.corp;draft.corpApi=draft.corpApi.includes(v)?draft.corpApi.filter(k=>k!==v):[...draft.corpApi,v];draw();}
     else if(bt.dataset.act==='close'){ov.hidden=true;}
-    else if(bt.dataset.act==='rules'){showRules(back);}
+    else if(bt.dataset.act==='rules'){showRules(back,undefined,normCorp(draft.corpApi));}
     /* 開局視窗蓋住標頭，所以這裡也能換語言；草稿不重設 */
     else if(bt.dataset.lang){setLang(bt.dataset.lang);render();draw();}
     else if(bt.dataset.act==='confirm'){

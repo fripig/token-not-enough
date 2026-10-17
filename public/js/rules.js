@@ -36,7 +36,8 @@ const banText=ban=>t(`rules.ban.${ban}`);
 const r=(k,p)=>t(`rules.${k}`,p);
 const tag=k=>rtag(t(`rules.tag.${k}`));
 
-export function rulesTab(id){
+/* corp：公司 API 那行要寫的合約清單，從開局彈窗開規則時是正在勾的草稿（#71）；沒給就讀這局的 S.corpApi */
+export function rulesTab(id,corp=S.corpApi){
   const ls=t('sep.list');
   switch(RULE_TABS.some(x=>x.id===id)?id:'basic'){
   case 'dispatch': return rsec(r('h.p'),`${rtable([r('th.capGap',{d:CAP_SCALE}),r('th.p')],P_STEP.map((p,i)=>{const g=P_TOP-i*CAP_SCALE;return [i===0?r('gap.up',{n:g}):i===P_STEP.length-1?r('gap.down',{n:-g}):g>0?`+${g}`:g<0?`−${-g}`:'0',pct(p)];}))}
@@ -61,7 +62,7 @@ export function rulesTab(id){
       `<b>${BILL_LABEL.sub}</b>${r('bill.sub')}`,
       `<b>${BILL_LABEL.seat}</b>${r('bill.seat',{day:kt(SEAT.day),week:kt(SEAT.week)})}`,
       `<b>${BILL_LABEL.api}</b>${r('bill.api')}`,
-      `<b>${BILL_LABEL.corp}</b>${r(S.corpApi.length?'bill.corp':'bill.corpNone',{vendors:S.corpApi.map(v=>VENDORS[v].name).join(ls),limit:nt(CORP_DAY_LIMIT),n:CORP_DAY_TRUST,od:OVERDRAFT_TRUST})}`,
+      `<b>${BILL_LABEL.corp}</b>${r(corp.length?'bill.corp':'bill.corpNone',{vendors:corp.map(v=>VENDORS[v].name).join(ls),limit:nt(CORP_DAY_LIMIT),n:CORP_DAY_TRUST,od:OVERDRAFT_TRUST})}`,
       `<b>${BILL_LABEL.local}</b>${r('bill.local',{tag:tag('par')})}`,
       `${tag('gig')}${r('bill.gig')}`]))
     +rsec(r('h.audit'),rlist([
@@ -137,13 +138,13 @@ export function rulesTab(id){
     +rsec(`${r('h.effort')} ${tag('adv')}`,rtable([r('th.effort'),r('th.cap'),'token',r('th.time')],EFFORT.map(e=>[e.name,e.cap>0?`+${e.cap}`:e.cap<0?`${e.cap}`:r('same'),`×${e.tk}`,`×${e.hrs}`])));
   }
 }
-/* 規則 modal：back 是從其他彈窗打開時，關閉後回到那個彈窗的函式；tab 是要直接打開的分頁（最近更新彈窗開「更新」） */
-export function showRules(back,tab){
+/* 規則 modal：back 是從其他彈窗打開時，關閉後回到那個彈窗的函式；tab 是要直接打開的分頁（最近更新彈窗開「更新」）；corp 傳給 rulesTab */
+export function showRules(back,tab,corp){
   if(tab&&RULE_TABS.some(x=>x.id===tab)) ruleTab=tab;
   const draw=()=>{
     mo.innerHTML=`<h2>${r('title')}</h2>
     <div class="seg rtabs">${RULE_TABS.map(x=>`<button class="sb ${x.id===ruleTab?'sel':''}" data-rtab="${x.id}">${x.title}</button>`).join('')}</div>
-    <div class="rbody">${rulesTab(ruleTab)}</div>
+    <div class="rbody">${rulesTab(ruleTab,corp)}</div>
     <small class="rnote">${r('note')}</small>
     <div class="actions"><button class="btn" data-act="close">${r('close')}</button></div>`;
   };

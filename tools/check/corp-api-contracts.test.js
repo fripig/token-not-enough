@@ -6,7 +6,7 @@ import * as St from '../../public/js/state.js';
 import {S,fresh,issueTitle} from '../../public/js/state.js';
 import {start} from '../../public/js/main.js';
 import {showEnd,showSetup} from '../../public/js/modals.js';
-import {rulesTab} from '../../public/js/rules.js';
+import {rulesTab,showRules} from '../../public/js/rules.js';
 import * as C from '../../public/js/calc.js';
 
 const J=JSON.stringify;
@@ -91,6 +91,28 @@ section("corp-api-contracts：規則與紀錄寫出簽約名單（Contract list 
   ok(/・公司 API：OpenAI、Google$/.test(modeLine()),'開局紀錄最後寫・公司 API：OpenAI、Google',modeLine());
   const line=rulesTab('billing').split('<li>').find(x=>x.includes('扣公司預算'))||'';
   ok(line.includes('OpenAI')&&line.includes('Google')&&!line.includes('Anthropic'),'規則付費分頁的公司 API 寫 OpenAI、Google，不寫 Anthropic',line.slice(0,120));
+  S.corpApi=[...CORP_DEFAULT];
+});
+
+section("corp-api-contracts：從開局彈窗開規則時寫正在勾的合約（#71）",()=>{
+  const corpLine=()=>els.mo.innerHTML.split('<li>').find(x=>x.includes('扣公司預算'))||'';
+  const corpNone=()=>els.mo.innerHTML.split('<li>').find(x=>x.includes('這局公司沒有簽任何廠商'))||'';
+  S.corpApi=[...CORP_DEFAULT]; start();
+  clickMo({corp:'anthropic'}); clickMo({corp:'google'}); clickMo({corp:'openai'});
+  clickMo({act:'rules'}); clickMo({rtab:'basic'}); clickMo({rtab:'billing'});
+  const line=corpLine();
+  ok(line.includes('OpenAI')&&!line.includes('Anthropic')&&!line.includes('Google'),'開局彈窗只勾 OpenAI 時規則的公司 API 寫 OpenAI，不寫 Anthropic、Google',line.slice(0,120));
+  ok(J(S.corpApi)===J(CORP_DEFAULT),'開規則不改已確認的清單',J(S.corpApi));
+  clickMo({act:'close'});
+  const b=corpBtns();
+  ok(b.openai?.on&&!b.anthropic?.on&&!b.google?.on,'關掉規則回到開局彈窗，仍只勾 OpenAI',J(b));
+  ok(J(S.corpApi)===J(CORP_DEFAULT),'關掉規則後已確認的清單仍是 Anthropic＋Google',J(S.corpApi));
+  clickMo({corp:'openai'}); clickMo({act:'rules'}); clickMo({rtab:'billing'});
+  ok(corpNone()!=='','開局彈窗三家都不勾時規則寫這局公司沒有簽任何廠商');
+  clickMo({act:'close'});
+  showRules(); clickMo({rtab:'billing'});
+  const hl=corpLine();
+  ok(hl.includes('Anthropic')&&hl.includes('Google')&&!hl.includes('OpenAI'),'不帶清單開規則（標頭）照舊寫已確認的 Anthropic、Google',hl.slice(0,120));
   S.corpApi=[...CORP_DEFAULT];
 });
 
