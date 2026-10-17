@@ -40,7 +40,7 @@ Every event SHALL carry these parameters (`corp_api` added by `corp-api-contract
 | --- | --- |
 | `game_version` | the value of `GAME_VERSION` (see Game version stamp) |
 | `game_mode` | `parallel` (or `serial`) |
-| `companies` | the selected stacks joined with `+` in the fixed company order, here `laravel+rust` |
+| `companies` | the selected stacks joined with `+` in the fixed company order, here `laravel+rust`; `none` when the selection is empty (全端打雜) |
 | `advanced` | `true` |
 | `outsource` | `true` |
 | `burn` | `true` |
@@ -56,6 +56,11 @@ Every event SHALL carry these parameters (`corp_api` added by `corp-api-contract
 
 - **WHEN** the player confirms the opening setup with Laravel and Rust, parallel mode, advanced mode, outsourcing, the usage challenge and no contracted vendor
 - **THEN** the `game_start` event carries `game_mode` `parallel`, `companies` `laravel+rust`, `advanced` `true`, `outsource` `true`, `burn` `true`, `corp_api` `none`, and no `slots` key
+
+#### Scenario: 全端打雜 run parameters
+
+- **WHEN** the player confirms the opening setup with 全端打雜
+- **THEN** the `game_start` event carries `companies` `none`
 
 ---
 ### Requirement: Game start
