@@ -198,7 +198,7 @@ section("gh-69-01 全端打雜：工單分布、事故單、不熟",()=>{
   newRun([]); S.day=12; const T=10000, got=[...Array(T)].map(intakeIssue);
   const a=got.filter(i=>i.inc).length/T, r=got.filter(i=>i.inc&&i.stack==='sre').length/T;
   ok(Math.abs(a-.12)<=.01&&Math.abs(r-.02)<=.01,'進件：全端打雜第 12 天事故 0.12、sre 事故 0.02',`${a} ${r}`);
-  /* 前端以外都不熟，手寫 ×2 */
+  /* 六條主技術線都不熟，手寫 ×2（前端不算不熟） */
   newRun([]);
   ok(COMPANIES.every(k=>unfamiliar(ticket(k,2))&&h1(manualHrs(ticket(k,2)))==='8.8'),'全端打雜：六條線都不熟，複雜度 2 手寫 8.8h');
   ok(!unfamiliar(ticket('fe',2))&&h1(manualHrs(ticket('fe',2)))==='4.4','全端打雜：前端不算不熟，手寫 4.4h');
@@ -226,7 +226,7 @@ section("gh-69-01 全端打雜：開局按鈕、提示行、說明句",()=>{
   const btn=k=>els.mo.innerHTML.match(new RegExp(`<button[^>]*data-company="${k}"[^>]*>([\\s\\S]*?)</button>`))?.[0]||'';
   start(); S.companies=['laravel']; showSetup(false);
   { const b=btn('none'), i6=els.mo.innerHTML.indexOf('data-company="devops"'), i7=els.mo.innerHTML.indexOf('data-company="none"');
-    ok(b.includes('<b>全端打雜</b>')&&b.includes('難度 ★★★★・什麼都接，前端以外都不熟。')&&i7>i6,'第七顆按鈕：全端打雜、難度 ★★★★、說明，排在 DevOps 後面',b); }
+    ok(b.includes('<b>全端打雜</b>')&&b.includes('難度 ★★★★・什麼都接，六條主技術線都不熟。')&&i7>i6,'第七顆按鈕：全端打雜、難度 ★★★★、說明，排在 DevOps 後面',b); }
   S.companies=[]; showSetup(false);
   ok(COMPANIES.every(k=>!/disabled/.test(btn(k))),'全端打雜時六條線的按鈕都沒有停用',COMPANIES.filter(k=>/disabled/.test(btn(k))).join());
   /* spec 的 toggle 表（含全端打雜三列） */
@@ -238,11 +238,11 @@ section("gh-69-01 全端打雜：開局按鈕、提示行、說明句",()=>{
   /* 全端打雜狀態的提示行、說明句；確認後重抽第 1 天工單 */
   start(); S.companies=['laravel']; showSetup(false);
   press({company:'none'});
-  ok(els.mo.innerHTML.includes('<p class="hint">沒有熟悉的技術線：工單 85% 平分給六條線、前端 15%，前端以外手寫都要 ×2。</p>'),'全端打雜的提示行');
+  ok(els.mo.innerHTML.includes('<p class="hint">沒有熟悉的主技術線：工單 85% 平分給六條線、15% 是前端；六條主技術線手寫都要 ×2（前端人人都會，不算不熟）。</p>'),'全端打雜的提示行');
   ok(els.mo.innerHTML.includes('你是工程師，負責「全端打雜」。'),'全端打雜的開局說明');
   ok([zh,en].every(D=>['{six}','{fe}','{x}'].every(p=>D['ui.setup.workHintNone'].includes(p))),'全端打雜提示行的數字從常數插值');
   setLang('en'); showSetup(false); press({company:'none'}); const he=els.mo.innerHTML; setLang('zh-TW');
-  ok(he.includes('<p class="hint">No familiar stack: 85% of tickets are split over the six stacks, 15% frontend; hand-writing anything but frontend takes ×2.</p>')&&he.includes('<b>Jack of all trades</b>')&&he.includes('Take anything; every stack but frontend is unfamiliar.'),'英文的全端打雜按鈕與提示行');
+  ok(he.includes('<p class="hint">No familiar main stack: 85% of tickets are split over the six stacks, 15% are frontend; hand-writing any of the six main stacks takes ×2 (everyone knows frontend, so it is not unfamiliar).</p>')&&he.includes('<b>Jack of all trades</b>')&&he.includes('Take anything; none of the six main stacks is familiar.'),'英文的全端打雜按鈕與提示行');
   start(); S.companies=['laravel']; showSetup(false); const iss0=S.issues[0]; press({company:'none'}); press({act:'confirm'});
   ok(S.companies.length===0&&S.issues.length===4&&S.issues[0]!==iss0,'確認全端打雜後存成空陣列並重抽第 1 天工單');
   ok(els.app.innerHTML.includes('全端打雜・工程師')&&S.log.some(l=>l.msg.includes('全端打雜・遊戲模式')),'標頭與開局紀錄寫全端打雜');

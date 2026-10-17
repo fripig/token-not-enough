@@ -149,7 +149,9 @@ Artifact 時期的限制仍值得沿用：不用 `alert/confirm/prompt`、`local
    → 查不到當初不給 OpenAI 公司 API 的理由（v1 就寫死）。改成開局設定「公司 API 合約」：Anthropic、OpenAI、Google 三顆按鈕各自勾選，預設 Anthropic＋Google（就是原本的行為），可以一家都不勾；中國廠商與本地模型照舊不能走公司 API；團隊席位不受影響、三家照舊都能申請；最高分與評等門檻不分開，GA 多送 `corp_api`（都是使用者從選項裡選的）。一家都沒簽時用量挑戰不算公司 API 那塊、規則與開局紀錄寫出簽約名單、舊存檔讀成 Anthropic＋Google 是提案時照預設補的。公司出錢派 OpenAI（例如整天刷 Codex Sol）沒有量過平衡。設計紀錄在 Spectra change `gh-70-01-corp-api-contracts`（#70），規則以 `docs/spectra/specs/corp-api-contracts/` 為準。
 
 56. 「延伸討論 其實可以都不選？」、「開新卡，先 discuss」（#69，從 #68 延伸）
-   → 開局多一顆第七顆按鈕「全端打雜」（★★★★，跟六條線互斥），存成空的 `S.companies`：工單 15% 前端、85% 平分六條線，事故單平分六條線、沒有 SRE 第二擲，前端以外都不熟；最高分 key 與 GA 用 `none`；不補償，用 `SIM_NONE=1` 量完照實記錄（都是使用者從選項裡選的：第七顆按鈕、不補償先量）。量到平行 −11%～−15%、單線 −28%～−38%（相對 Laravel），跟 ★★ 的 App、DevOps 差不多。設計紀錄在 Spectra change `gh-69-01-no-work-content`（#69），規則以 `docs/spectra/specs/company-tech-stack/` 為準。
+   → 開局多一顆第七顆按鈕「全端打雜」（★★★★，跟六條線互斥），存成空的 `S.companies`：工單 15% 前端、85% 平分六條線，事故單平分六條線、沒有 SRE 第二擲，六條主技術線都不熟（前端本來就不算不熟）；最高分 key 與 GA 用 `none`；不補償，用 `SIM_NONE=1` 量完照實記錄（都是使用者從選項裡選的：第七顆按鈕、不補償先量）。量到平行 −11%～−15%、單線 −28%～−38%（相對 Laravel），跟 ★★ 的 App、DevOps 差不多。設計紀錄在 Spectra change `gh-69-01-no-work-content`（#69），規則以 `docs/spectra/specs/company-tech-stack/` 為準。
+57. 「現在的說法感覺前端是打雜 要改一下」（#72，#69 上線後提出）
+   → 全端打雜的說明、選它時的提示行與最近更新那句改成以「六條主技術線」當主詞：「什麼都接，六條主技術線都不熟。」「沒有熟悉的主技術線：工單 85% 平分給六條線、15% 是前端；六條主技術線手寫都要 ×2（前端人人都會，不算不熟）。」名稱「全端打雜」與規則、數字都不變，不另加最近更新（使用者選的：主詞改成六條線）。設計紀錄在 Spectra change `gh-72-01-none-wording`（#72）。
 介面預設語言是繁體中文（台灣用語），所有介面文字都放在字典（見「多語系」），程式碼裡註解以外不能有中文。Laravel 線的工單以新聞網站後台的日常工作為題材，其他技術線的工單也維持同樣「具體、短」的語氣。
 
 ## 遊戲規則與數值
@@ -259,8 +261,8 @@ v1 核心規則的需求以 `docs/spectra/specs/` 下這十份 spec 為準（Spe
 - 工作內容按鈕的難度標示（`STACKS[k].level`）：Laravel、Rails ★，App、SRE、DevOps ★★，Rust ★★★，全端打雜 ★★★★（`NONE_LEVEL`，在 `modals.js`）。雙選不另外標組合難度。
 
 全端打雜（#69，Spectra change `gh-69-01-no-work-content`）：
-- 開局六顆按鈕後面的第七顆「全端打雜」（`data-company="none"`，說明「什麼都接，前端以外都不熟。」），跟六條線互斥：按它清空其他選擇；全端打雜時按某條線就換成那條；再按一次全端打雜不變；選滿兩條時它仍可按（`toggleCompany(cs,'none')` 回 `[]`）。標題改成「熟悉的工作內容（可選 1–2 項，或全端打雜）」，選它時提示行換成 `ui.setup.workHintNone`（85% 由 `1 − STACK_FE`、15% 由 `STACK_FE`、×2 由 `UNFAMILIAR_HRS` 插值）。
-- 存成 `S.companies = []`，不加 sentinel 技術線：`unfamiliar`（前端以外都不熟）、`intakeIssue`（沒有 SRE 第二擲）、`INV_STACKS`（六條線再前端）本來就對空陣列算對。`normCompanies([])` 回 `[]`，其他不合法值照舊退回 Laravel。
+- 開局六顆按鈕後面的第七顆「全端打雜」（`data-company="none"`，說明「什麼都接，六條主技術線都不熟。」，#72 前是「什麼都接，前端以外都不熟。」，讀起來像全端打雜＝會前端的人），跟六條線互斥：按它清空其他選擇；全端打雜時按某條線就換成那條；再按一次全端打雜不變；選滿兩條時它仍可按（`toggleCompany(cs,'none')` 回 `[]`）。標題改成「熟悉的工作內容（可選 1–2 項，或全端打雜）」，選它時提示行換成 `ui.setup.workHintNone`（85% 由 `1 − STACK_FE`、15% 由 `STACK_FE`、×2 由 `UNFAMILIAR_HRS` 插值）。
+- 存成 `S.companies = []`，不加 sentinel 技術線：`unfamiliar`（六條主技術線都不熟，前端不算）、`intakeIssue`（沒有 SRE 第二擲）、`INV_STACKS`（六條線再前端）本來就對空陣列算對。`normCompanies([])` 回 `[]`，其他不合法值照舊退回 Laravel。
 - 一般工單 15% 前端、85% 平分給六條線（各約 14.17%，`pickStack`，亂數次數跟有選時一樣）；事故單從六條線平均抽。
 - 名稱 `companyName([])` 是字典的 `stack.none.company`（全端打雜／Jack of all trades）；最高分 key 是 `tokgame-best-<mode>-none`（開用量挑戰 `-none-burn`），GA 的 `companies` 送 `none`。存檔的 `companies` 可以是空陣列，`SAVE_VER` 沒加。
 - 不補償：KPI、期限、預算、評等門檻都跟有選時一樣（使用者選的「不補償，先量」）。
