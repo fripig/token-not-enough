@@ -83,6 +83,9 @@ section("cross-model-review：結算、沒審成、稽核",()=>{
   a0=S.st.audits; withRand([.1,.1],()=>settle(sj())); ok(S.st.audits===a0+2,'機敏單：寫、審各擲一次，稽核 2 次');
   a0=S.st.audits; withRand([0,0],()=>{const is=ticket('fe',2,{sens:true}); S.issues=[is]; settle(job(is,'anthropic','sonnet','corp',{rv:1,ok:true,tk:10,rvv:'anthropic',rvm:'opus',rvb:'corp',rtk:5}));});
   ok(S.st.audits===a0,'機敏單：寫、審都走公司 API 不擲稽核');
+  withRand([0,0],()=>{const is=ticket('fe',2,{sens:true}); S.issues=[is]; settle(job(is,'anthropic','sonnet','corp',{rv:1,ok:true,tk:10,rvv:'anthropic',rvm:'opus',rvb:'api',rtk:5}));});
+  const rl=S.log.find(l=>l.msg.includes('資安稽核'))?.msg||'';
+  ok(rl.includes('審核 Claude Code / Opus・個人 API')&&rl.includes('主管信任 -12'),'機敏單：審核走個人 API 被稽核，稽核行寫「審核 <agent> / <審核模型>・<付費>」',rl);
   delete globalThis.gtag;
 });
 

@@ -44,6 +44,16 @@ section("執行紀錄（gh-25-01-log-history）",()=>{
   newRun('laravel'); S.hours=8; const ev1=ticket('laravel',2); S.issues=[ev1]; pick('anthropic','opus','corp'); sel.issue=ev1.id;
   evaluate();
   ok(S.log[0].msg.includes('｜評估｜Claude Code / Opus・公司 API｜評估完成，看起來沒問題'),'action-log：評估那行寫模型與付費方式',S.log[0].msg);
+  ok(!S.log[0].msg.includes('（機敏）'),'action-log：非機敏單的評估行不標機敏',S.log[0].msg);
+  newRun('laravel'); S.hours=8; const ev2=ticket('laravel',2,{sens:true,title:'補齊 parser 的單元測試'}); S.issues=[ev2]; pick('anthropic','opus','corp'); sel.issue=ev2.id;
+  evaluate();
+  ok(S.log[0].msg.includes('補齊 parser 的單元測試（機敏）｜評估｜'),'action-log：機敏單的評估行在標題後標（機敏）',S.log[0].msg);
+  newRun('laravel'); S.hours=8; const ev3=ticket('laravel',1,{sens:true,title:'陷阱',trap:true,trueCx:4,trueBase:BASE[4]}); S.issues=[ev3]; pick('anthropic','opus','corp'); sel.issue=ev3.id;
+  withRand(0,()=>evaluate());
+  ok(S.log.some(l=>l.msg.includes('陷阱（機敏）｜評估｜')&&l.msg.includes('發現牽扯架構')),'action-log：機敏單評估識破陷阱的行標（機敏）',S.log[0].msg);
+  newRun('laravel'); S.hours=8; S.subs.anthropic='pro'; S.used.sub.anthropic={d:1e9,w:1e9}; const ev4=ticket('laravel',2,{sens:true,title:'沒額度'}); S.issues=[ev4]; pick('anthropic','opus','sub'); sel.issue=ev4.id;
+  evaluate();
+  ok(S.log[0].msg.includes('沒額度（機敏）｜評估｜'),'action-log：機敏單評估額度不夠中斷的行標（機敏）',S.log[0].msg);
   newRun('laravel'); S.hours=8; const okx=ticket('laravel',1); S.issues=[okx]; pick('anthropic','sonnet','corp',1); sel.issue=okx.id;
   withRand(0,()=>dispatch());
   ok(S.log[0].msg.includes('✓ t｜Claude Code / Sonnet・公司 API・自審｜'),'action-log：成功那行寫付費方式與審核',S.log[0].msg);

@@ -80,6 +80,11 @@ section("研究單（gh-21-01-research-split-tickets）",()=>{
    const h0=S.hours; evaluate(); ok(S.hours===h0&&!tr.evaluated,'research：在研究單上評估架構不動作');
    newRun('laravel','parallel'); tr=rt('laravel',4); pick3(tr,'anthropic','sonnet','api'); A.research('agent'); ok(near(S.hours,7.6)&&S.issues.length===2&&!tr.running,'research：平行模式研究推進時鐘 0.4h');
    newRun('laravel'); tr=rt('laravel',4,{sens:true}); pick3(tr,'deepseek','chat','api'); rand(0,()=>A.research('agent')); ok(S.st.audits===1&&S.trust===58,'research：機敏研究單走個人 API 要擲資安稽核');
+   newRun('laravel'); S.subs.anthropic='pro'; S.used.sub.anthropic={d:1e9,w:1e9}; tr=rt('laravel',4,{sens:true}); pick3(tr,'anthropic','opus','sub'); A.research('agent');
+   ok(S.log[0].msg.includes('研究單（機敏）｜研究｜')&&S.log[0].msg.includes('研究沒做完'),'research：機敏研究單額度不夠中斷的行標（機敏）',S.log[0].msg);
+   newRun('laravel'); S.subs.anthropic='max20'; tr=rt('laravel',4,{sens:true}); pick3(tr,'anthropic','opus','sub'); rand(0,()=>A.research('agent'));
+   {const sp=S.log.find(l=>l.msg.includes('✂'))?.msg||'', au=S.log.find(l=>l.msg.includes('資安稽核'))?.msg||'';
+    ok(sp.includes('研究單（機敏）｜研究｜Claude Code / Opus・個人訂閱')&&!sp.includes('拆單一（機敏）')&&au.includes('資安稽核：研究單｜Claude Code / Opus・個人訂閱｜'),'research：機敏研究單的研究行標（機敏）、拆出來的不標，稽核行寫同一張單與付費方式',`${sp} / ${au}`);}
   /* research 2.3 被擋下的研究：什麼都不變、不送事件 */
    {const ev=[]; globalThis.gtag=(k,n)=>ev.push(n);
     const refused=(name,setup,via='agent',mode='serial')=>{newRun('laravel',mode); tr=rt('laravel',4); pick3(tr,'anthropic','sonnet','api'); setup(tr); ev.length=0;

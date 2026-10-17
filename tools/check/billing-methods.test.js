@@ -1,7 +1,7 @@
 // billing-methods 的規則檢查：docs/spectra/specs/billing-methods/spec.md
 import {ok,near,section,newRun,ticket,withRand,job,clickApp,clickMo} from './lib.js';
 import {els} from '../fake-dom.js';
-import {model} from '../../public/js/data.js';
+import {effModel,model} from '../../public/js/data.js';
 import {S,sel} from '../../public/js/state.js';
 import {auditOdds,charge,endDay,evaluate,settle} from '../../public/js/actions.js';
 import {render} from '../../public/js/view.js';
@@ -71,6 +71,17 @@ section("billing-methods：付費選項",()=>{
   ok(auditWith('api','anthropic','sonnet',false).join()==='1,58','billing-methods：失敗的嘗試一樣擲稽核');
   ok(auditWith('corp','anthropic','sonnet').join()==='0,70'&&auditWith('local','local','gemma').join()==='0,70','billing-methods：公司 API 與本地 GPU 不會被稽核');
   S.subs.anthropic='pro'; const tsub=ticket('fe',1,{sens:true}); S.issues=[tsub]; withRand(0,()=>settle(job(tsub,'anthropic','sonnet','sub'))); ok(S.st.audits===1,'billing-methods：個人訂閱也會被稽核');
+  /* 稽核那行寫出工單與付費方式（gh-73-01） */
+  newRun('laravel'); S.subs.anthropic='max20'; const tl=ticket('fe',2,{sens:true,title:'登入頁支援密碼自動填入'}); S.issues=[tl];
+  withRand(0,()=>settle(job(tl,'anthropic','opus','sub')));
+  const al=S.log.find(l=>l.msg.includes('資安稽核'))?.msg||'';
+  ok(al.endsWith('! 資安稽核：登入頁支援密碼自動填入｜Claude Code / Opus・個人訂閱｜機敏程式碼送進個人帳號被抓到，主管信任 -12'),'billing-methods：稽核行寫出工單標題與 agent／模型・付費方式',al);
+  newRun('laravel'); const te=ticket('fe',2,{sens:true,title:'高強度'}); S.issues=[te]; withRand(0,()=>settle(job(te,'anthropic','sonnet','api',{M:effModel(model('anthropic','sonnet'),2)})));
+  const ae=S.log.find(l=>l.msg.includes('資安稽核'))?.msg||'';
+  ok(ae.includes('高強度｜Claude Code / Sonnet・高強度・個人 API｜'),'billing-methods：派工的稽核行模型名稱含推理強度',ae);
+  newRun('laravel'); const tc=ticket('fe',2,{sens:true}); S.issues=[tc]; withRand(0,()=>settle(job(tc,'deepseek','chat','api')));
+  const ac=S.log.find(l=>l.msg.includes('資安稽核'))?.msg||'';
+  ok(ac.includes('Claude Code 接 DeepSeek API / Chat・個人 API')&&ac.includes('機敏程式碼送進中國雲端模型被抓到'),'billing-methods：中國雲端稽核行寫出 DeepSeek 與付費方式',ac);
   const warnFor=(v,m,b)=>{newRun('laravel'); S.hours=8; const ts=ticket('fe',1,{sens:true}); S.issues=[ts]; sel.issue=ts.id; Object.assign(sel,{v,m,b,rv:0}); render(); return els.app.innerHTML;};
   ok(warnFor('anthropic','sonnet','api').includes('機敏工單用個人帳號：有 35% 機率被資安稽核抓到。'),'billing-methods：個人帳號稽核警告');
   ok(warnFor('deepseek','chat','api').includes('機敏工單送到中國雲端：有 60% 機率被資安稽核抓到。'),'billing-methods：中國雲端稽核警告');

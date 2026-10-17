@@ -32,6 +32,8 @@ export const jobChoice=j=>({vendor:j.v,model:j.m??'unknown',bill:j.b,review:RV_I
 /* 紀錄裡的「・Opus 審（公司 API）」；同一個模型審時是空的 */
 export const rvSeg=j=>j.rvv!=null?`${t('sep')}${t('log.rvBy',{m:model(j.rvv,j.rvm).name,bill:BILL_LABEL[j.rvb]})}`:'';
 /* 目前選的付費方式能不能用（錢包見底、沒訂閱、外包不能用公司資源等，同派工台的按鈕） */
+/* 評估與研究紀錄的工單標題：機敏單加上標記（派工那行的機敏寫在括號的標籤裡） */
+export const sensTitle=is=>issueTitle(is)+(is.sens?t('log.sensTag'):'');
 /* 紀錄裡的「agent / 模型・付費方式」 */
 export const who=(v,M,b)=>t('log.who',{agent:VENDORS[v].agent,model:M.name,bill:BILL_LABEL[b]});
 export const billOk=is=>bills(sel.v,is).some(b=>b.id===sel.b&&b.ok);
@@ -129,10 +131,11 @@ export const auditRisk=(is,b)=>is.sens&&(b==='sub'||b==='api');
 /* 資安稽核、公司帳單、逾期的信任扣分 */
 export const AUDIT_ODDS={base:.35,cn:.6}, AUDIT_TRUST=12, OVERDRAFT_TRUST=8, CORP_DAY_LIMIT=1500, CORP_DAY_TRUST=6, LATE_TRUST=4, INC_LATE_TRUST=8;
 export const auditOdds=v=>(VENDORS[v].cn?AUDIT_ODDS.cn:AUDIT_ODDS.base)*scanMul();
-export function auditRoll(is,b,v){
+/* w 是紀錄裡「誰付的錢」那段（who() 或加上審核前綴）；title 預設是工單現在的標題 */
+export function auditRoll(is,b,v,w,title=issueTitle(is)){
   if(auditRisk(is,b)&&Math.random()<auditOdds(v)){
     S.trust=Math.max(0,S.trust-AUDIT_TRUST); S.st.audits++;
-    log('warn',t(VENDORS[v].cn?'log.auditCn':'log.audit',{n:AUDIT_TRUST}));
+    log('warn',t(VENDORS[v].cn?'log.auditCn':'log.audit',{title,who:w,n:AUDIT_TRUST}));
   }
 }
 export function checkOverdraft(){ if(S.corp<0){ log('warn',t('log.overdraft')); S.trust=Math.max(0,S.trust-OVERDRAFT_TRUST); S.corp=0; } }
@@ -143,7 +146,7 @@ export function reward(is){
 }
 export function settle(j,o={}){
   if(j.inv) return settleInv(j,o);
-  const is=j.issue,v=j.v,b=j.b,M=j.M,frac=o.frac??1;
+  const is=j.issue,v=j.v,b=j.b,M=j.M,frac=o.frac??1, title0=issueTitle(is);
   if(!o.cancel&&j.hidden&&hiddenTrap(is)){ reveal(is); S.st.trapHit++; }
   let tk=j.tk*frac, hrs=j.hrs*frac, ok=j.ok&&!o.fail, note=o.note||'', spend='', conflict=false, fixed=false, rejected=false;
   const cross=j.rvv!=null;
@@ -196,7 +199,7 @@ export function settle(j,o={}){
     is.tries++; is.base*=j.stop?1:RETRY.tk;
     log('bad',t('log.fail',{title:issueTitle(is),who:w,note:note||t('log.note.fail'),tk:kt(tk),spend,h:h1(hrs)}));
   }
-  auditRoll(is,b,v); if(rtk>0) auditRoll(is,j.rvb,j.rvv); checkOverdraft();
+  auditRoll(is,b,v,who(v,M,b),title0); if(rtk>0) auditRoll(is,j.rvb,j.rvv,t('log.auditRv',{who:who(j.rvv,model(j.rvv,j.rvm),j.rvb)}),title0); checkOverdraft();
   return {ok,hrs,rejected};
 }
 export function wait(next){
@@ -239,11 +242,11 @@ export function evaluate(){
   S.st.tk[sel.v]+=used; S.st.byBill[sel.b]+=used;
   const evt=outcome=>track('evaluate',{vendor:sel.v,model:sel.m,bill:sel.b,cx,stack:is.stack,gig:!!is.out,outcome});
   const ew=t('log.evalWho',{who:who(sel.v,M,sel.b)});
-  if(ch.short){ evt('quota'); log('bad',t('log.evalShort',{title:issueTitle(is),ew,why:t(sel.b==='api'?'why.walletEmpty':'why.quota'),spend:ch.spend})); render(); return; }
+  if(ch.short){ evt('quota'); log('bad',t('log.evalShort',{title:sensTitle(is),ew,why:t(sel.b==='api'?'why.walletEmpty':'why.quota'),spend:ch.spend})); render(); return; }
   is.evaluated=true;
-  if(is.trap&&Math.random()<revealRate(M)){ reveal(is); evt('found'); S.st.trapFound++; log('ok',t('log.evalFound',{title:issueTitle(is),ew,a:is.shownCx,b:is.cx,tk:kt(tk),spend:ch.spend,h:h1(hrs)})); }
-  else{ evt('clear'); log('dim',t('log.evalClear',{title:issueTitle(is),ew,tk:kt(tk),spend:ch.spend,h:h1(hrs)})); }
-  auditRoll(is,sel.b,sel.v); checkOverdraft();
+  if(is.trap&&Math.random()<revealRate(M)){ reveal(is); evt('found'); S.st.trapFound++; log('ok',t('log.evalFound',{title:sensTitle(is),ew,a:is.shownCx,b:is.cx,tk:kt(tk),spend:ch.spend,h:h1(hrs)})); }
+  else{ evt('clear'); log('dim',t('log.evalClear',{title:sensTitle(is),ew,tk:kt(tk),spend:ch.spend,h:h1(hrs)})); }
+  auditRoll(is,sel.b,sel.v,who(sel.v,M,sel.b)); checkOverdraft();
   render();
 }
 /* 找主管退單：事故單與跑著 agent 的單不能退；公司單信任 −ABANDON_TRUST、不扣 KPI，外包單照付逾期違約金 */
@@ -312,12 +315,12 @@ export function research(via){
   if(agent){
     ch=charge(sel.b,sel.v,M,cost.tk); const used=cost.tk*ch.frac; useHw(sel.v,sel.m);
     S.st.tk[sel.v]+=used; S.st.byBill[sel.b]+=used;
-    if(ch.short){ evt('quota'); log('bad',t('log.researchShort',{title:issueTitle(is),rw,why:t(sel.b==='api'?'why.walletEmpty':'why.quota'),spend:ch.spend})); render(); return; }
+    if(ch.short){ evt('quota'); log('bad',t('log.researchShort',{title:sensTitle(is),rw,why:t(sel.b==='api'?'why.walletEmpty':'why.quota'),spend:ch.spend})); render(); return; }
   }
-  const title=issueTitle(is), [a,b]=splitResearch(is);
+  const title=issueTitle(is), tagged=sensTitle(is), [a,b]=splitResearch(is);
   evt('split');
-  log('ok',t('log.split',{title,rw,a:issueTitle(a),ca:a.cx,b:issueTitle(b),cb:b.cx,cost:agent?t('log.splitCost',{tk:kt(cost.tk),spend:ch.spend}):'',h:h1(cost.hrs)}));
-  if(agent){ auditRoll(is,sel.b,sel.v); checkOverdraft(); }
+  log('ok',t('log.split',{title:tagged,rw,a:issueTitle(a),ca:a.cx,b:issueTitle(b),cb:b.cx,cost:agent?t('log.splitCost',{tk:kt(cost.tk),spend:ch.spend}):'',h:h1(cost.hrs)}));
+  if(agent){ auditRoll(is,sel.b,sel.v,who(sel.v,M,sel.b),title); checkOverdraft(); }
   render();
 }
 

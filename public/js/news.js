@@ -7,6 +7,7 @@ import {showRules} from './rules.js';
    玩家看得到的更新，新的在前；文字在字典的 news.<id>。id 是上線那個 change 的名稱前綴。
    只能在最前面加，不能刪也不能調順序：tokgame-news 記的是看過的最新一筆 id。 */
 export const NEWS=[
+  {id:'gh-73-01',date:'2026-10-17'},
   {id:'gh-69-01',date:'2026-10-17'},
   {id:'gh-70-01',date:'2026-10-17'},
   {id:'gh-68-01',date:'2026-10-17'},
