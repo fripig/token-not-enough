@@ -1,0 +1,20 @@
+## 1. Baseline and data
+
+- [x] 1.1 Record the baseline: save the output of `SIM_N=100 SIM_SEED=101 node tools/sim.js` to the scratchpad before any code change, so task 4.2 can diff against it. Verify: the file exists and is non-empty.
+- [x] 1.2 Reference links live on the data objects as `refs`: add `refs: [[label, url], …]` to every `INVEST` entry (`md` and all of `INV_KEYS`) and to `INVEST.sdd.lv2`, and a `url` string to every `CONF` and `HW` entry in public/js/data.js, using exactly the labels and URLs in design.md's "Link table". Verify: `node -e` importing data.js (after tools/fake-dom.js) prints every key with its URL count, and every URL starts with `https://`. [after: 1.1]
+
+## 2. Investment tab
+
+- [x] 2.1 Investment reference links in the 工程投資 tab: add `export const refLinks` to public/js/view.js (returns `''` for missing or empty refs, otherwise `<a class="ref" href target="_blank" rel="noopener noreferrer">label ↗</a>` joined with `t('sep.list')`); in `invPanel` append each investment's links to the end of its row description and `INVEST.sdd.lv2.refs` after the level 2 text. Verify: rendering the investment tab via tools/check helpers shows the 單元測試 row ending with the Martin Fowler link and 導入 SDD showing Superpowers, then Spectra, OpenSpec, Spec Kit. [after: 1.2]
+- [x] 2.2 Conference and machine links go on a separate line, not inside the buy buttons: `confRow` and `hwRow` each add one line under the row description, `t('ui.inv.refs')` followed by `refLinks([[name, url]])` for every item in `CONF_KEYS` / `HW_KEYS` order; add `ui.inv.refs` to public/js/i18n/zh-TW.js (`參考：`) and public/js/i18n/en.js (`References: `). Verify: the rendered tab has ten conference links and three machine links, and a regex finds no `<a` between any `<button` and its `</button>`. [after: 2.1]
+- [x] 2.3 Styling: add a `.ref` rule in public/css/style.css using `var(--accent)`, no underline except on hover, `white-space: nowrap` per link. Verify manually with `python3 -m http.server -d public 8000`: 工程投資 tab at desktop width and 400px, light and dark mode, links readable and wrapping only between items; clicking a link opens a new tab and the clock, wallet and log are unchanged. [after: 2.2]
+
+## 3. Rules modal
+
+- [x] 3.1 Rules modal placement / Reference links in the investment rules tab: in `rulesTab('invest')` (public/js/rules.js) import `refLinks`, append it to each investment row's effect cell and to the 導入 SDD Lv2 row's effect cell, and make the conference and machine name cells `refLinks([[name, url]])`. Verify: `rulesTab('invest')` HTML contains every URL from the data, and the COSCUP name cell is a link to https://coscup.org/; manually, clicking a link leaves the modal open on 投資與電腦. [after: 2.2]
+
+## 4. Checks, news and docs
+
+- [x] 4.1 Add assertions: in tools/check/engineering-investments.test.js — every investment and SDD Lv2 has ≥1 `refs` with a non-empty label and `https://` URL, every conference and machine has an `https://` `url`, the investment tab contains each URL with `target="_blank"` and `rel="noopener noreferrer"`, and no `<a` sits inside a `<button>`; English rendering uses the same URLs and `References:`. In tools/check/rules-reference.test.js — the 投資與電腦 tab contains every URL. Verify: `node tools/check.js engineering-investments rules-reference` passes. [after: 3.1]
+- [x] 4.2 Confirm no gameplay change: `SIM_N=100 SIM_SEED=101 node tools/sim.js` output is byte-identical to the 1.1 baseline (diff empty), and the full `node tools/check.js` passes (localization: no CJK in code, `ui.inv.refs` in both dictionaries). [after: 4.3]
+- [x] 4.3 Add the 最近更新 entry `gh-74-01` at the front of `NEWS` in public/js/news.js with the push date, plus `news.gh-74-01` in both dictionaries (same numbers in both); update docs/DESIGN.md: requirement log entry for #74 (user's choices: both places, investments + conferences + machines, one URL for all languages), a short "參考連結" note under 工程投資 with the 2026-10-18 check date, and `refLinks` / `ui.inv.refs` in the code map. Verify: `node tools/check.js whats-new localization` passes. [after: 4.1]

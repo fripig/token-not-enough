@@ -118,19 +118,20 @@ export const SDD_EG={0:'',get 1(){return t('sdd.eg1');},get 2(){return t('sdd.eg
 export const sddDesc=L=>t('sdd.desc',{tk:SDD_TK[L],p:Math.round(SDD_P[L]*100),stop:Math.round(SDD_TRAP_STOP[L]*100)});
 
 /* 工程投資：花工時和公司預算，效果維持到月底 */
+/* refs：真實技術的參考頁面 [標籤, 網址]，各語言同一個網址（2026-10-18 確認過，#74） */
 export const INVEST={
-  md:{get name(){return t('invest.md.name');},hrs:3,cost:300,get desc(){return t('invest.md.desc',{tk:MD_TK,p:Math.round(MD_P[1]*100)});},lv2:{hrs:1,cost:200,get desc(){return t('invest.md.lv2',{p:Math.round(MD_P[2]*100)});}}},
-  tests:{get name(){return t('invest.tests.name');},hrs:4,cost:400,get desc(){return t('invest.tests.desc');},lv2:{hrs:1,cost:200,get desc(){return t('invest.tests.lv2');}}},
-  ci:{get name(){return t('invest.ci.name');},hrs:3,cost:300,get desc(){return t('invest.ci.desc');}},
-  hook:{get name(){return t('invest.hook.name');},hrs:2,cost:200,get desc(){return t('invest.hook.desc');}},
-  scan:{get name(){return t('invest.scan.name');},hrs:3,cost:300,get desc(){return t('invest.scan.desc');},lv2:{hrs:1,cost:200,get desc(){return t('invest.scan.lv2');}}},
-  fastlane:{get name(){return t('invest.fastlane.name');},hrs:3,cost:400,get desc(){return t('invest.fastlane.desc');}},
-  monitor:{get name(){return t('invest.monitor.name');},hrs:3,cost:400,get desc(){return t('invest.monitor.desc');}},
-  skills:{get name(){return t('invest.skills.name');},hrs:3,cost:400,get desc(){return t('invest.skills.desc');},lv2:{hrs:1,cost:200,get desc(){return t('invest.skills.lv2');}}},
-  mcp:{get name(){return t('invest.mcp.name');},hrs:3,cost:400,get desc(){return t('invest.mcp.desc');}},
-  sdd:{get name(){return t('invest.sdd.name');},hrs:6,cost:500,get desc(){return t('invest.sdd.desc',{eg:SDD_EG[1],d:sddDesc(1)});},lv2:{hrs:1,cost:200,get desc(){return t('invest.sdd.lv2',{eg:SDD_EG[2],d:sddDesc(2)});}}},
-  xreview:{get name(){return t('invest.xreview.name');},hrs:2,cost:200,get desc(){return t('invest.xreview.desc');}},
-  ai:{get name(){return t('invest.ai.name');},hrs:1,cost:200,get desc(){return t('invest.ai.desc',{p:Math.round(AI_P*100),max:AI_MAX});}},
+  md:{refs:[['CLAUDE.md','https://code.claude.com/docs/en/memory']],get name(){return t('invest.md.name');},hrs:3,cost:300,get desc(){return t('invest.md.desc',{tk:MD_TK,p:Math.round(MD_P[1]*100)});},lv2:{hrs:1,cost:200,get desc(){return t('invest.md.lv2',{p:Math.round(MD_P[2]*100)});}}},
+  tests:{refs:[['Unit Test (Martin Fowler)','https://martinfowler.com/bliki/UnitTest.html']],get name(){return t('invest.tests.name');},hrs:4,cost:400,get desc(){return t('invest.tests.desc');},lv2:{hrs:1,cost:200,get desc(){return t('invest.tests.lv2');}}},
+  ci:{refs:[['Continuous Integration (Martin Fowler)','https://martinfowler.com/articles/continuousIntegration.html']],get name(){return t('invest.ci.name');},hrs:3,cost:300,get desc(){return t('invest.ci.desc');}},
+  hook:{refs:[['pre-commit','https://pre-commit.com/']],get name(){return t('invest.hook.name');},hrs:2,cost:200,get desc(){return t('invest.hook.desc');}},
+  scan:{refs:[['GitHub secret scanning','https://docs.github.com/en/code-security/concepts/secret-security/secret-scanning']],get name(){return t('invest.scan.name');},hrs:3,cost:300,get desc(){return t('invest.scan.desc');},lv2:{hrs:1,cost:200,get desc(){return t('invest.scan.lv2');}}},
+  fastlane:{refs:[['fastlane','https://docs.fastlane.tools/']],get name(){return t('invest.fastlane.name');},hrs:3,cost:400,get desc(){return t('invest.fastlane.desc');}},
+  monitor:{refs:[['Monitoring Distributed Systems (Google SRE)','https://sre.google/sre-book/monitoring-distributed-systems/']],get name(){return t('invest.monitor.name');},hrs:3,cost:400,get desc(){return t('invest.monitor.desc');}},
+  skills:{refs:[['Claude Code skills','https://code.claude.com/docs/en/skills']],get name(){return t('invest.skills.name');},hrs:3,cost:400,get desc(){return t('invest.skills.desc');},lv2:{hrs:1,cost:200,get desc(){return t('invest.skills.lv2');}}},
+  mcp:{refs:[['Model Context Protocol','https://modelcontextprotocol.io/']],get name(){return t('invest.mcp.name');},hrs:3,cost:400,get desc(){return t('invest.mcp.desc');}},
+  sdd:{refs:[['Superpowers','https://github.com/obra/superpowers']],get name(){return t('invest.sdd.name');},hrs:6,cost:500,get desc(){return t('invest.sdd.desc',{eg:SDD_EG[1],d:sddDesc(1)});},lv2:{refs:[['Spectra','https://spectra.5xcamp.us/'],['OpenSpec','https://github.com/Fission-AI/OpenSpec'],['Spec Kit','https://github.com/github/spec-kit']],hrs:1,cost:200,get desc(){return t('invest.sdd.lv2',{eg:SDD_EG[2],d:sddDesc(2)});}}},
+  xreview:{refs:[['Codex plugin for Claude Code','https://github.com/openai/codex-plugin-cc']],get name(){return t('invest.xreview.name');},hrs:2,cost:200,get desc(){return t('invest.xreview.desc');}},
+  ai:{refs:[['Claude Code best practices','https://code.claude.com/docs/en/best-practices']],get name(){return t('invest.ai.name');},hrs:1,cost:200,get desc(){return t('invest.ai.desc',{p:Math.round(AI_P*100),max:AI_MAX});}},
 };
 /* CLAUDE.md 以外的投資，面板照這個順序 */
 export const INV_KEYS=['tests','ci','hook','scan','fastlane','monitor','skills','mcp','sdd','xreview','ai'];
@@ -152,17 +153,18 @@ export const MD_TK=.85, MD_P=[0,.06,.15], TEST_CATCH=[0,.1,.2], MCP_REVEAL=.2, M
 export const HOOK_PR=.5, SCAN_AUDIT=[1,.5,.25], SKILLS_CX=[0,2,3], FASTLANE_REJECT=.1, MONITOR_LATE=4, MONITOR_KPI=1.2;
 /* 國內研討會：週末自費參加。票價是 2026-10-10 查到的一般票，查不到的用往年或估計（見 DESIGN.md） */
 export const CONF_CATS={get stack(){return t('confcat.stack');},get sec(){return t('confcat.sec');},get ai(){return t('confcat.ai');},get gen(){return t('confcat.gen');}};
+/* url：研討會官網（沒有固定網址的用今年那屆） */
 export const CONF={
-  iplayground:{name:'iPlayground',cat:'stack',stacks:['app'],fee:4000},
-  mopcon:{name:'MOPCON×JSDC',cat:'stack',stacks:['app','fe'],fee:699},
-  devopsdays:{name:'DevOpsDays Taipei',cat:'stack',stacks:['sre','devops'],fee:3500},
-  kubesummit:{name:'KubeSummit',cat:'stack',stacks:['sre','devops'],fee:3000},
-  coscup:{name:'COSCUP',cat:'stack',stacks:['rails','rust'],fee:0},
-  webconf:{name:'WebConf Taiwan',cat:'stack',stacks:['laravel','fe'],fee:4200},
-  hitcon:{name:'HITCON',cat:'sec',stacks:[],fee:6000},
-  cybersec:{get name(){return t('conf.cybersec');},cat:'sec',stacks:[],fee:0},
-  taiwanai:{get name(){return t('conf.taiwanai');},cat:'ai',stacks:[],fee:2500},
-  hwdc:{name:'Hello World Dev Conference',cat:'gen',stacks:[],fee:3600},
+  iplayground:{url:'https://iplayground.io/',name:'iPlayground',cat:'stack',stacks:['app'],fee:4000},
+  mopcon:{url:'https://mopcon.org/',name:'MOPCON×JSDC',cat:'stack',stacks:['app','fe'],fee:699},
+  devopsdays:{url:'https://devopsdays.tw/',name:'DevOpsDays Taipei',cat:'stack',stacks:['sre','devops'],fee:3500},
+  kubesummit:{url:'https://k8s.ithome.com.tw/',name:'KubeSummit',cat:'stack',stacks:['sre','devops'],fee:3000},
+  coscup:{url:'https://coscup.org/',name:'COSCUP',cat:'stack',stacks:['rails','rust'],fee:0},
+  webconf:{url:'https://webconf.tw/',name:'WebConf Taiwan',cat:'stack',stacks:['laravel','fe'],fee:4200},
+  hitcon:{url:'https://hitcon.org/',name:'HITCON',cat:'sec',stacks:[],fee:6000},
+  cybersec:{url:'https://cybersec.ithome.com.tw/',get name(){return t('conf.cybersec');},cat:'sec',stacks:[],fee:0},
+  taiwanai:{url:'https://conf2026.aiacademy.tw/',get name(){return t('conf.taiwanai');},cat:'ai',stacks:[],fee:2500},
+  hwdc:{url:'https://hwdc.ithome.com.tw/',name:'Hello World Dev Conference',cat:'gen',stacks:[],fee:3600},
 };
 export const CONF_KEYS=Object.keys(CONF);
 export const CONF_LV2={sec:'scan',ai:'skills',gen:'tests'};             // 技術線場開放 CLAUDE.md Lv2，其他類別開放這幾項
@@ -185,9 +187,10 @@ export const RESEARCH_DIRECT_TK=4, RESEARCH_TK=40, RESEARCH_HRS=.5, RESEARCH_SEL
 export const RESEARCH_SPLIT={4:[2,3],5:[3,3],6:[3,4]};
 /* 採購電腦：走公司採購申請，不扣公司 API 預算；到貨當天看信任決定核不核准 */
 export const PC_SPEED=.7, HW_REQ_HRS=1, HW_SETUP_HRS=1, HW_IDLE=2;
+/* url：產品頁 */
 export const HW={
-  pc:{get name(){return t('hw.pc.name');},get price(){return t('hw.pc.price');},trust:55,days:2,get desc(){return t('hw.pc.desc',{x:PC_SPEED});}},
-  spark:{name:'NVIDIA DGX Spark',get price(){return t('hw.spark.price');},trust:60,days:3,get desc(){return t('hw.spark.desc');}},
-  mac:{get name(){return t('hw.mac.name');},get price(){return t('hw.mac.price');},trust:70,days:3,get desc(){return t('hw.mac.desc');}},
+  pc:{url:'https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5090/',get name(){return t('hw.pc.name');},get price(){return t('hw.pc.price');},trust:55,days:2,get desc(){return t('hw.pc.desc',{x:PC_SPEED});}},
+  spark:{url:'https://www.nvidia.com/en-us/products/workstations/dgx-spark/',name:'NVIDIA DGX Spark',get price(){return t('hw.spark.price');},trust:60,days:3,get desc(){return t('hw.spark.desc');}},
+  mac:{url:'https://www.apple.com/mac-studio/',get name(){return t('hw.mac.name');},get price(){return t('hw.mac.price');},trust:70,days:3,get desc(){return t('hw.mac.desc');}},
 };
 export const HW_KEYS=Object.keys(HW);

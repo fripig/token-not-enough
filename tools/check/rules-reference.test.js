@@ -121,3 +121,17 @@ section('Rules entry points／Closing returns to the opening context：從最近
   boot(); ok(!els.mo.innerHTML.includes('<h2>最近更新</h2>')&&els.mo.innerHTML.includes('繼續上一局'),'rules-reference：之後開頁不再跳最近更新');
   resetStore();
 });
+
+section("rules-reference：投資與電腦的參考連結",()=>{
+  /* rules-reference：規則 modal 的投資與電腦分頁列出跟投資分頁一樣的參考連結（#74） */
+  const D=dataModule, h=Ru.rulesTab('invest');
+  const urls=[...['md',...D.INV_KEYS].flatMap(k=>D.INVEST[k].refs.map(x=>x[1])),...D.INVEST.sdd.lv2.refs.map(x=>x[1]),...D.CONF_KEYS.map(k=>D.CONF[k].url),...D.HW_KEYS.map(k=>D.HW[k].url)];
+  const miss=urls.filter(u=>!h.includes(`href="${u}" target="_blank" rel="noopener noreferrer"`));
+  ok(!miss.length,'投資與電腦分頁有每個參考連結、都開新分頁',miss.join(' '));
+  ok(/<td data-h="[^"]*"><a class="ref" href="https:\/\/coscup\.org\/"[^>]*>COSCUP ↗<\/a><\/td>/.test(h),'COSCUP 的名稱格是連到官網的連結');
+  ok(/<td data-h="[^"]*"><a class="ref" href="https:\/\/www\.apple\.com\/mac-studio\/"/.test(h),'Mac Studio 的名稱格是連到產品頁的連結');
+  /* 點連結（不在按鈕裡）規則視窗留著、分頁不變 */
+  newRun('laravel'); Ru.showRules(null,'invest'); const m0=els.mo.innerHTML;
+  els.mo.onclick({target:{closest:()=>null}});
+  ok(!els.ov.hidden&&els.mo.innerHTML===m0&&/class="sb sel" data-rtab="invest"/.test(m0),'點參考連結時規則視窗留在投資與電腦分頁');
+});

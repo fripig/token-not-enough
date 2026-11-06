@@ -3,7 +3,7 @@ import {GIG_LATE,GIG_PAY,RESEARCH_RATE,SIX_DAY,SIX_RATE,START,TRAP_RATE,S} from 
 import {P_STEP,REVIEW,STORE_REJECT,pStep,invQ,mdTk,mdP,testCatch,ciMul,hookMul,scanMul,storeReject,monOn,skillsLv,mcpReveal,mcpEvalHrs,sddP,sddStop} from './calc.js';
 import {ABANDON_TRUST,CANCEL_MIN,AUDIT_ODDS,AUDIT_TRUST,CORP_DAY_LIMIT,CORP_DAY_TRUST,DOUBT_TRUST,EVAL_TK,EVENT_RATE,INC_LATE_TRUST,INC_RAMP,INC_RATE,LATE_TRUST,OVERDRAFT_TRUST,OVERNIGHT_HRS,PACE_KPI,PRAISE_TRUST,RESCOPE_TRUST,REVIEW_LOAD,TRAP_STOP,invLevel} from './actions.js';
 import {GRADES,SCORE} from './modals.js';
-import {mo,ov} from './view.js';
+import {mo,ov,refLinks} from './view.js';
 import {t} from './i18n.js';
 import {NEWS,newsList} from './news.js';
 
@@ -91,8 +91,8 @@ export function rulesTab(id,corp=S.corpApi){
     +rsec(`${r('h.gig')} ${tag('gig')}`,rlist([
       r('gig1',{pay:GIG_PAY}),
       r('gig2',{p:pct(GIG_LATE)})]));
-  case 'invest': return rsec(r('h.invest'),`${rtable([r('th.inv'),r('th.hrs'),r('th.corp'),r('th.effect')],['md',...INV_KEYS].flatMap(k=>{const I=INVEST[k];return [[`${I.name}${k==='md'?r('mdEach'):''}${k==='ai'?r('aiEach',{n:AI_MAX}):''}`,`${I.hrs}h`,nt(I.cost),I.desc+invNow(k)],
-      ...(I.lv2?[[`${I.name} Lv2`,`${I.lv2.hrs}h`,nt(I.lv2.cost),I.lv2.desc]]:[])];}))}
+  case 'invest': return rsec(r('h.invest'),`${rtable([r('th.inv'),r('th.hrs'),r('th.corp'),r('th.effect')],['md',...INV_KEYS].flatMap(k=>{const I=INVEST[k];return [[`${I.name}${k==='md'?r('mdEach'):''}${k==='ai'?r('aiEach',{n:AI_MAX}):''}`,`${I.hrs}h`,nt(I.cost),`${I.desc} ${refLinks(I.refs)}${invNow(k)}`],
+      ...(I.lv2?[[`${I.name} Lv2`,`${I.lv2.hrs}h`,nt(I.lv2.cost),I.lv2.refs?`${I.lv2.desc} ${refLinks(I.lv2.refs)}`:I.lv2.desc]]:[])];}))}
     ${rlist([r('inv1'),
       r('inv2',{sdd:INVEST.sdd.name,scan:INVEST.scan.name,skills:INVEST.skills.name,tests:INVEST.tests.name,md:pct(MD_P[2]),tc:pct(TEST_CATCH[2]),sa:SCAN_AUDIT[2],cx:SKILLS_CX[2]}),
       r('inv3',{ai:INVEST.ai.name,p:pct(AI_P)})])}`)
@@ -102,11 +102,11 @@ export function rulesTab(id,corp=S.corpApi){
       r('invTacc',{p:pct(ACCEPT_HRS),a:INVEST.tests.hrs,b:INVEST.tests.hrs*ACCEPT_HRS}),
       r('invT3',{on:pct(INV_ON)}),
       r('invT4')]))
-    +rsec(r('h.conf'),`${rtable([r('th.conf'),r('th.cat'),r('th.stacks'),r('th.fee')],CONF_KEYS.map(k=>{const C=CONF[k];return [C.name,CONF_CATS[C.cat],C.stacks.map(st=>STACKS[st].name).join(ls)||'—',nt(C.fee)];}))}
+    +rsec(r('h.conf'),`${rtable([r('th.conf'),r('th.cat'),r('th.stacks'),r('th.fee')],CONF_KEYS.map(k=>{const C=CONF[k];return [refLinks([[C.name,C.url]]),CONF_CATS[C.cat],C.stacks.map(st=>STACKS[st].name).join(ls)||'—',nt(C.fee)];}))}
     ${rlist([r('conf1',{last:CONF_LAST_DAY}),
       r('conf2'),
       r('conf3',{x:CONF_MANUAL})])}`)
-    +rsec(r('h.hw'),`${rtable([r('th.hw'),r('th.price'),r('th.trust'),r('th.arrive'),r('th.effect')],HW_KEYS.map(k=>{const H=HW[k];return [H.name,H.price,H.trust,r('days',{n:H.days}),H.desc];}))}
+    +rsec(r('h.hw'),`${rtable([r('th.hw'),r('th.price'),r('th.trust'),r('th.arrive'),r('th.effect')],HW_KEYS.map(k=>{const H=HW[k];return [refLinks([[H.name,H.url]]),H.price,H.trust,r('days',{n:H.days}),H.desc];}))}
     ${rlist([r('hw1',{h:HW_REQ_HRS,setup:HW_SETUP_HRS}),
       r('hw2'),
       r('hw3',{n:HW_IDLE})])}`);

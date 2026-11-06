@@ -14,6 +14,8 @@ import * as C from '../../public/js/calc.js';
 import * as M from '../../public/js/modals.js';
 import * as St from '../../public/js/state.js';
 import * as Ru from '../../public/js/rules.js';
+import * as V from '../../public/js/view.js';
+import {setLang} from '../../public/js/i18n.js';
 
 const son=model('anthropic','sonnet'), hai=model('google','flash');
 
@@ -440,4 +442,29 @@ section('engineering-investments：平行模式的投資按鈕開投資工單',(
   newRun('laravel','parallel'); S.hours=8; S.corp=12000;
   els.app.on.click({target:{closest:()=>({dataset:{inv:'tests'},disabled:false})}});
   ok(S.hours===8&&S.corp===12000&&!S.inv.tests&&S.issues.filter(i=>i.inv&&i.inv.k==='tests').length===1,'平行模式按單元測試：8h、NT$12,000、還沒買、佇列多一張單元測試投資工單');
+});
+
+section("engineering-investments：參考連結",()=>{
+  /* engineering-investments：每項投資、研討會、電腦都有真實技術的參考連結（#74） */
+  const D=dataModule, ext=' target="_blank" rel="noopener noreferrer"';
+  const invRefs=[...['md',...D.INV_KEYS].map(k=>[k,D.INVEST[k].refs]),['sdd.lv2',D.INVEST.sdd.lv2.refs]];
+  for(const [k,r] of invRefs) ok(Array.isArray(r)&&r.length>0&&r.every(([l,u])=>l&&/^https:\/\//.test(u)),`投資 ${k} 有參考連結`,JSON.stringify(r));
+  for(const k of D.CONF_KEYS) ok(/^https:\/\//.test(D.CONF[k].url),`研討會 ${k} 有官網連結`,D.CONF[k].url);
+  for(const k of D.HW_KEYS) ok(/^https:\/\//.test(D.HW[k].url),`電腦 ${k} 有產品頁連結`,D.HW[k].url);
+  const urls=[...invRefs.flatMap(([,r])=>r.map(x=>x[1])),...D.CONF_KEYS.map(k=>D.CONF[k].url),...D.HW_KEYS.map(k=>D.HW[k].url)];
+  newRun('laravel','parallel'); const h=V.invPanel();
+  ok(urls.every(u=>h.includes(`href="${u}"${ext}`)),'投資分頁每個連結都開新分頁',urls.filter(u=>!h.includes(`href="${u}"${ext}`)).join(' '));
+  ok(/抓錯率 \+20%[^<]*<a class="ref" href="https:\/\/martinfowler\.com\/bliki\/UnitTest\.html"[^>]*>Unit Test \(Martin Fowler\) ↗<\/a><\/span>/.test(h),'單元測試的說明最後是 Unit Test (Martin Fowler) ↗');
+  ok(/Superpowers ↗<\/a>。Lv2：[^<]*<a[^>]*>Spectra ↗<\/a>、<a[^>]*>OpenSpec ↗<\/a>、<a[^>]*>Spec Kit ↗<\/a><\/span>/.test(h),'導入 SDD：Lv1 後面接 Superpowers，Lv2 後面接 Spectra、OpenSpec、Spec Kit');
+  const lines=[...h.matchAll(/<span class="refs">(.*?)<\/span>/g)].map(m=>[...m[1].matchAll(/href="([^"]+)"/g)].map(x=>x[1]));
+  ok(lines.length===2&&lines[0].join()===D.CONF_KEYS.map(k=>D.CONF[k].url).join()&&lines[1].join()===D.HW_KEYS.map(k=>D.HW[k].url).join(),'研討會與電腦各一行參考：，照 CONF_KEYS／HW_KEYS 的順序',JSON.stringify(lines));
+  ok(h.includes('<span class="refs">參考：'),'參考行開頭是「參考：」');
+  ok(!/<button(?:(?!<\/button>).)*<a /s.test(h),'按鈕裡沒有連結');
+  setLang('en'); const he=V.invPanel(); setLang('zh-TW');
+  ok(urls.every(u=>he.includes(`href="${u}"`))&&he.includes('<span class="refs">References: '),'英文用同一組網址、參考行寫 References:');
+  /* 點連結（不在按鈕裡）不改遊戲狀態、不送 GA */
+  {const ga=[], gt=globalThis.gtag; globalThis.gtag=(...a)=>ga.push(a);
+   newRun('laravel','parallel'); render(); const s0=JSON.stringify([S,sel]);
+   els.app.on.click({target:{closest:()=>null}}); globalThis.gtag=gt;
+   ok(JSON.stringify([S,sel])===s0&&!ga.length,'點參考連結不改遊戲狀態、不送 GA');}
 });

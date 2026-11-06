@@ -118,8 +118,9 @@ export function invPanel(){
     /* 已有的最高級品質不到 100%：多一顆重做 */
     const redo=tk&&cur>0&&invQ(k,st,cur)<1&&!invTicketBlock(k,st,cur)?`<button class="sb" data-invredo="${k}" ${st?`data-st="${st}"`:''}><b>${k==='md'?STACKS[st].name:INVEST[k].name}${max>1?` Lv${cur}`:''}</b><small>${t('ui.inv.redo',{q:Math.round(invQ(k,st,cur)*100)})}</small></button>`:'';
     return `<button class="sb" data-inv="${k}" ${st?`data-st="${st}"`:''} ${why?'disabled':''}><b>${k==='md'?STACKS[st].name:INVEST[k].name}${tag}</b><small>${why||(tk?t('ui.inv.ticket',{h:I.hrs,cost:nt(I.cost)}):t('ui.inv.cost',{h:I.hrs,cost:nt(I.cost)}))}</small></button>${redo}`;};
-  const row=(k,body)=>{const I=INVEST[k];
-    return `<div class="inv"><div><b>${I.name}</b><span>${I.desc}${k==='md'?t('ui.inv.mdCost',{h:I.hrs,cost:nt(I.cost)}):''}${I.lv2?t('ui.inv.lv2',{desc:I.lv2.desc,h:I.lv2.hrs,cost:nt(I.lv2.cost)}):''}</span></div><div class="seg">${body}</div></div>`;};
+  /* 參考連結放在說明最後；Lv2 有自己的連結（SDD 框架）時，Lv1 的連結接在 Lv1 說明後面 */
+  const row=(k,body)=>{const I=INVEST[k], l1=` ${refLinks(I.refs)}`, l2=I.lv2?.refs?` ${refLinks(I.lv2.refs)}`:'';
+    return `<div class="inv"><div><b>${I.name}</b><span>${I.desc}${k==='md'?t('ui.inv.mdCost',{h:I.hrs,cost:nt(I.cost)}):''}${l2?l1:''}${I.lv2?t('ui.inv.lv2',{desc:I.lv2.desc,h:I.lv2.hrs,cost:nt(I.lv2.cost)}):''}${l2||l1}</span></div><div class="seg">${body}</div></div>`;};
   return `<p class="hint">${t('ui.inv.note')}</p>
     <div class="invs">${row('md',INV_STACKS().map(st=>btn('md',st)).join(''))}${INV_KEYS.map(k=>row(k,btn(k))).join('')}${confRow()}${hwRow()}</div>`;
 }
@@ -139,17 +140,21 @@ export function tabPanel(){
   return `<section class="panel tabbed"><div class="tabs" role="tablist">${tb('dispatch',t('ui.dp.title'))}${tb('invest',`${t('ui.inv.title')} <small>${t('ui.inv.count',{n:invCount()})}</small>`)}</div>
     ${tp('dispatch',dispatchPanel())}${tp('invest',invPanel())}</section>`;
 }
+/* 參考連結（#74）：開新分頁，不能放在按鈕裡；連結不帶 data-*，點了不會觸發任何遊戲動作 */
+export const refLinks=refs=>(refs||[]).map(([label,url])=>`<a class="ref" href="${url}" target="_blank" rel="noopener noreferrer">${label} ↗</a>`).join(t('sep.list'));
+/* 研討會與電腦的名字都在購買按鈕裡，連結另起一行 */
+export const refLine=refs=>`<span class="refs">${t('ui.inv.refs')}${refLinks(refs)}</span>`;
 /* 國內研討會：平日自費報名，週末出席、下週一生效 */
 export function confRow(){
   const b=k=>{const C=CONF[k], why=confBlock(k);
     return `<button class="sb" data-conf="${k}" ${why?'disabled':''}><b>${C.name}</b><small>${CONF_CATS[C.cat]}${C.stacks.length?`${t('sep')}${C.stacks.map(st=>STACKS[st].name).join(t('sep.list'))}`:''}${t('sep')}${t('ui.conf.fee',{fee:nt(C.fee)})}</small>${why?`<small>${why}</small>`:''}</button>`;};
-  return `<div class="inv"><div><b>${t('ui.conf.title')}</b><span>${t('ui.conf.desc',{last:CONF_LAST_DAY,x:CONF_MANUAL,scan:INVEST.scan.name,skills:INVEST.skills.name,tests:INVEST.tests.name,ai:INVEST.ai.name})}</span></div><div class="seg">${CONF_KEYS.map(b).join('')}</div></div>`;
+  return `<div class="inv"><div><b>${t('ui.conf.title')}</b><span>${t('ui.conf.desc',{last:CONF_LAST_DAY,x:CONF_MANUAL,scan:INVEST.scan.name,skills:INVEST.skills.name,tests:INVEST.tests.name,ai:INVEST.ai.name})}</span>${refLine(CONF_KEYS.map(k=>[CONF[k].name,CONF[k].url]))}</div><div class="seg">${CONF_KEYS.map(b).join('')}</div></div>`;
 }
 /* 採購電腦：公司採購申請，不扣 API 預算，到貨當天看信任 */
 export function hwRow(){
   const b=k=>{const H=HW[k], why=hwReqBlock(k);
     return `<button class="sb" data-hw="${k}" ${why?'disabled':''}><b>${H.name}</b><small>${why||t('ui.hw.meta',{price:H.price,trust:H.trust,days:H.days})}</small><small>${H.desc}</small></button>`;};
-  return `<div class="inv"><div><b>${t('ui.hw.title')}</b><span>${t('ui.hw.desc',{req:HW_REQ_HRS,setup:HW_SETUP_HRS,idle:HW_IDLE})}</span></div><div class="seg">${HW_KEYS.map(b).join('')}</div></div>`;
+  return `<div class="inv"><div><b>${t('ui.hw.title')}</b><span>${t('ui.hw.desc',{req:HW_REQ_HRS,setup:HW_SETUP_HRS,idle:HW_IDLE})}</span>${refLine(HW_KEYS.map(k=>[HW[k].name,HW[k].url]))}</div><div class="seg">${HW_KEYS.map(b).join('')}</div></div>`;
 }
 export function qbox(name,sub,dl,dc,wl,wc){
   const dp=dc?dl/dc*100:0, wp=wc?wl/wc*100:0;
